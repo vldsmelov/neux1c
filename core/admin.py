@@ -191,8 +191,8 @@ class UiThemeSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ("user", "role", "department", "is_app_access_enabled", "updated_at")
-    list_filter = ("role", "is_app_access_enabled", "department")
+    list_display = ("user", "role", "theme_mode", "department", "is_app_access_enabled", "updated_at")
+    list_filter = ("role", "theme_mode", "is_app_access_enabled", "department")
     search_fields = ("user__username", "user__email")
 
 

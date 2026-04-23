@@ -3,12 +3,14 @@ from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
 from django.db import connection
 from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 
 from .models import (
@@ -32,6 +34,7 @@ from .models import (
     PaymentRequestKind,
     PaymentRequestStatus,
     SyncRun,
+    UiThemeMode,
     UserRole,
 )
 from .access import external_accounting_required, role_required
@@ -68,6 +71,24 @@ class RoleAwareLoginView(LoginView):
         if profile and profile.role == UserRole.ACCOUNTANT:
             return reverse("external_accounting")
         return reverse("workspace")
+
+
+@login_required
+def set_theme_mode(request):
+    mode = request.POST.get("theme_mode")
+    if mode not in UiThemeMode.values:
+        mode = UiThemeMode.LIGHT
+
+    profile = getattr(request.user, "profile", None)
+    if profile:
+        profile.theme_mode = mode
+        profile.save(update_fields=["theme_mode", "updated_at"])
+    request.session["ui_theme_mode"] = mode
+
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("workspace")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}):
+        next_url = reverse("workspace")
+    return redirect(next_url)
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)

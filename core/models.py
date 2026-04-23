@@ -44,6 +44,11 @@ class UserRole(models.TextChoices):
     ACCOUNTANT = "accountant", "Бухгалтер"
 
 
+class UiThemeMode(models.TextChoices):
+    LIGHT = "light", "Светлая"
+    DARK = "dark", "Темная"
+
+
 class AuditAction(models.TextChoices):
     VIEW = "view", "Просмотр"
     CREATE = "create", "Создание"
@@ -721,6 +726,7 @@ class UserProfile(models.Model):
         blank=True,
     )
     is_app_access_enabled = models.BooleanField("Доступ к системе включен", default=True)
+    theme_mode = models.CharField("Тема интерфейса", max_length=16, choices=UiThemeMode.choices, default=UiThemeMode.LIGHT)
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)
 

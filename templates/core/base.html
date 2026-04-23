@@ -11,9 +11,6 @@
             {% endfor %}
             --app-shadow: 0 10px 26px rgba(24, 78, 129, 0.08);
             --app-radius: 8px;
-            --app-toolbar: #f4f7fb;
-            --app-control: #ffffff;
-            --app-row-hover: #eef7ff;
         }
 
         * {
@@ -157,6 +154,35 @@
 
         .logout-form {
             display: inline;
+        }
+
+        .theme-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: var(--app-toolbar);
+            padding: 2px;
+        }
+
+        .theme-button {
+            width: 28px;
+            height: 26px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--app-muted);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            padding: 0;
+        }
+
+        .theme-button.is-active {
+            background: var(--app-control);
+            border-color: var(--app-border);
+            color: var(--app-primary);
         }
 
         .logout-button {
@@ -579,6 +605,12 @@
                 {% block tabs %}{% endblock %}
                 {% if request.user.is_authenticated %}
                     <div class="app-user">
+                        <form class="theme-switch" method="post" action="{% url 'set_theme_mode' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                            <button class="theme-button {% if ui_theme_mode == 'light' %}is-active{% endif %}" type="submit" name="theme_mode" value="light" title="Светлая тема">☀</button>
+                            <button class="theme-button {% if ui_theme_mode == 'dark' %}is-active{% endif %}" type="submit" name="theme_mode" value="dark" title="Темная тема">◐</button>
+                        </form>
                         <span>{{ request.user.username }}</span>
                         <form class="logout-form" method="post" action="{% url 'logout' %}">
                             {% csrf_token %}

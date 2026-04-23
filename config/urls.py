@@ -12,6 +12,7 @@ from core.views import (
     nsi_dashboard,
     payment_facts,
     plan_fact_report,
+    set_theme_mode,
     payment_requests,
     planning_limits,
     workspace,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("external/accounting/", external_accounting, name="external_accounting"),
     path("login/", RoleAwareLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
+    path("settings/theme/", set_theme_mode, name="set_theme_mode"),
     path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
 ]

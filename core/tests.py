@@ -3,9 +3,10 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
 from django.core.management import call_command
-from django.test import TestCase
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
+from core.context_processors import ui_theme
 from core.integrations.one_c.mock import MockOneCProvider
 from core.models import (
     AccountingKind,
@@ -21,6 +22,7 @@ from core.models import (
     ContractKind,
     ExternalPaymentDocument,
     PaymentFact,
+    UiThemeMode,
     UiThemeSettings,
     UserProfile,
     UserRole,
@@ -85,6 +87,20 @@ class UiThemeSettingsTests(TestCase):
 
         self.assertFalse(first.is_active)
         self.assertTrue(second.is_active)
+
+    def test_dark_mode_changes_css_variables(self):
+        User = get_user_model()
+        user = User.objects.create_user(username="theme_user", password="demo12345")
+        UserProfile.objects.create(user=user, role=UserRole.ECONOMIST, theme_mode=UiThemeMode.DARK)
+        request = RequestFactory().get("/")
+        request.user = user
+        request.session = {}
+
+        payload = ui_theme(request)
+
+        self.assertEqual(payload["ui_theme_mode"], UiThemeMode.DARK)
+        self.assertEqual(payload["ui_theme"]["--app-bg"], "#111a26")
+        self.assertEqual(payload["ui_theme"]["--app-surface"], "#182433")
 
 
 class AccessControlTests(TestCase):
@@ -260,6 +276,30 @@ class AccessControlTests(TestCase):
         response = self.client.get(reverse("manager_dashboard"))
 
         self.assertEqual(response.status_code, 403)
+
+    def test_user_can_change_theme_mode(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.post(
+            reverse("set_theme_mode"),
+            {"theme_mode": UiThemeMode.DARK, "next": reverse("workspace")},
+        )
+
+        self.assertRedirects(response, reverse("workspace"))
+        profile = UserProfile.objects.get(user__username="economist")
+        self.assertEqual(profile.theme_mode, UiThemeMode.DARK)
+
+    def test_invalid_theme_mode_falls_back_to_light(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.post(
+            reverse("set_theme_mode"),
+            {"theme_mode": "broken", "next": reverse("workspace")},
+        )
+
+        self.assertRedirects(response, reverse("workspace"))
+        profile = UserProfile.objects.get(user__username="economist")
+        self.assertEqual(profile.theme_mode, UiThemeMode.LIGHT)
 
 
 class BudgetPlanningTests(TestCase):
