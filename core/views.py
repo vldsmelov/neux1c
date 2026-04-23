@@ -36,6 +36,7 @@ from .services.budget_planning import (
     submit_budget_plan,
     submit_limit_adjustment,
 )
+from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
 
 
@@ -207,6 +208,21 @@ def planning_limits(request):
         "can_approve_plans": _can_approve_plans(request.user),
     }
     return render(request, "core/planning_limits.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def contracts_reservations(request):
+    rows = build_contract_reservation_rows()
+    summary = build_contract_reservation_summary(rows)
+    return render(
+        request,
+        "core/contracts_reservations.html",
+        {
+            "active_section": "contracts",
+            "rows": rows,
+            "summary": summary,
+        },
+    )
 
 
 @external_accounting_required
