@@ -102,6 +102,51 @@
                         <input class="field-control" id="comment" name="comment" value="Пилотный лимит">
                     </div>
                 </form>
+                <div class="form-stack" style="margin-top: 22px;">
+                    <h2 class="section-title">Корректировка лимита</h2>
+                    <form method="post" class="form-stack">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_adjustment">
+                        <div>
+                            <label class="field-label" for="base_plan_id">Базовый план</label>
+                            <select class="field-control-select" id="base_plan_id" name="base_plan_id">
+                                {% for plan in approved_plans %}
+                                    <option value="{{ plan.id }}">{{ plan.number }} · {{ plan.annual_amount }} {{ plan.currency.code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="new_annual_amount">Новая годовая сумма</label>
+                            <input class="field-control" id="new_annual_amount" name="new_annual_amount" value="1320000.00">
+                        </div>
+                        <div>
+                            <label class="field-label" for="reason">Причина</label>
+                            <input class="field-control" id="reason" name="reason" value="Уточнение бюджета">
+                        </div>
+                        <div>
+                            <div class="field-label">Новая разбивка по месяцам</div>
+                            <div class="data-table-wrap">
+                                <table class="data-table" style="min-width: 320px;">
+                                    <tbody>
+                                        <tr><td>Январь</td><td><input class="field-control" name="adjustment_month_1" value="110000.00"></td></tr>
+                                        <tr><td>Февраль</td><td><input class="field-control" name="adjustment_month_2" value="110000.00"></td></tr>
+                                        <tr><td>Март</td><td><input class="field-control" name="adjustment_month_3" value="110000.00"></td></tr>
+                                        <tr><td>Апрель</td><td><input class="field-control" name="adjustment_month_4" value="110000.00"></td></tr>
+                                        <tr><td>Май</td><td><input class="field-control" name="adjustment_month_5" value="110000.00"></td></tr>
+                                        <tr><td>Июнь</td><td><input class="field-control" name="adjustment_month_6" value="110000.00"></td></tr>
+                                        <tr><td>Июль</td><td><input class="field-control" name="adjustment_month_7" value="110000.00"></td></tr>
+                                        <tr><td>Август</td><td><input class="field-control" name="adjustment_month_8" value="110000.00"></td></tr>
+                                        <tr><td>Сентябрь</td><td><input class="field-control" name="adjustment_month_9" value="110000.00"></td></tr>
+                                        <tr><td>Октябрь</td><td><input class="field-control" name="adjustment_month_10" value="110000.00"></td></tr>
+                                        <tr><td>Ноябрь</td><td><input class="field-control" name="adjustment_month_11" value="110000.00"></td></tr>
+                                        <tr><td>Декабрь</td><td><input class="field-control" name="adjustment_month_12" value="110000.00"></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <button class="command-button-primary" type="submit">Создать корректировку</button>
+                    </form>
+                </div>
             {% else %}
                 <div class="form-stack">
                     <div>
@@ -192,6 +237,60 @@
             <div class="summary-line">
                 <span>Контроль</span>
                 <span class="summary-value">месяцы = год</span>
+            </div>
+
+            <div>
+                <h2 class="section-title">Корректировки лимитов</h2>
+                <div class="data-table-wrap">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th class="checkbox-cell"></th>
+                                <th>Номер</th>
+                                <th>Базовый план</th>
+                                <th>Новая сумма</th>
+                                <th>Версия</th>
+                                <th>Статус</th>
+                                <th>Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adjustment in adjustments %}
+                                <tr>
+                                    <td><span class="fake-checkbox"></span></td>
+                                    <td>{{ adjustment.number }}</td>
+                                    <td>{{ adjustment.base_plan.number }}</td>
+                                    <td>{{ adjustment.new_annual_amount }} {{ adjustment.base_plan.currency.code }}</td>
+                                    <td>v{{ adjustment.version }}</td>
+                                    <td>
+                                        <span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span>
+                                    </td>
+                                    <td>
+                                        {% if adjustment.status == status.DRAFT and can_edit_plans %}
+                                            <form method="post">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="submit_adjustment">
+                                                <input type="hidden" name="adjustment_id" value="{{ adjustment.id }}">
+                                                <button class="command-button" type="submit">На утверждение</button>
+                                            </form>
+                                        {% elif adjustment.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                            <form method="post">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="approve_adjustment">
+                                                <input type="hidden" name="adjustment_id" value="{{ adjustment.id }}">
+                                                <button class="command-button-primary" type="submit">Утвердить</button>
+                                            </form>
+                                        {% else %}
+                                            <span class="badge">Открыть</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="7">Корректировок пока нет.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </section>
     </div>

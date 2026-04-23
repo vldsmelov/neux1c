@@ -7,6 +7,8 @@ from django.contrib.contenttypes.models import ContentType
 from core.models import (
     AdditionalAgreement,
     AuditLog,
+    BudgetLimitAdjustment,
+    BudgetLimitAdjustmentMonth,
     BudgetLimitMonth,
     BudgetLimitPlan,
     CashFlowArticle,
@@ -44,6 +46,8 @@ REFERENCE_MODELS = [
     PaymentFact,
     BudgetLimitPlan,
     BudgetLimitMonth,
+    BudgetLimitAdjustment,
+    BudgetLimitAdjustmentMonth,
     ExternalPaymentDocument,
     SyncRun,
 ]
