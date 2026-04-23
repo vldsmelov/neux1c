@@ -20,12 +20,46 @@ from .models import (
 
 def workspace(request):
     modules = [
-        {"name": "Планирование и контроль", "state": "каркас"},
-        {"name": "НСИ и договоры", "state": "mock-данные"},
-        {"name": "Mock-1C", "state": "адаптер готов"},
-        {"name": "Отчетность", "state": "ожидает лимиты"},
+        {
+            "name": "Планирование",
+            "document": "План / лимит",
+            "state": "Следующая итерация",
+            "check": "Черновик",
+        },
+        {
+            "name": "НСИ",
+            "document": "Синхронизация Mock-1C",
+            "state": "Готово",
+            "check": "Данные загружены",
+        },
+        {
+            "name": "Договоры",
+            "document": "Дерево договоров",
+            "state": "НСИ готова",
+            "check": "Резерв считается",
+        },
+        {
+            "name": "Отчетность",
+            "document": "План-факт БДДС",
+            "state": "Ожидает лимиты",
+            "check": "Макет ТЗ",
+        },
     ]
-    return render(request, "core/workspace.html", {"modules": modules})
+    counts = {
+        "articles": CashFlowArticle.objects.count(),
+        "contracts": Contract.objects.count(),
+        "payment_facts": PaymentFact.objects.count(),
+        "sync_runs": SyncRun.objects.count(),
+    }
+    return render(
+        request,
+        "core/workspace.html",
+        {
+            "modules": modules,
+            "counts": counts,
+            "active_section": "workspace",
+        },
+    )
 
 
 def nsi_dashboard(request):
@@ -59,6 +93,7 @@ def nsi_dashboard(request):
         "articles": CashFlowArticle.objects.all()[:20],
         "supplier_contracts": supplier_contracts,
         "payment_facts": PaymentFact.objects.select_related("article", "counterparty", "currency").all()[:20],
+        "active_section": "nsi",
     }
     return render(request, "core/nsi_dashboard.html", context)
 

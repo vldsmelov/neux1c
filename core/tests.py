@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from core.integrations.one_c.mock import MockOneCProvider
-from core.models import CashFlowArticle, Contract, ContractKind, PaymentFact
+from core.models import CashFlowArticle, Contract, ContractKind, PaymentFact, UiThemeSettings
 from core.services.one_c_sync import sync_one_c_dataset
 
 
@@ -32,3 +32,27 @@ class MockOneCSyncTests(TestCase):
         contract = Contract.objects.get(kind=ContractKind.SOLE_SUPPLIER, number="ЕП-2026-014")
 
         self.assertEqual(contract.reserved_amount, Decimal("3860000.00"))
+
+
+class UiThemeSettingsTests(TestCase):
+    def test_active_theme_exposes_css_variables(self):
+        theme = UiThemeSettings.objects.create(
+            name="Custom",
+            is_active=True,
+            primary_color="#006ecb",
+        )
+
+        variables = theme.as_css_variables()
+
+        self.assertEqual(variables["--app-primary"], "#006ecb")
+        self.assertIn("--app-bg", variables)
+
+    def test_only_one_theme_stays_active(self):
+        first = UiThemeSettings.objects.create(name="First", is_active=True)
+        second = UiThemeSettings.objects.create(name="Second", is_active=True)
+
+        first.refresh_from_db()
+        second.refresh_from_db()
+
+        self.assertFalse(first.is_active)
+        self.assertTrue(second.is_active)
