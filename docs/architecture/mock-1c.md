@@ -10,6 +10,15 @@
 - `MockOneCProvider` - реализация для пилота;
 - `RealOneCProvider` - будущая реализация для реальной 1С.
 
+Текущая реализация находится в:
+
+- `core/integrations/one_c/provider.py`;
+- `core/integrations/one_c/mock.py`;
+- `core/services/one_c_sync.py`;
+- `core/management/commands/sync_mock_1c.py`.
+
+Проверочный интерфейс доступен по адресу `/nsi/`.
+
 ## Данные mock-адаптера
 
 На первом этапе mock-адаптер должен отдавать:

@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>НСИ и Mock-1C</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f6f7f9;
+            --panel: #ffffff;
+            --text: #1f2933;
+            --muted: #667085;
+            --line: #d9dee7;
+            --accent: #0f766e;
+            --accent-soft: #d8f3ee;
+            --danger: #b42318;
+            --danger-soft: #fee4e2;
+            --mark: #925700;
+            --mark-soft: #fff1c2;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --panel: #182231;
+                --text: #f3f4f6;
+                --muted: #b7c0cf;
+                --line: #2f3b4d;
+                --accent: #5eead4;
+                --accent-soft: #173f3b;
+                --danger: #fda29b;
+                --danger-soft: #4a1d1a;
+                --mark: #f7c948;
+                --mark-soft: #3d3211;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            letter-spacing: 0;
+        }
+
+        header, main {
+            width: min(1180px, calc(100% - 32px));
+            margin: 0 auto;
+        }
+
+        header {
+            padding: 28px 0 20px;
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: flex-start;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        h2 {
+            margin: 0 0 14px;
+            font-size: 20px;
+        }
+
+        a {
+            color: var(--accent);
+        }
+
+        .subtle {
+            color: var(--muted);
+            margin: 0;
+            line-height: 1.5;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .card, .panel {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+        }
+
+        .card {
+            padding: 16px;
+            min-height: 112px;
+        }
+
+        .metric {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .label {
+            color: var(--muted);
+            line-height: 1.35;
+        }
+
+        .panel {
+            padding: 18px;
+            margin-bottom: 22px;
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 720px;
+        }
+
+        th, td {
+            padding: 10px 8px;
+            border-bottom: 1px solid var(--line);
+            text-align: left;
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-flex;
+            width: fit-content;
+            border-radius: 8px;
+            padding: 5px 8px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-size: 13px;
+            white-space: nowrap;
+        }
+
+        .badge-danger {
+            background: var(--danger-soft);
+            color: var(--danger);
+        }
+
+        .badge-mark {
+            background: var(--mark-soft);
+            color: var(--mark);
+        }
+
+        .sync {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 10px 12px;
+            min-width: 260px;
+        }
+
+        @media (max-width: 900px) {
+            header {
+                display: grid;
+            }
+
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 560px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div>
+            <h1>НСИ и Mock-1C</h1>
+            <p class="subtle">Проверочный экран первой интеграционной итерации: справочники, договоры, допсоглашения и факт оплат из симулятора 1С.</p>
+            <p class="subtle"><a href="/">Назад к рабочему месту</a></p>
+        </div>
+        <div class="sync">
+            {% if latest_sync %}
+                <strong>{{ latest_sync.get_status_display }}</strong>
+                <p class="subtle">{{ latest_sync.finished_at|date:"d.m.Y H:i" }} · {{ latest_sync.provider }}</p>
+            {% else %}
+                <strong>Синхронизация еще не выполнялась</strong>
+                <p class="subtle">Запустите `python manage.py sync_mock_1c` внутри контейнера.</p>
+            {% endif %}
+        </div>
+    </header>
+
+    <main>
+        <section class="grid" aria-label="Количество объектов НСИ">
+            <article class="card"><div class="metric">{{ counts.organizations }}</div><div class="label">Организации</div></article>
+            <article class="card"><div class="metric">{{ counts.departments }}</div><div class="label">ЦФО</div></article>
+            <article class="card"><div class="metric">{{ counts.articles }}</div><div class="label">Статьи ДДС</div></article>
+            <article class="card"><div class="metric">{{ counts.counterparties }}</div><div class="label">Контрагенты</div></article>
+            <article class="card"><div class="metric">{{ counts.nomenclature }}</div><div class="label">Номенклатура</div></article>
+            <article class="card"><div class="metric">{{ counts.contracts }}</div><div class="label">Договоры</div></article>
+            <article class="card"><div class="metric">{{ counts.agreements }}</div><div class="label">Допсоглашения</div></article>
+            <article class="card"><div class="metric">{{ counts.payment_facts }}</div><div class="label">Факты оплат</div></article>
+        </section>
+
+        <section class="panel">
+            <h2>Статьи ДДС</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Код</th>
+                        <th>Наименование</th>
+                        <th>Признаки</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for article in articles %}
+                        <tr>
+                            <td>{{ article.code }}</td>
+                            <td>{{ article.name }}</td>
+                            <td>
+                                {% if not article.exists_in_one_c %}
+                                    <span class="badge badge-danger">нет в 1С</span>
+                                {% endif %}
+                                {% if article.is_internal_turnover %}
+                                    <span class="badge badge-mark">ВГО</span>
+                                {% endif %}
+                                {% if article.exists_in_one_c and not article.is_internal_turnover %}
+                                    <span class="badge">из 1С</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="3">Нет данных. Запустите синхронизацию.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h2>Договоры с единственным поставщиком</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Договор</th>
+                        <th>Контрагент</th>
+                        <th>Сумма договора</th>
+                        <th>Резерв с ДС</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for contract in supplier_contracts %}
+                        <tr>
+                            <td>{{ contract.number }} от {{ contract.date|date:"d.m.Y" }}</td>
+                            <td>{{ contract.counterparty.name }}</td>
+                            <td>{{ contract.amount }} {{ contract.currency.code }}</td>
+                            <td>{{ contract.reserved_amount }} {{ contract.currency.code }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="4">Нет договоров поставщиков.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        <section class="panel">
+            <h2>Факт оплат из 1С:БП</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Дата</th>
+                        <th>Счет</th>
+                        <th>Учет</th>
+                        <th>Статья</th>
+                        <th>Контрагент</th>
+                        <th>Сумма</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fact in payment_facts %}
+                        <tr>
+                            <td>{{ fact.date|date:"d.m.Y" }}</td>
+                            <td>{{ fact.account }}</td>
+                            <td>{{ fact.get_accounting_kind_display }}</td>
+                            <td>
+                                {{ fact.article.name }}
+                                {% if fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
+                            </td>
+                            <td>{{ fact.counterparty.name }}</td>
+                            <td>{{ fact.amount }} {{ fact.currency.code }}</td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="6">Нет факта оплат.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+    </main>
+</body>
+</html>
