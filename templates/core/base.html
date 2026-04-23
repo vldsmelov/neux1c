@@ -376,6 +376,25 @@
             color: #806000;
         }
 
+        .message-list {
+            display: grid;
+            gap: 8px;
+            margin-bottom: 14px;
+        }
+
+        .message {
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            padding: 10px 12px;
+            background: var(--app-primary-soft);
+            color: var(--app-text);
+        }
+
+        .message.error {
+            background: #ffebea;
+            color: var(--app-danger);
+        }
+
         .summary-line {
             display: flex;
             justify-content: flex-end;
@@ -530,6 +549,9 @@
                 <a class="app-nav-link" href="/admin/">
                     <span class="app-nav-icon">◎</span><span>Администрирование</span><span>›</span>
                 </a>
+                <a class="app-nav-link {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">
+                    <span class="app-nav-icon">₽</span><span>Внешняя 1С:БП</span><span>›</span>
+                </a>
             </nav>
         </aside>
 
@@ -549,6 +571,13 @@
                 {% endif %}
             </div>
             <section class="app-workarea">
+                {% if messages %}
+                    <div class="message-list">
+                        {% for message in messages %}
+                            <div class="message {{ message.tags }}">{{ message }}</div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
                 {% block content %}{% endblock %}
             </section>
         </main>

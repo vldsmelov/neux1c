@@ -7,6 +7,7 @@ from .models import (
     Counterparty,
     Currency,
     Department,
+    ExternalPaymentDocument,
     Nomenclature,
     Organization,
     PaymentFact,
@@ -72,6 +73,14 @@ class PaymentFactAdmin(admin.ModelAdmin):
     list_display = ("date", "account", "direction", "accounting_kind", "article", "counterparty", "amount", "currency")
     list_filter = ("account", "direction", "accounting_kind", "source_system")
     search_fields = ("external_id", "article__name", "counterparty__name", "contract__number")
+
+
+@admin.register(ExternalPaymentDocument)
+class ExternalPaymentDocumentAdmin(admin.ModelAdmin):
+    list_display = ("number", "payment_date", "contract", "accountant", "amount", "currency", "status")
+    list_filter = ("status", "currency", "payment_date")
+    search_fields = ("number", "contract__number", "contract__counterparty__name", "accountant__username")
+    readonly_fields = ("payment_fact_bu", "payment_fact_nu", "created_at")
 
 
 @admin.register(SyncRun)

@@ -32,6 +32,16 @@ def user_has_role(user, roles: set[str]) -> bool:
     return bool(profile and profile.can_access_app and profile.role in roles)
 
 
+def user_has_external_accounting_access(user) -> bool:
+    if not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+
+    profile = getattr(user, "profile", None)
+    return bool(profile and profile.role == UserRole.ACCOUNTANT)
+
+
 def role_required(*roles: str):
     allowed_roles = set(roles)
 
@@ -46,3 +56,14 @@ def role_required(*roles: str):
         return wrapper
 
     return decorator
+
+
+def external_accounting_required(view_func):
+    @login_required
+    @wraps(view_func)
+    def wrapper(request, *args, **kwargs):
+        if not user_has_external_accounting_access(request.user):
+            raise PermissionDenied
+        return view_func(request, *args, **kwargs)
+
+    return wrapper

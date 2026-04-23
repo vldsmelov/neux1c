@@ -1,0 +1,102 @@
+{% extends "core/base.html" %}
+
+{% block title %}Внешняя 1С:БП · Оплата договоров{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/external/accounting/">Внешняя 1С:БП</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Оплата договоров</h1>
+            <p class="app-subtitle">Имитируем внешний контур бухгалтера: проведение оплаты создает факт БУ/НУ для основной системы.</p>
+        </div>
+        <div class="command-bar">
+            <button class="command-button-primary" type="button">Платежное поручение</button>
+            <button class="command-button" type="button">Выписка банка</button>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <div class="form-stack">
+                <div>
+                    <div class="field-label">Система</div>
+                    <div class="field-control is-focused">1С:Бухгалтерия предприятия</div>
+                </div>
+                <div>
+                    <div class="field-label">Пользователь</div>
+                    <div class="field-control">{{ request.user.username }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Доступ</div>
+                    <div class="field-control"><span><span class="status-dot"></span>Только оплата договоров</span></div>
+                </div>
+                <div>
+                    <div class="field-label">Всего оплачено</div>
+                    <div class="field-control">{{ payments_total }} RUB</div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="command-bar">
+                <button class="command-button" type="button">+ Добавить</button>
+                <button class="command-button" type="button">Подбор</button>
+                <span class="command-spacer"></span>
+                <button class="command-button" type="button">Поиск</button>
+            </div>
+
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Договор</th>
+                            <th>Контрагент</th>
+                            <th>К оплате</th>
+                            <th>Оплачено</th>
+                            <th>Остаток</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                                <td>{{ row.contract.counterparty.name }}</td>
+                                <td>{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
+                                <td>{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
+                                <td>{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
+                                <td>
+                                    {% if row.remaining_amount > 0 %}
+                                        <form method="post" style="display: flex; gap: 8px; align-items: center;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="contract_id" value="{{ row.contract.id }}">
+                                            <input class="field-control" name="amount" value="{{ row.remaining_amount }}" style="width: 132px;">
+                                            <button class="command-button-primary" type="submit">Оплатить</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="badge">Оплачено</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1C.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary-line">
+                <span>Источник факта</span>
+                <span class="summary-value">1С:БП mock</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}
