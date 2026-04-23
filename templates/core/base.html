@@ -523,6 +523,7 @@
         <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
         <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">Планы</a>
         <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">Заявки</a>
+        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/facts/">Факт</a>
         <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/plan-fact/">Отчеты</a>
         <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">Договоры</a>
         <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
@@ -543,6 +544,9 @@
                 </a>
                 <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">
                     <span class="app-nav-icon">✉</span><span>Заявки на оплату</span><span>›</span>
+                </a>
+                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/facts/">
+                    <span class="app-nav-icon">⎚</span><span>Факт оплат БДДС</span><span>›</span>
                 </a>
                 <a class="app-nav-link {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/plan-fact/">
                     <span class="app-nav-icon">▦</span><span>План-факт БДДС</span><span>›</span>

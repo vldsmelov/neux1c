@@ -1,0 +1,166 @@
+{% extends "core/base.html" %}
+
+{% block title %}Факт оплат БДДС · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/payments/requests/">Заявки на оплату</a>
+    <a class="app-tab is-active" href="/payments/facts/">Факт оплат БДДС</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Факт оплат БДДС</h1>
+            <p class="app-subtitle">Ручная корректировка факта БУ/НУ с версионированием до закрытия периода 1С:БП.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/reports/plan-fact/">План-факт БДДС</a>
+            <a class="command-button" href="/payments/requests/">Заявки на оплату</a>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <form method="get" class="form-stack">
+                <div>
+                    <label class="field-label" for="year">Год</label>
+                    <select class="field-control-select" id="year" name="year">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="month">Месяц</label>
+                    <select class="field-control-select" id="month" name="month">
+                        <option value="">Все</option>
+                        {% for month in months %}
+                            <option value="{{ month }}" {% if selected_month == month %}selected{% endif %}>{{ month }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="accounting_kind">Вид учета</label>
+                    <select class="field-control-select" id="accounting_kind" name="accounting_kind">
+                        <option value="" {% if not selected_accounting_kind %}selected{% endif %}>БУ + НУ</option>
+                        <option value="bu" {% if selected_accounting_kind == "bu" %}selected{% endif %}>БУ</option>
+                        <option value="nu" {% if selected_accounting_kind == "nu" %}selected{% endif %}>НУ</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="article_id">Статья ДДС</label>
+                    <select class="field-control-select" id="article_id" name="article_id">
+                        <option value="">Все</option>
+                        {% for article in articles %}
+                            <option value="{{ article.id }}" {% if selected_article_id == article.id %}selected{% endif %}>
+                                {{ article.code }} · {{ article.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="counterparty_id">Контрагент</label>
+                    <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                        <option value="">Все</option>
+                        {% for counterparty in counterparties %}
+                            <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
+                                {{ counterparty.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="command-button-primary" type="submit">Применить</button>
+                <a class="command-button" href="/payments/facts/">Сбросить</a>
+            </form>
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ rows|length }}</div>
+                    <div class="metric-label">Строк факта</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{% if can_edit_payment_facts %}Да{% else %}Нет{% endif %}</div>
+                    <div class="metric-label">Разрешено редактирование</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ selected_year }}</div>
+                    <div class="metric-label">Период отчета</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">БУ / НУ</div>
+                    <div class="metric-label">Параллельный учет</div>
+                </div>
+            </div>
+
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Дата</th>
+                            <th>Учет</th>
+                            <th>Счет</th>
+                            <th>Статья ДДС</th>
+                            <th>Контрагент</th>
+                            <th>Договор</th>
+                            <th>Сумма</th>
+                            <th>Версии</th>
+                            <th>Корректировка</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ row.fact.date|date:"d.m.Y" }}</td>
+                                <td>{{ row.fact.get_accounting_kind_display }}</td>
+                                <td>{{ row.fact.account }}</td>
+                                <td>
+                                    {{ row.fact.article.code }} · {{ row.fact.article.name }}
+                                    {% if row.fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
+                                </td>
+                                <td>{{ row.fact.counterparty.name }}</td>
+                                <td>{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
+                                <td>{{ row.fact.amount }} {{ row.fact.currency.code }}</td>
+                                <td>
+                                    {% if row.versions %}
+                                        <span class="badge">v{{ row.latest_version }}</span>
+                                        <span style="color: var(--app-muted);">({{ row.versions }})</span>
+                                    {% else %}
+                                        <span class="badge">база</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if can_edit_payment_facts %}
+                                        <form method="post" style="display: flex; gap: 8px; align-items: center;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="adjust">
+                                            <input type="hidden" name="fact_id" value="{{ row.fact.id }}">
+                                            <input class="field-control" name="new_amount" value="{{ row.fact.amount }}" style="width: 120px;">
+                                            <input class="field-control" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий" style="width: 180px;">
+                                            <input class="field-control" name="reason" value="" placeholder="Причина" style="width: 210px;">
+                                            <button class="command-button-primary" type="submit">Записать</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="badge">Просмотр</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="10">Нет данных по выбранным фильтрам.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="summary-line">
+                <span>Режим работы</span>
+                <span class="summary-value">Корректировка с версиями</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}

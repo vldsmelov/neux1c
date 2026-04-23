@@ -286,6 +286,65 @@ class PaymentFact(IntegrationTrackedModel):
         return f"{self.get_accounting_kind_display()} {self.date:%d.%m.%Y} {self.amount}"
 
 
+class PaymentFactControlSettings(models.Model):
+    name = models.CharField("Название", max_length=120, default="Контроль корректировок факта")
+    is_active = models.BooleanField("Активна", default=True)
+    closed_through = models.DateField("Период закрыт по", null=True, blank=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройка закрытия периода по факту оплат"
+        verbose_name_plural = "Настройки закрытия периода по факту оплат"
+
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def active_or_default(cls):
+        active = cls.objects.filter(is_active=True).first()
+        if active is not None:
+            return active
+        return cls()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_active:
+            PaymentFactControlSettings.objects.exclude(pk=self.pk).update(is_active=False)
+
+
+class PaymentFactAdjustment(models.Model):
+    payment_fact = models.ForeignKey(
+        PaymentFact,
+        verbose_name="Факт оплаты",
+        on_delete=models.CASCADE,
+        related_name="adjustments",
+    )
+    version = models.PositiveIntegerField("Версия")
+    previous_amount = models.DecimalField("Сумма до корректировки", max_digits=16, decimal_places=2)
+    new_amount = models.DecimalField("Сумма после корректировки", max_digits=16, decimal_places=2)
+    previous_comment = models.CharField("Комментарий до корректировки", max_length=255, blank=True)
+    new_comment = models.CharField("Комментарий после корректировки", max_length=255, blank=True)
+    reason = models.TextField("Причина корректировки")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор корректировки",
+        on_delete=models.PROTECT,
+        related_name="payment_fact_adjustments",
+    )
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Корректировка факта оплаты"
+        verbose_name_plural = "Корректировки факта оплаты"
+        constraints = [
+            models.UniqueConstraint(fields=["payment_fact", "version"], name="uniq_payment_fact_adjustment_version"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.payment_fact_id} · v{self.version}"
+
+
 class ExternalPaymentDocument(models.Model):
     number = models.CharField("Номер", max_length=32, unique=True)
     contract = models.ForeignKey(

@@ -5,7 +5,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView
 from django.db import connection
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Max, Q, Sum
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -25,6 +25,7 @@ from .models import (
     Nomenclature,
     Organization,
     PaymentFact,
+    PaymentFactAdjustment,
     PaymentLimitControlMode,
     PaymentRequest,
     PaymentRequestControlSettings,
@@ -51,6 +52,7 @@ from .services.payment_requests import (
     submit_payment_request,
     transfer_payment_request_to_do,
 )
+from .services.payment_fact_adjustments import adjust_payment_fact
 from .services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
 
 
@@ -355,6 +357,87 @@ def payment_requests(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_facts(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "adjust":
+                if not _can_edit_payment_facts(request.user):
+                    raise ValueError("Корректировать факт может только экономист или администратор")
+                fact = get_object_or_404(PaymentFact, pk=request.POST.get("fact_id"))
+                adjust_payment_fact(
+                    payment_fact=fact,
+                    author=request.user,
+                    new_amount=_parse_decimal(request.POST.get("new_amount")),
+                    reason=request.POST.get("reason", ""),
+                    new_comment=request.POST.get("new_comment", ""),
+                )
+                messages.success(request, "Корректировка факта сохранена")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+        return redirect("payment_facts")
+
+    current_year = timezone.localdate().year
+    selected_year = _parse_optional_int(request.GET.get("year")) or current_year
+    selected_month = _parse_optional_int(request.GET.get("month"))
+    selected_accounting_kind = (request.GET.get("accounting_kind") or "").strip()
+    if selected_accounting_kind not in ("", "bu", "nu"):
+        selected_accounting_kind = ""
+    selected_article_id = _parse_optional_int(request.GET.get("article_id"))
+    selected_counterparty_id = _parse_optional_int(request.GET.get("counterparty_id"))
+
+    facts_query = PaymentFact.objects.select_related(
+        "organization", "article", "counterparty", "contract", "currency"
+    ).filter(date__year=selected_year)
+    if selected_month:
+        facts_query = facts_query.filter(date__month=selected_month)
+    if selected_accounting_kind:
+        facts_query = facts_query.filter(accounting_kind=selected_accounting_kind)
+    if selected_article_id:
+        facts_query = facts_query.filter(article_id=selected_article_id)
+    if selected_counterparty_id:
+        facts_query = facts_query.filter(counterparty_id=selected_counterparty_id)
+
+    facts = list(facts_query.order_by("-date", "-id"))
+    fact_ids = [fact.id for fact in facts]
+    adjustments_stats = {
+        row["payment_fact_id"]: row
+        for row in PaymentFactAdjustment.objects.filter(payment_fact_id__in=fact_ids)
+        .values("payment_fact_id")
+        .annotate(versions=Count("id"), latest_version=Max("version"), latest_at=Max("created_at"))
+    }
+
+    rows = []
+    for fact in facts:
+        stat = adjustments_stats.get(fact.id, {})
+        rows.append(
+            {
+                "fact": fact,
+                "versions": stat.get("versions", 0),
+                "latest_version": stat.get("latest_version", 0),
+                "latest_at": stat.get("latest_at"),
+            }
+        )
+
+    context = {
+        "active_section": "payments",
+        "rows": rows,
+        "current_year": current_year,
+        "years": list(range(current_year - 1, current_year + 3)),
+        "months": list(range(1, 13)),
+        "articles": CashFlowArticle.objects.order_by("code"),
+        "counterparties": Counterparty.objects.order_by("name"),
+        "selected_year": selected_year,
+        "selected_month": selected_month,
+        "selected_accounting_kind": selected_accounting_kind,
+        "selected_article_id": selected_article_id,
+        "selected_counterparty_id": selected_counterparty_id,
+        "can_edit_payment_facts": _can_edit_payment_facts(request.user),
+    }
+    return render(request, "core/payment_facts.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def plan_fact_report(request):
     current_year = timezone.localdate().year
     selected_year = _parse_optional_int(request.GET.get("year")) or current_year
@@ -505,6 +588,13 @@ def _can_approve_plans(user) -> bool:
 
 
 def _can_manage_payment_requests(user) -> bool:
+    if user.is_superuser:
+        return True
+    profile = getattr(user, "profile", None)
+    return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
+
+
+def _can_edit_payment_facts(user) -> bool:
     if user.is_superuser:
         return True
     profile = getattr(user, "profile", None)
