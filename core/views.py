@@ -6,7 +6,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.views import LoginView
 from django.db import connection
 from django.db.models import Count, Q, Sum
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -51,6 +51,7 @@ from .services.payment_requests import (
     submit_payment_request,
     transfer_payment_request_to_do,
 )
+from .services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
 
 
 User = get_user_model()
@@ -96,8 +97,8 @@ def workspace(request):
         {
             "name": "Отчетность",
             "document": "План-факт БДДС",
-            "state": "Ожидает лимиты",
-            "check": "Макет ТЗ",
+            "state": "В работе",
+            "check": "БУ / НУ + экспорт",
         },
     ]
     counts = {
@@ -351,6 +352,43 @@ def payment_requests(request):
         ),
     }
     return render(request, "core/payment_requests.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def plan_fact_report(request):
+    current_year = timezone.localdate().year
+    selected_year = _parse_optional_int(request.GET.get("year")) or current_year
+    selected_status = (request.GET.get("request_status") or "").strip()
+    if selected_status not in PaymentRequestStatus.values:
+        selected_status = ""
+
+    filters = PlanFactFilters(
+        year=selected_year,
+        article_id=_parse_optional_int(request.GET.get("article_id")),
+        counterparty_id=_parse_optional_int(request.GET.get("counterparty_id")),
+        request_status=selected_status,
+    )
+    rows, summary = build_plan_fact_report(filters)
+
+    if request.GET.get("export") == "excel":
+        response = HttpResponse(plan_fact_to_csv(rows), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="plan_fact_{selected_year}.csv"'
+        return response
+
+    context = {
+        "active_section": "reports",
+        "rows": rows,
+        "summary": summary,
+        "years": list(range(current_year - 1, current_year + 3)),
+        "articles": CashFlowArticle.objects.order_by("code"),
+        "counterparties": Counterparty.objects.order_by("name"),
+        "request_status_choices": [("", "Все статусы")] + list(PaymentRequestStatus.choices),
+        "selected_year": selected_year,
+        "selected_article_id": filters.article_id,
+        "selected_counterparty_id": filters.counterparty_id,
+        "selected_request_status": selected_status,
+    }
+    return render(request, "core/plan_fact_report.html", context)
 
 
 @external_accounting_required

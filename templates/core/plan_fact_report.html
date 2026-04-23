@@ -1,0 +1,150 @@
+{% extends "core/base.html" %}
+
+{% block title %}План-факт БДДС · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/reports/plan-fact/">План-факт БДДС</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Отчет «План-факт БДДС»</h1>
+            <p class="app-subtitle">План + корректировки − резервирование − заявки к оплате − факт (БУ/НУ).</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button-primary" href="/reports/plan-fact/?year={{ selected_year }}{% if selected_article_id %}&article_id={{ selected_article_id }}{% endif %}{% if selected_counterparty_id %}&counterparty_id={{ selected_counterparty_id }}{% endif %}{% if selected_request_status %}&request_status={{ selected_request_status }}{% endif %}&export=excel">Выгрузить в Excel</a>
+            <a class="command-button" href="/planning/limits/">Планы / лимиты</a>
+            <a class="command-button" href="/payments/requests/">Заявки</a>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <form method="get" class="form-stack">
+                <div>
+                    <label class="field-label" for="year">Период (год)</label>
+                    <select class="field-control-select" id="year" name="year">
+                        {% for year in years %}
+                            <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="article_id">Статья ДДС</label>
+                    <select class="field-control-select" id="article_id" name="article_id">
+                        <option value="">Все</option>
+                        {% for article in articles %}
+                            <option value="{{ article.id }}" {% if selected_article_id == article.id %}selected{% endif %}>
+                                {{ article.code }} · {{ article.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="counterparty_id">Контрагент</label>
+                    <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                        <option value="">Все</option>
+                        {% for counterparty in counterparties %}
+                            <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
+                                {{ counterparty.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="request_status">Статус заявки к оплате</label>
+                    <select class="field-control-select" id="request_status" name="request_status">
+                        {% for value, label in request_status_choices %}
+                            <option value="{{ value }}" {% if selected_request_status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button class="command-button-primary" type="submit">Применить</button>
+                <a class="command-button" href="/reports/plan-fact/">Сбросить</a>
+            </form>
+
+            <div class="form-stack" style="margin-top: 18px;">
+                <div>
+                    <div class="field-label">Статей в отчете</div>
+                    <div class="field-control is-focused">{{ summary.articles }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Превышений (БУ)</div>
+                    <div class="field-control">{{ summary.overrun_articles }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Статей ВГО</div>
+                    <div class="field-control">{{ summary.vgo_articles }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Итог план, RUB</div>
+                    <div class="field-control">{{ summary.total_plan }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Итог факт БУ, RUB</div>
+                    <div class="field-control">{{ summary.total_fact_bu }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Итог остаток БУ, RUB</div>
+                    <div class="field-control">{{ summary.total_balance_bu }}</div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Статья ДДС</th>
+                            <th>Признаки</th>
+                            <th>План</th>
+                            <th>Корр. лимита</th>
+                            <th>Резерв</th>
+                            <th>Заявлено</th>
+                            <th>Факт БУ</th>
+                            <th>Факт НУ</th>
+                            <th>Остаток БУ</th>
+                            <th>Остаток НУ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr {% if row.is_internal_turnover %}style="background: #fffaf0;"{% endif %}>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ row.article.code }} · {{ row.article.name }}</td>
+                                <td>
+                                    {% if row.missing_in_one_c %}<span class="badge badge-danger">нет в 1С</span>{% endif %}
+                                    {% if row.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
+                                    {% if not row.missing_in_one_c and not row.is_internal_turnover %}<span class="badge">из 1С</span>{% endif %}
+                                </td>
+                                <td>{{ row.plan }}</td>
+                                <td>{{ row.adjustments }}</td>
+                                <td>{{ row.reserved }}</td>
+                                <td>{{ row.requested }}</td>
+                                <td>{{ row.fact_bu }}</td>
+                                <td>{{ row.fact_nu }}</td>
+                                <td>
+                                    {{ row.balance_bu }}
+                                    {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
+                                </td>
+                                <td>{{ row.balance_nu }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="11">Нет данных для выбранных фильтров.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="summary-line">
+                <span>Контроль БУ / НУ</span>
+                <span class="summary-value">{{ summary.total_balance_bu }} RUB</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}
