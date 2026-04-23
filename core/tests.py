@@ -1,9 +1,13 @@
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
+from django.core.management import call_command
 from django.test import TestCase
+from django.urls import reverse
 
 from core.integrations.one_c.mock import MockOneCProvider
-from core.models import CashFlowArticle, Contract, ContractKind, PaymentFact, UiThemeSettings
+from core.models import AuditAction, AuditLog, CashFlowArticle, Contract, ContractKind, PaymentFact, UiThemeSettings, UserProfile, UserRole
 from core.services.one_c_sync import sync_one_c_dataset
 
 
@@ -56,3 +60,47 @@ class UiThemeSettingsTests(TestCase):
 
         self.assertFalse(first.is_active)
         self.assertTrue(second.is_active)
+
+
+class AccessControlTests(TestCase):
+    def setUp(self):
+        call_command("setup_access_roles", "--with-users", verbosity=0)
+
+    def test_demo_users_and_groups_are_created(self):
+        User = get_user_model()
+
+        self.assertEqual(Group.objects.filter(name__in=["Администратор", "Экономист", "Руководитель", "Бухгалтер"]).count(), 4)
+        self.assertEqual(User.objects.filter(username__in=["admin", "economist", "manager", "accountant"]).count(), 4)
+        self.assertEqual(UserProfile.objects.get(user__username="accountant").role, UserRole.ACCOUNTANT)
+
+    def test_workspace_requires_login(self):
+        response = self.client.get(reverse("workspace"))
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("login"), response["Location"])
+
+    def test_economist_can_open_nsi_and_action_is_logged(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.get(reverse("nsi_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(AuditLog.objects.filter(user__username="economist", action=AuditAction.VIEW, path="/nsi/").exists())
+
+    def test_manager_can_open_workspace_but_not_nsi(self):
+        self.client.login(username="manager", password="demo12345")
+
+        workspace_response = self.client.get(reverse("workspace"))
+        nsi_response = self.client.get(reverse("nsi_dashboard"))
+
+        self.assertEqual(workspace_response.status_code, 200)
+        self.assertEqual(nsi_response.status_code, 403)
+        self.assertTrue(AuditLog.objects.filter(user__username="manager", action=AuditAction.DENIED, path="/nsi/").exists())
+
+    def test_accountant_is_blocked_from_app_pages(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("workspace"))
+
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(UserProfile.objects.get(user__username="accountant").can_access_app)

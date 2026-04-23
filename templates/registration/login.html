@@ -1,0 +1,45 @@
+{% extends "core/base.html" %}
+
+{% block title %}Вход · NE UX{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Вход в систему</h1>
+            <p class="app-subtitle">Доступ открыт только пользователям с ролью администратора, экономиста или руководителя.</p>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <div class="form-stack">
+                <div>
+                    <div class="field-label">Пилот</div>
+                    <div class="field-control">ООО "Гладиолус"</div>
+                </div>
+                <div>
+                    <div class="field-label">Доступ бухгалтеров</div>
+                    <div class="field-control"><span><span class="status-dot"></span>Закрыт</span></div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="data-panel">
+            <form method="post" class="form-stack" style="max-width: 420px;">
+                {% csrf_token %}
+                {% if form.errors %}
+                    <div class="badge badge-danger">Неверный логин или пароль</div>
+                {% endif %}
+                <div>
+                    <label class="field-label" for="{{ form.username.id_for_label }}">Пользователь</label>
+                    <input class="field-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" type="text" autofocus>
+                </div>
+                <div>
+                    <label class="field-label" for="{{ form.password.id_for_label }}">Пароль</label>
+                    <input class="field-control" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" type="password">
+                </div>
+                <button class="command-button-primary" type="submit" style="width: fit-content;">Войти</button>
+            </form>
+        </section>
+    </div>
+{% endblock %}

@@ -1,5 +1,6 @@
-from django.db import models
 from django.core.validators import RegexValidator
+from django.db import models
+from django.conf import settings
 from django.utils import timezone
 
 
@@ -34,6 +35,23 @@ class AccountingKind(models.TextChoices):
 class SyncStatus(models.TextChoices):
     SUCCESS = "success", "Успешно"
     FAILED = "failed", "Ошибка"
+
+
+class UserRole(models.TextChoices):
+    ADMINISTRATOR = "administrator", "Администратор"
+    ECONOMIST = "economist", "Экономист"
+    MANAGER = "manager", "Руководитель"
+    ACCOUNTANT = "accountant", "Бухгалтер"
+
+
+class AuditAction(models.TextChoices):
+    VIEW = "view", "Просмотр"
+    CREATE = "create", "Создание"
+    UPDATE = "update", "Редактирование"
+    DELETE = "delete", "Удаление"
+    APPROVE = "approve", "Утверждение"
+    LOGIN = "login", "Вход"
+    DENIED = "denied", "Отказ доступа"
 
 
 class IntegrationTrackedModel(models.Model):
@@ -298,3 +316,63 @@ class UiThemeSettings(models.Model):
         super().save(*args, **kwargs)
         if self.is_active:
             UiThemeSettings.objects.exclude(pk=self.pk).update(is_active=False)
+
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Пользователь",
+        on_delete=models.CASCADE,
+        related_name="profile",
+    )
+    role = models.CharField("Роль", max_length=32, choices=UserRole.choices)
+    department = models.ForeignKey(
+        Department,
+        verbose_name="ЦФО",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    is_app_access_enabled = models.BooleanField("Доступ к системе включен", default=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Профиль пользователя"
+        verbose_name_plural = "Профили пользователей"
+
+    def __str__(self) -> str:
+        return f"{self.user.username} · {self.get_role_display()}"
+
+    @property
+    def can_access_app(self) -> bool:
+        return self.is_app_access_enabled and self.role != UserRole.ACCOUNTANT
+
+
+class AuditLog(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Пользователь",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    action = models.CharField("Действие", max_length=32, choices=AuditAction.choices)
+    path = models.CharField("Путь", max_length=255, blank=True)
+    method = models.CharField("Метод", max_length=12, blank=True)
+    status_code = models.PositiveSmallIntegerField("HTTP-статус", null=True, blank=True)
+    object_type = models.CharField("Тип объекта", max_length=120, blank=True)
+    object_id = models.CharField("ID объекта", max_length=120, blank=True)
+    message = models.TextField("Сообщение", blank=True)
+    ip_address = models.GenericIPAddressField("IP-адрес", null=True, blank=True)
+    user_agent = models.CharField("User-Agent", max_length=255, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Журнал действия"
+        verbose_name_plural = "Журнал действий"
+
+    def __str__(self) -> str:
+        actor = self.user.username if self.user else "anonymous"
+        return f"{self.get_action_display()} · {actor} · {self.path}"
