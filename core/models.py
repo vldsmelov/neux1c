@@ -1,5 +1,12 @@
 from django.db import models
+from django.core.validators import RegexValidator
 from django.utils import timezone
+
+
+hex_color_validator = RegexValidator(
+    regex=r"^#[0-9A-Fa-f]{6}$",
+    message="Цвет должен быть в формате #RRGGBB",
+)
 
 
 class SourceSystem(models.TextChoices):
@@ -243,3 +250,51 @@ class SyncRun(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.started_at:%d.%m.%Y %H:%M}"
+
+
+class UiThemeSettings(models.Model):
+    name = models.CharField("Название", max_length=120, default="1C Light Blue")
+    is_active = models.BooleanField("Активна", default=True)
+    primary_color = models.CharField("Основной синий", max_length=7, default="#1b75d0", validators=[hex_color_validator])
+    primary_hover = models.CharField("Синий при наведении", max_length=7, default="#155fa9", validators=[hex_color_validator])
+    primary_soft = models.CharField("Светло-голубой акцент", max_length=7, default="#e7f2ff", validators=[hex_color_validator])
+    background_color = models.CharField("Фон приложения", max_length=7, default="#f3f7fc", validators=[hex_color_validator])
+    surface_color = models.CharField("Фон рабочей области", max_length=7, default="#ffffff", validators=[hex_color_validator])
+    sidebar_color = models.CharField("Фон бокового меню", max_length=7, default="#eef5fc", validators=[hex_color_validator])
+    border_color = models.CharField("Линии и границы", max_length=7, default="#d7e4f2", validators=[hex_color_validator])
+    text_color = models.CharField("Основной текст", max_length=7, default="#20242a", validators=[hex_color_validator])
+    muted_text_color = models.CharField("Вторичный текст", max_length=7, default="#6d7785", validators=[hex_color_validator])
+    warning_color = models.CharField("Предупреждение", max_length=7, default="#ffce3a", validators=[hex_color_validator])
+    danger_color = models.CharField("Ошибка", max_length=7, default="#d92d20", validators=[hex_color_validator])
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройка палитры интерфейса"
+        verbose_name_plural = "Настройки палитры интерфейса"
+
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def default(cls):
+        return cls()
+
+    def as_css_variables(self) -> dict[str, str]:
+        return {
+            "--app-primary": self.primary_color,
+            "--app-primary-hover": self.primary_hover,
+            "--app-primary-soft": self.primary_soft,
+            "--app-bg": self.background_color,
+            "--app-surface": self.surface_color,
+            "--app-sidebar": self.sidebar_color,
+            "--app-border": self.border_color,
+            "--app-text": self.text_color,
+            "--app-muted": self.muted_text_color,
+            "--app-warning": self.warning_color,
+            "--app-danger": self.danger_color,
+        }
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_active:
+            UiThemeSettings.objects.exclude(pk=self.pk).update(is_active=False)

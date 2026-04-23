@@ -11,6 +11,7 @@ from .models import (
     Organization,
     PaymentFact,
     SyncRun,
+    UiThemeSettings,
 )
 
 
@@ -76,3 +77,30 @@ class SyncRunAdmin(admin.ModelAdmin):
     list_display = ("provider", "status", "started_at", "finished_at")
     list_filter = ("provider", "status")
     readonly_fields = ("provider", "status", "started_at", "finished_at", "message", "stats")
+
+
+@admin.register(UiThemeSettings)
+class UiThemeSettingsAdmin(admin.ModelAdmin):
+    list_display = ("name", "is_active", "primary_color", "background_color", "surface_color", "updated_at")
+    list_editable = ("is_active",)
+    fieldsets = (
+        ("Основное", {"fields": ("name", "is_active")}),
+        (
+            "Палитра",
+            {
+                "fields": (
+                    "primary_color",
+                    "primary_hover",
+                    "primary_soft",
+                    "background_color",
+                    "surface_color",
+                    "sidebar_color",
+                    "border_color",
+                    "text_color",
+                    "muted_text_color",
+                    "warning_color",
+                    "danger_color",
+                )
+            },
+        ),
+    )

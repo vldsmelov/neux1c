@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}NE UX{% endblock %}</title>
+    <style>
+        :root {
+            {% for name, value in ui_theme.items %}
+                {{ name }}: {{ value }};
+            {% endfor %}
+            --app-shadow: 0 10px 26px rgba(24, 78, 129, 0.08);
+            --app-radius: 8px;
+            --app-toolbar: #f4f7fb;
+            --app-control: #ffffff;
+            --app-row-hover: #eef7ff;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            min-height: 100%;
+        }
+
+        body {
+            margin: 0;
+            background: var(--app-bg);
+            color: var(--app-text);
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 14px;
+            letter-spacing: 0;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        button, input, select {
+            font: inherit;
+        }
+
+        .app-shell {
+            display: grid;
+            grid-template-columns: 232px minmax(0, 1fr) 54px;
+            min-height: 100vh;
+        }
+
+        .app-sidebar {
+            background: var(--app-sidebar);
+            border-right: 1px solid var(--app-border);
+            padding: 18px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .app-logo {
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr);
+            gap: 10px;
+            align-items: center;
+            color: var(--app-muted);
+            min-height: 42px;
+        }
+
+        .app-logo-mark {
+            width: 38px;
+            height: 30px;
+            color: var(--app-primary);
+            display: grid;
+            place-items: center;
+            font-weight: 700;
+            font-size: 22px;
+        }
+
+        .app-logo-text {
+            font-size: 12px;
+            line-height: 1.2;
+            color: var(--app-text);
+        }
+
+        .app-nav {
+            display: grid;
+            gap: 4px;
+        }
+
+        .app-nav-link {
+            display: grid;
+            grid-template-columns: 24px minmax(0, 1fr) 16px;
+            align-items: center;
+            gap: 8px;
+            min-height: 38px;
+            color: var(--app-muted);
+            border-radius: var(--app-radius);
+            padding: 7px 8px;
+        }
+
+        .app-nav-link:hover,
+        .app-nav-link.is-active {
+            background: var(--app-primary-soft);
+            color: var(--app-primary);
+        }
+
+        .app-nav-icon,
+        .app-rail-button,
+        .app-tab-home,
+        .icon-button {
+            display: grid;
+            place-items: center;
+        }
+
+        .app-main {
+            min-width: 0;
+            padding: 20px 0 24px;
+        }
+
+        .app-tabs {
+            display: flex;
+            gap: 8px;
+            padding: 0 22px 8px;
+            min-height: 38px;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .app-tab,
+        .app-tab-home {
+            height: 30px;
+            background: var(--app-surface);
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            color: var(--app-muted);
+            padding: 0 10px;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .app-tab.is-active {
+            border-color: var(--app-primary);
+            color: var(--app-text);
+            box-shadow: inset 3px 0 0 var(--app-warning);
+        }
+
+        .app-workarea {
+            margin: 0 22px;
+            background: var(--app-surface);
+            border: 1px solid rgba(215, 228, 242, 0.7);
+            border-radius: 10px;
+            min-height: calc(100vh - 72px);
+            box-shadow: var(--app-shadow);
+            padding: 22px;
+        }
+
+        .app-page-head {
+            display: flex;
+            justify-content: space-between;
+            gap: 18px;
+            align-items: flex-start;
+            margin-bottom: 22px;
+        }
+
+        .app-title {
+            margin: 0;
+            font-size: 26px;
+            line-height: 1.2;
+            font-weight: 700;
+        }
+
+        .app-subtitle {
+            color: var(--app-muted);
+            margin: 6px 0 0;
+            line-height: 1.45;
+        }
+
+        .command-bar {
+            background: var(--app-toolbar);
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 6px;
+            min-height: 46px;
+            flex-wrap: wrap;
+        }
+
+        .command-button,
+        .command-button-primary,
+        .icon-button {
+            border: 1px solid transparent;
+            border-radius: 7px;
+            min-height: 32px;
+            background: transparent;
+            color: var(--app-text);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0 11px;
+            cursor: default;
+            white-space: nowrap;
+        }
+
+        .command-button:hover,
+        .icon-button:hover {
+            border-color: var(--app-border);
+            background: var(--app-control);
+        }
+
+        .command-spacer {
+            flex: 1 1 auto;
+        }
+
+        .command-button-primary {
+            background: var(--app-primary);
+            color: #ffffff;
+        }
+
+        .command-button-primary:hover {
+            background: var(--app-primary-hover);
+        }
+
+        .document-grid {
+            display: grid;
+            grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+            gap: 20px;
+        }
+
+        .form-panel {
+            border-right: 1px solid var(--app-border);
+            padding-right: 20px;
+        }
+
+        .form-stack {
+            display: grid;
+            gap: 12px;
+        }
+
+        .field-label {
+            color: var(--app-muted);
+            margin-bottom: 5px;
+        }
+
+        .field-control,
+        .field-control-select {
+            height: 36px;
+            border: 1px solid #aeb8c4;
+            border-radius: 7px;
+            background: var(--app-control);
+            color: var(--app-text);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            justify-content: space-between;
+        }
+
+        .field-control.is-focused {
+            border-color: var(--app-primary);
+            box-shadow: 0 0 0 2px rgba(27, 117, 208, 0.15);
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--app-warning);
+            display: inline-block;
+            margin-right: 8px;
+        }
+
+        .data-panel {
+            min-width: 0;
+        }
+
+        .section-title {
+            font-size: 18px;
+            margin: 0 0 12px;
+        }
+
+        .stack {
+            display: grid;
+            gap: 16px;
+        }
+
+        .data-table-wrap {
+            overflow: auto;
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+        }
+
+        .data-table {
+            width: 100%;
+            min-width: 760px;
+            border-collapse: collapse;
+            background: var(--app-surface);
+        }
+
+        .data-table th,
+        .data-table td {
+            border-bottom: 1px solid var(--app-border);
+            padding: 9px 10px;
+            text-align: left;
+            vertical-align: middle;
+            height: 38px;
+        }
+
+        .data-table th {
+            background: #f7faff;
+            color: var(--app-text);
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        .data-table tbody tr:hover {
+            background: var(--app-row-hover);
+        }
+
+        .checkbox-cell {
+            width: 36px;
+        }
+
+        .fake-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #aab3bd;
+            border-radius: 5px;
+            display: inline-block;
+        }
+
+        .badge {
+            display: inline-flex;
+            width: fit-content;
+            border-radius: 7px;
+            padding: 4px 8px;
+            background: var(--app-primary-soft);
+            color: var(--app-primary);
+            font-size: 12px;
+            white-space: nowrap;
+        }
+
+        .badge-danger {
+            background: #ffebea;
+            color: var(--app-danger);
+        }
+
+        .badge-mark {
+            background: #fff4c4;
+            color: #806000;
+        }
+
+        .summary-line {
+            display: flex;
+            justify-content: flex-end;
+            gap: 24px;
+            align-items: center;
+            padding-top: 14px;
+            color: var(--app-muted);
+        }
+
+        .summary-value {
+            color: var(--app-text);
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .metric-strip {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .metric-cell {
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            background: #fbfdff;
+            min-height: 76px;
+            padding: 12px;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .metric-label {
+            color: var(--app-muted);
+            line-height: 1.35;
+        }
+
+        .app-rail {
+            background: var(--app-bg);
+            border-left: 1px solid var(--app-border);
+            padding-top: 66px;
+            display: grid;
+            align-content: start;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .app-rail-button,
+        .icon-button {
+            width: 34px;
+            height: 34px;
+            padding: 0;
+            color: var(--app-muted);
+        }
+
+        .mobile-nav {
+            display: none;
+        }
+
+        @media (max-width: 1040px) {
+            .app-shell {
+                grid-template-columns: 1fr;
+            }
+
+            .app-sidebar,
+            .app-rail {
+                display: none;
+            }
+
+            .mobile-nav {
+                display: flex;
+                gap: 8px;
+                padding: 12px;
+                background: var(--app-sidebar);
+                border-bottom: 1px solid var(--app-border);
+                overflow-x: auto;
+            }
+
+            .app-main {
+                padding-top: 12px;
+            }
+
+            .document-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-panel {
+                border-right: 0;
+                border-bottom: 1px solid var(--app-border);
+                padding-right: 0;
+                padding-bottom: 18px;
+            }
+
+            .metric-strip {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 620px) {
+            .app-workarea {
+                margin: 0 10px;
+                padding: 16px;
+                min-height: auto;
+            }
+
+            .app-page-head {
+                display: grid;
+            }
+
+            .app-title {
+                font-size: 22px;
+            }
+
+            .metric-strip {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-nav">
+        <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
+        <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
+        <a class="app-tab" href="/admin/">Администрирование</a>
+    </div>
+    <div class="app-shell">
+        <aside class="app-sidebar">
+            <a class="app-logo" href="/">
+                <span class="app-logo-mark">1C</span>
+                <span class="app-logo-text">NE UX<br>пилот</span>
+            </a>
+            <nav class="app-nav" aria-label="Разделы">
+                <a class="app-nav-link {% if active_section == 'workspace' %}is-active{% endif %}" href="/">
+                    <span class="app-nav-icon">⌂</span><span>Главное</span><span>›</span>
+                </a>
+                <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/">
+                    <span class="app-nav-icon">▤</span><span>Планирование</span><span>›</span>
+                </a>
+                <a class="app-nav-link {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">
+                    <span class="app-nav-icon">□</span><span>НСИ</span><span>›</span>
+                </a>
+                <a class="app-nav-link" href="/">
+                    <span class="app-nav-icon">≋</span><span>Отчетность</span><span>›</span>
+                </a>
+                <a class="app-nav-link" href="/">
+                    <span class="app-nav-icon">⚙</span><span>Настройки</span><span>›</span>
+                </a>
+                <a class="app-nav-link" href="/admin/">
+                    <span class="app-nav-icon">◎</span><span>Администрирование</span><span>›</span>
+                </a>
+            </nav>
+        </aside>
+
+        <main class="app-main">
+            <div class="app-tabs" aria-label="Открытые вкладки">
+                <a class="app-tab-home" href="/">⌂</a>
+                <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
+                {% block tabs %}{% endblock %}
+            </div>
+            <section class="app-workarea">
+                {% block content %}{% endblock %}
+            </section>
+        </main>
+
+        <aside class="app-rail" aria-label="Быстрые действия">
+            <span class="app-rail-button">⌕</span>
+            <span class="app-rail-button">◇</span>
+            <span class="app-rail-button">↻</span>
+            <span class="app-rail-button">☆</span>
+            <span class="app-rail-button">≡</span>
+        </aside>
+    </div>
+</body>
+</html>
