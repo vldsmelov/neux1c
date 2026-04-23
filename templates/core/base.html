@@ -521,6 +521,8 @@
 <body>
     <div class="mobile-nav">
         <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
+        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">Планы</a>
+        <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">Договоры</a>
         <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
         <a class="app-tab" href="/admin/">Администрирование</a>
     </div>
@@ -540,8 +542,8 @@
                 <a class="app-nav-link {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">
                     <span class="app-nav-icon">□</span><span>НСИ</span><span>›</span>
                 </a>
-                <a class="app-nav-link" href="/">
-                    <span class="app-nav-icon">≋</span><span>Отчетность</span><span>›</span>
+                <a class="app-nav-link {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">
+                    <span class="app-nav-icon">⌘</span><span>Договоры</span><span>›</span>
                 </a>
                 <a class="app-nav-link" href="/">
                     <span class="app-nav-icon">⚙</span><span>Настройки</span><span>›</span>
