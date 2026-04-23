@@ -1,0 +1,33 @@
+services:
+  web:
+    build:
+      context: .
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ne_ux}
+      POSTGRES_USER: ${POSTGRES_USER:-ne_ux}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ne_ux}
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ne_ux} -d ${POSTGRES_DB:-ne_ux}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  db_data:

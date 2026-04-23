@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NE UX</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f6f7f9;
+            --panel: #ffffff;
+            --text: #1f2933;
+            --muted: #667085;
+            --line: #d9dee7;
+            --accent: #0f766e;
+            --accent-soft: #d8f3ee;
+            --warn: #b45309;
+            --warn-soft: #fff3d8;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg: #111827;
+                --panel: #182231;
+                --text: #f3f4f6;
+                --muted: #b7c0cf;
+                --line: #2f3b4d;
+                --accent: #5eead4;
+                --accent-soft: #173f3b;
+                --warn: #fbbf24;
+                --warn-soft: #463719;
+            }
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            font-family: Arial, Helvetica, sans-serif;
+            letter-spacing: 0;
+        }
+
+        .shell {
+            display: grid;
+            grid-template-columns: 260px 1fr;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            border-right: 1px solid var(--line);
+            background: var(--panel);
+            padding: 24px 20px;
+        }
+
+        .brand {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 32px;
+        }
+
+        .nav {
+            display: grid;
+            gap: 8px;
+        }
+
+        .nav a {
+            color: var(--text);
+            text-decoration: none;
+            padding: 10px 12px;
+            border-radius: 8px;
+        }
+
+        .nav a:first-child {
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        main {
+            padding: 32px;
+        }
+
+        .topline {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            align-items: flex-start;
+            margin-bottom: 28px;
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 30px;
+        }
+
+        .subtle {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.5;
+        }
+
+        .badge {
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 8px 12px;
+            background: var(--panel);
+            white-space: nowrap;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            padding: 18px;
+            min-height: 136px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        .card h2 {
+            margin: 0;
+            font-size: 18px;
+            line-height: 1.35;
+        }
+
+        .state {
+            color: var(--warn);
+            background: var(--warn-soft);
+            border-radius: 8px;
+            display: inline-flex;
+            width: fit-content;
+            padding: 6px 10px;
+            font-size: 14px;
+        }
+
+        @media (max-width: 900px) {
+            .shell {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                border-right: 0;
+                border-bottom: 1px solid var(--line);
+            }
+
+            .grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (max-width: 560px) {
+            main {
+                padding: 22px;
+            }
+
+            .topline {
+                display: grid;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="shell">
+        <aside class="sidebar">
+            <div class="brand">NE UX</div>
+            <nav class="nav" aria-label="Основные разделы">
+                <a href="/">Планирование и контроль</a>
+                <a href="/">НСИ</a>
+                <a href="/">Отчетность</a>
+                <a href="/">Настройки</a>
+                <a href="/admin/">Администрирование</a>
+            </nav>
+        </aside>
+        <main>
+            <div class="topline">
+                <div>
+                    <h1>Рабочее место экономиста</h1>
+                    <p class="subtle">Пилот ООО "Гладиолус": бюджетный контроль, лимиты, заявки, факт БДДС и дерево договоров.</p>
+                </div>
+                <div class="badge">Mock-1C: готовится</div>
+            </div>
+
+            <section class="grid" aria-label="Модули системы">
+                {% for module in modules %}
+                    <article class="card">
+                        <h2>{{ module.name }}</h2>
+                        <span class="state">{{ module.state }}</span>
+                    </article>
+                {% endfor %}
+            </section>
+        </main>
+    </div>
+</body>
+</html>
