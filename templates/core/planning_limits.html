@@ -1,0 +1,198 @@
+{% extends "core/base.html" %}
+
+{% block title %}Планы и лимиты · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/planning/limits/">Планы / лимиты</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Планы / лимиты</h1>
+            <p class="app-subtitle">Годовой план с помесячной разбивкой и утверждением руководителем.</p>
+        </div>
+        <div class="command-bar">
+            {% if can_edit_plans %}
+                <button class="command-button-primary" type="submit" form="create-plan-form">Записать</button>
+            {% endif %}
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            {% if can_edit_plans %}
+                <form id="create-plan-form" method="post" class="form-stack">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create">
+                    <div>
+                        <label class="field-label" for="planning_year">Период планирования</label>
+                        <input class="field-control is-focused" id="planning_year" name="planning_year" value="{{ current_year }}">
+                    </div>
+                    <div>
+                        <label class="field-label" for="planning_horizon">Горизонт</label>
+                        <select class="field-control-select" id="planning_horizon" name="planning_horizon">
+                            <option value="1">1 год</option>
+                            <option value="2">2 года</option>
+                            <option value="3">3 года</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="department_id">ЦФО</label>
+                        <select class="field-control-select" id="department_id" name="department_id">
+                            {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="article_id">Статья ДДС</label>
+                        <select class="field-control-select" id="article_id" name="article_id">
+                            {% for article in articles %}
+                                <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="currency_id">Валюта</label>
+                        <select class="field-control-select" id="currency_id" name="currency_id">
+                            {% for currency in currencies %}
+                                <option value="{{ currency.id }}">{{ currency.code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="annual_amount">Годовая сумма</label>
+                        <input class="field-control" id="annual_amount" name="annual_amount" value="1200000.00">
+                    </div>
+                    <div>
+                        <div class="field-label">Разбивка по месяцам</div>
+                        <div class="data-table-wrap">
+                            <table class="data-table" style="min-width: 320px;">
+                                <tbody>
+                                    <tr><td>Январь</td><td><input class="field-control" name="month_1" value="100000.00"></td></tr>
+                                    <tr><td>Февраль</td><td><input class="field-control" name="month_2" value="100000.00"></td></tr>
+                                    <tr><td>Март</td><td><input class="field-control" name="month_3" value="100000.00"></td></tr>
+                                    <tr><td>Апрель</td><td><input class="field-control" name="month_4" value="100000.00"></td></tr>
+                                    <tr><td>Май</td><td><input class="field-control" name="month_5" value="100000.00"></td></tr>
+                                    <tr><td>Июнь</td><td><input class="field-control" name="month_6" value="100000.00"></td></tr>
+                                    <tr><td>Июль</td><td><input class="field-control" name="month_7" value="100000.00"></td></tr>
+                                    <tr><td>Август</td><td><input class="field-control" name="month_8" value="100000.00"></td></tr>
+                                    <tr><td>Сентябрь</td><td><input class="field-control" name="month_9" value="100000.00"></td></tr>
+                                    <tr><td>Октябрь</td><td><input class="field-control" name="month_10" value="100000.00"></td></tr>
+                                    <tr><td>Ноябрь</td><td><input class="field-control" name="month_11" value="100000.00"></td></tr>
+                                    <tr><td>Декабрь</td><td><input class="field-control" name="month_12" value="100000.00"></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="field-label" for="approver_id">Утверждающий</label>
+                        <select class="field-control-select" id="approver_id" name="approver_id">
+                            {% for approver in approvers %}
+                                <option value="{{ approver.id }}">{{ approver.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="comment">Комментарий</label>
+                        <input class="field-control" id="comment" name="comment" value="Пилотный лимит">
+                    </div>
+                </form>
+            {% else %}
+                <div class="form-stack">
+                    <div>
+                        <div class="field-label">Роль</div>
+                        <div class="field-control is-focused">Руководитель</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Доступное действие</div>
+                        <div class="field-control"><span><span class="status-dot"></span>Утверждение лимитов</span></div>
+                    </div>
+                </div>
+            {% endif %}
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ plans|length }}</div>
+                    <div class="metric-label">Документы</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">12</div>
+                    <div class="metric-label">Месяцев в плане</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">1-3</div>
+                    <div class="metric-label">Горизонт, лет</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">v1</div>
+                    <div class="metric-label">Версия документа</div>
+                </div>
+            </div>
+
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Номер</th>
+                            <th>Год</th>
+                            <th>ЦФО</th>
+                            <th>Статья</th>
+                            <th>Сумма</th>
+                            <th>Статус</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for plan in plans %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ plan.number }}</td>
+                                <td>{{ plan.planning_year }}</td>
+                                <td>{{ plan.department.name }}</td>
+                                <td>{{ plan.article.name }}</td>
+                                <td>{{ plan.annual_amount }} {{ plan.currency.code }}</td>
+                                <td>
+                                    <span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span>
+                                </td>
+                                <td>
+                                    {% if plan.status == status.DRAFT and can_edit_plans %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="submit">
+                                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                                            <button class="command-button" type="submit">На утверждение</button>
+                                        </form>
+                                    {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
+                                            <button class="command-button-primary" type="submit">Утвердить</button>
+                                        </form>
+                                    {% else %}
+                                        <span class="badge">Открыть</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="8">Планов пока нет. Заполните реквизиты слева и нажмите "Записать".</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary-line">
+                <span>Контроль</span>
+                <span class="summary-value">месяцы = год</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}

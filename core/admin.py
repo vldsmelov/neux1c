@@ -2,6 +2,9 @@ from django.contrib import admin
 
 from .models import (
     AdditionalAgreement,
+    AuditLog,
+    BudgetLimitMonth,
+    BudgetLimitPlan,
     CashFlowArticle,
     Contract,
     Counterparty,
@@ -12,7 +15,6 @@ from .models import (
     Organization,
     PaymentFact,
     SyncRun,
-    AuditLog,
     UiThemeSettings,
     UserProfile,
 )
@@ -81,6 +83,19 @@ class ExternalPaymentDocumentAdmin(admin.ModelAdmin):
     list_filter = ("status", "currency", "payment_date")
     search_fields = ("number", "contract__number", "contract__counterparty__name", "accountant__username")
     readonly_fields = ("payment_fact_bu", "payment_fact_nu", "created_at")
+
+
+class BudgetLimitMonthInline(admin.TabularInline):
+    model = BudgetLimitMonth
+    extra = 0
+
+
+@admin.register(BudgetLimitPlan)
+class BudgetLimitPlanAdmin(admin.ModelAdmin):
+    list_display = ("number", "planning_year", "department", "article", "annual_amount", "currency", "status", "version")
+    list_filter = ("status", "planning_year", "department", "currency")
+    search_fields = ("number", "article__name", "department__name", "author__username", "approver__username")
+    inlines = [BudgetLimitMonthInline]
 
 
 @admin.register(SyncRun)
