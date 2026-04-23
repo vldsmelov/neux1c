@@ -12,6 +12,7 @@ from core.models import (
     Counterparty,
     Currency,
     Department,
+    ExternalPaymentDocument,
     Nomenclature,
     Organization,
     PaymentFact,
@@ -39,6 +40,7 @@ REFERENCE_MODELS = [
     Contract,
     AdditionalAgreement,
     PaymentFact,
+    ExternalPaymentDocument,
     SyncRun,
 ]
 

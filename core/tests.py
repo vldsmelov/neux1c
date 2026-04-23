@@ -7,7 +7,19 @@ from django.test import TestCase
 from django.urls import reverse
 
 from core.integrations.one_c.mock import MockOneCProvider
-from core.models import AuditAction, AuditLog, CashFlowArticle, Contract, ContractKind, PaymentFact, UiThemeSettings, UserProfile, UserRole
+from core.models import (
+    AccountingKind,
+    AuditAction,
+    AuditLog,
+    CashFlowArticle,
+    Contract,
+    ContractKind,
+    ExternalPaymentDocument,
+    PaymentFact,
+    UiThemeSettings,
+    UserProfile,
+    UserRole,
+)
 from core.services.one_c_sync import sync_one_c_dataset
 
 
@@ -104,3 +116,44 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertFalse(UserProfile.objects.get(user__username="accountant").can_access_app)
+
+    def test_accountant_login_redirects_to_external_accounting(self):
+        response = self.client.post(
+            reverse("login"),
+            {"username": "accountant", "password": "demo12345"},
+        )
+
+        self.assertRedirects(response, reverse("external_accounting"), fetch_redirect_response=False)
+
+    def test_accountant_can_pay_contract_in_external_system(self):
+        sync_one_c_dataset(MockOneCProvider())
+        contract = Contract.objects.get(kind=ContractKind.SOLE_SUPPLIER, number="ЕП-2026-014")
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.post(
+            reverse("external_accounting"),
+            {"contract_id": contract.id, "amount": "1000.00"},
+        )
+
+        self.assertRedirects(response, reverse("external_accounting"))
+        payment = ExternalPaymentDocument.objects.get(contract=contract)
+        self.assertEqual(payment.amount, Decimal("1000.00"))
+        self.assertEqual(
+            PaymentFact.objects.filter(contract=contract, external_id=f"external-payment-{payment.id}").count(),
+            2,
+        )
+        self.assertTrue(
+            PaymentFact.objects.filter(
+                contract=contract,
+                accounting_kind=AccountingKind.BU,
+                amount=Decimal("1000.00"),
+            ).exists()
+        )
+        self.assertTrue(AuditLog.objects.filter(user__username="accountant", action=AuditAction.PAY).exists())
+
+    def test_economist_cannot_open_external_accounting(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.get(reverse("external_accounting"))
+
+        self.assertEqual(response.status_code, 403)
