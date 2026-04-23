@@ -146,6 +146,27 @@
             box-shadow: inset 3px 0 0 var(--app-warning);
         }
 
+        .app-user {
+            margin-left: auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--app-muted);
+            white-space: nowrap;
+        }
+
+        .logout-form {
+            display: inline;
+        }
+
+        .logout-button {
+            border: 0;
+            background: transparent;
+            color: var(--app-primary);
+            padding: 0;
+            cursor: default;
+        }
+
         .app-workarea {
             margin: 0 22px;
             background: var(--app-surface);
@@ -517,6 +538,15 @@
                 <a class="app-tab-home" href="/">⌂</a>
                 <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
                 {% block tabs %}{% endblock %}
+                {% if request.user.is_authenticated %}
+                    <div class="app-user">
+                        <span>{{ request.user.username }}</span>
+                        <form class="logout-form" method="post" action="{% url 'logout' %}">
+                            {% csrf_token %}
+                            <button class="logout-button" type="submit">Выйти</button>
+                        </form>
+                    </div>
+                {% endif %}
             </div>
             <section class="app-workarea">
                 {% block content %}{% endblock %}

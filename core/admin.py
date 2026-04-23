@@ -11,7 +11,9 @@ from .models import (
     Organization,
     PaymentFact,
     SyncRun,
+    AuditLog,
     UiThemeSettings,
+    UserProfile,
 )
 
 
@@ -103,4 +105,31 @@ class UiThemeSettingsAdmin(admin.ModelAdmin):
                 )
             },
         ),
+    )
+
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "role", "department", "is_app_access_enabled", "updated_at")
+    list_filter = ("role", "is_app_access_enabled", "department")
+    search_fields = ("user__username", "user__email")
+
+
+@admin.register(AuditLog)
+class AuditLogAdmin(admin.ModelAdmin):
+    list_display = ("created_at", "user", "action", "path", "method", "status_code")
+    list_filter = ("action", "method", "status_code")
+    search_fields = ("user__username", "path", "message", "object_type", "object_id")
+    readonly_fields = (
+        "user",
+        "action",
+        "path",
+        "method",
+        "status_code",
+        "object_type",
+        "object_id",
+        "message",
+        "ip_address",
+        "user_agent",
+        "created_at",
     )

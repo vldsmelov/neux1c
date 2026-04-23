@@ -15,9 +15,12 @@ from .models import (
     Organization,
     PaymentFact,
     SyncRun,
+    UserRole,
 )
+from .access import role_required
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def workspace(request):
     modules = [
         {
@@ -62,6 +65,7 @@ def workspace(request):
     )
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST)
 def nsi_dashboard(request):
     article_stats = CashFlowArticle.objects.aggregate(
         total=Count("id"),
