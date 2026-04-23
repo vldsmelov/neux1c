@@ -246,6 +246,21 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_manager_can_open_manager_dashboard(self):
+        sync_one_c_dataset(MockOneCProvider())
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(reverse("manager_dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_accountant_cannot_open_manager_dashboard(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("manager_dashboard"))
+
+        self.assertEqual(response.status_code, 403)
+
 
 class BudgetPlanningTests(TestCase):
     def setUp(self):

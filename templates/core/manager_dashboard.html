@@ -1,0 +1,148 @@
+{% extends "core/base.html" %}
+
+{% block title %}Дашборд руководителя · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/reports/manager/">Дашборд руководителя</a>
+    <a class="app-tab" href="/reports/plan-fact/">План-факт БДДС</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Дашборд руководителя</h1>
+            <p class="app-subtitle">Остатки лимитов, топ превышений и текущие статусы заявок на оплату.</p>
+        </div>
+        <form class="command-bar" method="get">
+            <label class="field-label" for="year" style="margin: 0 8px 0 0;">Период</label>
+            <select class="field-control-select" id="year" name="year" style="width: 120px;">
+                {% for year in years %}
+                    <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+            <button class="command-button-primary" type="submit">Обновить</button>
+            <a class="command-button" href="/reports/plan-fact/?year={{ selected_year }}">Открыть план-факт</a>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </form>
+    </div>
+
+    <div class="metric-strip">
+        <div class="metric-cell">
+            <div class="metric-value">{{ summary.total_balance_bu }}</div>
+            <div class="metric-label">Остаток лимитов (БУ), RUB</div>
+        </div>
+        <div class="metric-cell">
+            <div class="metric-value">{{ summary.overrun_articles }}</div>
+            <div class="metric-label">Статей с превышением</div>
+        </div>
+        <div class="metric-cell">
+            <div class="metric-value">{{ requests_total }}</div>
+            <div class="metric-label">Заявок в периоде</div>
+        </div>
+        <div class="metric-cell">
+            <div class="metric-value">{{ summary.total_fact_bu }}</div>
+            <div class="metric-label">Факт оплат БУ, RUB</div>
+        </div>
+    </div>
+
+    <div class="stack">
+        <div>
+            <h2 class="section-title">Остатки лимитов по статьям (БУ)</h2>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Статья ДДС</th>
+                            <th>План</th>
+                            <th>Корр. лимита</th>
+                            <th>Резерв</th>
+                            <th>Заявлено</th>
+                            <th>Факт БУ</th>
+                            <th>Остаток БУ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in limit_residuals %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>
+                                    {{ row.article.code }} · {{ row.article.name }}
+                                    {% if row.missing_in_one_c %}<span class="badge badge-danger">нет в 1С</span>{% endif %}
+                                    {% if row.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
+                                </td>
+                                <td>{{ row.plan }}</td>
+                                <td>{{ row.adjustments }}</td>
+                                <td>{{ row.reserved }}</td>
+                                <td>{{ row.requested }}</td>
+                                <td>{{ row.fact_bu }}</td>
+                                <td>
+                                    {{ row.balance_bu }}
+                                    {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="8">Нет данных за выбранный период.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="section-title">Топ превышений лимита</h2>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Статья ДДС</th>
+                            <th>Остаток БУ</th>
+                            <th>Факт БУ</th>
+                            <th>Заявлено</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in top_overruns %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ row.article.code }} · {{ row.article.name }}</td>
+                                <td><span class="badge badge-danger">{{ row.balance_bu }}</span></td>
+                                <td>{{ row.fact_bu }}</td>
+                                <td>{{ row.requested }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="5">Превышений нет.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div>
+            <h2 class="section-title">Статусы заявок на оплату</h2>
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Статус</th>
+                            <th>Количество</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for status_row in status_rows %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ status_row.label }}</td>
+                                <td>{{ status_row.total }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+{% endblock %}

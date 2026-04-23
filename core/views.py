@@ -46,6 +46,7 @@ from .services.budget_planning import (
 from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
 from .services.contract_tree import ContractTreeFilters, build_contract_tree
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
+from .services.manager_dashboard import build_manager_dashboard
 from .services.payment_requests import (
     approve_payment_request,
     create_payment_request,
@@ -98,9 +99,9 @@ def workspace(request):
         },
         {
             "name": "Отчетность",
-            "document": "План-факт БДДС",
-            "state": "В работе",
-            "check": "БУ / НУ + экспорт",
+            "document": "Дашборд руководителя",
+            "state": "Готово",
+            "check": "Остатки + превышения + статусы",
         },
     ]
     counts = {
@@ -472,6 +473,20 @@ def plan_fact_report(request):
         "selected_request_status": selected_status,
     }
     return render(request, "core/plan_fact_report.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def manager_dashboard(request):
+    current_year = timezone.localdate().year
+    selected_year = _parse_optional_int(request.GET.get("year")) or current_year
+    payload = build_manager_dashboard(year=selected_year)
+    context = {
+        "active_section": "reports",
+        "years": list(range(current_year - 1, current_year + 3)),
+        "selected_year": selected_year,
+        **payload,
+    }
+    return render(request, "core/manager_dashboard.html", context)
 
 
 @external_accounting_required
