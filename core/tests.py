@@ -11,6 +11,9 @@ from core.models import (
     AccountingKind,
     AuditAction,
     AuditLog,
+    BudgetLimitMonth,
+    BudgetLimitPlan,
+    BudgetPlanStatus,
     CashFlowArticle,
     Contract,
     ContractKind,
@@ -20,6 +23,7 @@ from core.models import (
     UserProfile,
     UserRole,
 )
+from core.services.budget_planning import create_budget_plan
 from core.services.one_c_sync import sync_one_c_dataset
 
 
@@ -157,3 +161,93 @@ class AccessControlTests(TestCase):
         response = self.client.get(reverse("external_accounting"))
 
         self.assertEqual(response.status_code, 403)
+
+
+class BudgetPlanningTests(TestCase):
+    def setUp(self):
+        call_command("setup_access_roles", "--with-users", verbosity=0)
+        sync_one_c_dataset(MockOneCProvider())
+        User = get_user_model()
+        self.economist = User.objects.get(username="economist")
+        self.manager = User.objects.get(username="manager")
+
+    def test_create_budget_plan_builds_12_months(self):
+        plan = self._create_plan()
+
+        self.assertEqual(BudgetLimitMonth.objects.filter(plan=plan).count(), 12)
+        self.assertEqual(plan.monthly_total, Decimal("1200000.00"))
+        self.assertTrue(plan.is_monthly_total_valid)
+        self.assertEqual(plan.status, BudgetPlanStatus.DRAFT)
+
+    def test_invalid_monthly_total_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self._create_plan(monthly_amounts={month: Decimal("1.00") for month in range(1, 13)})
+
+    def test_submit_and_approve_plan(self):
+        plan = self._create_plan()
+        self.client.login(username="economist", password="demo12345")
+
+        submit_response = self.client.post(reverse("planning_limits"), {"action": "submit", "plan_id": plan.id})
+        plan.refresh_from_db()
+
+        self.assertRedirects(submit_response, reverse("planning_limits"))
+        self.assertEqual(plan.status, BudgetPlanStatus.PENDING_APPROVAL)
+
+        self.client.logout()
+        self.client.login(username="manager", password="demo12345")
+        approve_response = self.client.post(reverse("planning_limits"), {"action": "approve", "plan_id": plan.id})
+        plan.refresh_from_db()
+
+        self.assertRedirects(approve_response, reverse("planning_limits"))
+        self.assertEqual(plan.status, BudgetPlanStatus.APPROVED)
+        self.assertIsNotNone(plan.approved_at)
+        self.assertTrue(AuditLog.objects.filter(action=AuditAction.APPROVE, object_id=str(plan.id)).exists())
+
+    def test_manager_cannot_create_plan(self):
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.post(reverse("planning_limits"), self._create_payload())
+
+        self.assertRedirects(response, reverse("planning_limits"))
+        self.assertEqual(BudgetLimitPlan.objects.count(), 0)
+
+    def test_economist_can_create_plan_from_ui(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.post(reverse("planning_limits"), self._create_payload())
+
+        self.assertRedirects(response, reverse("planning_limits"))
+        self.assertEqual(BudgetLimitPlan.objects.count(), 1)
+        self.assertEqual(BudgetLimitMonth.objects.count(), 12)
+
+    def _create_plan(self, monthly_amounts=None):
+        from core.models import Currency, Department
+
+        return create_budget_plan(
+            author=self.economist,
+            department=Department.objects.first(),
+            article=CashFlowArticle.objects.first(),
+            currency=Currency.objects.get(code="RUB"),
+            planning_year=2026,
+            planning_horizon=1,
+            annual_amount=Decimal("1200000.00"),
+            approver=self.manager,
+            monthly_amounts=monthly_amounts,
+            comment="Тестовый лимит",
+        )
+
+    def _create_payload(self):
+        from core.models import Currency, Department
+
+        return {
+            "action": "create",
+            "department_id": Department.objects.first().id,
+            "article_id": CashFlowArticle.objects.first().id,
+            "currency_id": Currency.objects.get(code="RUB").id,
+            "planning_year": "2026",
+            "planning_horizon": "1",
+            "annual_amount": "1200000.00",
+            "approver_id": self.manager.id,
+            "comment": "Тестовый лимит",
+            **{f"month_{month}": "100000.00" for month in range(1, 13)},
+        }

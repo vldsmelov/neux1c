@@ -60,6 +60,13 @@ class ExternalPaymentStatus(models.TextChoices):
     POSTED = "posted", "Проведен"
 
 
+class BudgetPlanStatus(models.TextChoices):
+    DRAFT = "draft", "Черновик"
+    PENDING_APPROVAL = "pending_approval", "На утверждении"
+    APPROVED = "approved", "Утвержден"
+    CLOSED = "closed", "Закрыт"
+
+
 class IntegrationTrackedModel(models.Model):
     external_id = models.CharField("ID во внешней системе", max_length=128, blank=True)
     source_system = models.CharField(
@@ -308,6 +315,89 @@ class ExternalPaymentDocument(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} · {self.contract.number}"
+
+
+class BudgetLimitPlan(models.Model):
+    number = models.CharField("Номер документа", max_length=32, unique=True)
+    document_date = models.DateField("Дата документа", default=timezone.localdate)
+    planning_year = models.PositiveSmallIntegerField("Период планирования")
+    planning_horizon = models.PositiveSmallIntegerField("Горизонт планирования", default=1)
+    department = models.ForeignKey(Department, verbose_name="ЦФО", on_delete=models.PROTECT)
+    article = models.ForeignKey(CashFlowArticle, verbose_name="Статья ДДС", on_delete=models.PROTECT)
+    currency = models.ForeignKey(Currency, verbose_name="Валюта плана", on_delete=models.PROTECT)
+    annual_amount = models.DecimalField("Сумма плана", max_digits=16, decimal_places=2)
+    comment = models.TextField("Комментарий", blank=True)
+    status = models.CharField(
+        "Статус",
+        max_length=32,
+        choices=BudgetPlanStatus.choices,
+        default=BudgetPlanStatus.DRAFT,
+    )
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Утверждающий",
+        on_delete=models.PROTECT,
+        related_name="budget_plans_to_approve",
+    )
+    approved_at = models.DateTimeField("Дата утверждения", null=True, blank=True)
+    version = models.PositiveIntegerField("Версия", default=1)
+    correction_reason = models.CharField("Основание для корректировки", max_length=255, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.PROTECT,
+        related_name="budget_plans",
+    )
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-document_date", "-created_at"]
+        verbose_name = "План / лимит"
+        verbose_name_plural = "Планы / лимиты"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(planning_horizon__in=[1, 2, 3]),
+                name="budget_plan_horizon_1_2_3",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.planning_year}"
+
+    @property
+    def monthly_total(self):
+        return self.months.aggregate(total=models.Sum("amount"))["total"] or 0
+
+    @property
+    def is_monthly_total_valid(self) -> bool:
+        return self.monthly_total == self.annual_amount
+
+
+class BudgetLimitMonth(models.Model):
+    plan = models.ForeignKey(
+        BudgetLimitPlan,
+        verbose_name="План / лимит",
+        on_delete=models.CASCADE,
+        related_name="months",
+    )
+    month = models.PositiveSmallIntegerField("Месяц")
+    amount = models.DecimalField("Сумма", max_digits=16, decimal_places=2, default=0)
+
+    class Meta:
+        ordering = ["month"]
+        verbose_name = "Строка помесячного плана"
+        verbose_name_plural = "Строки помесячного плана"
+        constraints = [
+            models.UniqueConstraint(fields=["plan", "month"], name="uniq_budget_plan_month"),
+            models.CheckConstraint(
+                condition=models.Q(month__gte=1, month__lte=12),
+                name="budget_plan_month_1_12",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.plan.number} · {self.month:02d}"
 
 
 class SyncRun(models.Model):
