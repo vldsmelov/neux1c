@@ -51,6 +51,7 @@ class AuditAction(models.TextChoices):
     DELETE = "delete", "Удаление"
     APPROVE = "approve", "Утверждение"
     PAY = "pay", "Оплата"
+    TRANSFER = "transfer", "Передача"
     LOGIN = "login", "Вход"
     DENIED = "denied", "Отказ доступа"
 
@@ -65,6 +66,25 @@ class BudgetPlanStatus(models.TextChoices):
     PENDING_APPROVAL = "pending_approval", "На утверждении"
     APPROVED = "approved", "Утвержден"
     CLOSED = "closed", "Закрыт"
+
+
+class PaymentRequestKind(models.TextChoices):
+    BY_CONTRACT = "by_contract", "По договору"
+    BY_INVOICE = "by_invoice", "По счету"
+    WITHOUT_CONTRACT = "without_contract", "Без договора"
+
+
+class PaymentRequestStatus(models.TextChoices):
+    DRAFT = "draft", "Черновик"
+    PENDING_APPROVAL = "pending_approval", "На согласовании"
+    APPROVED = "approved", "Согласована"
+    TRANSFERRED = "transferred", "Передана в 1С:ДО"
+    REJECTED = "rejected", "Отклонена"
+
+
+class PaymentLimitControlMode(models.TextChoices):
+    WARNING = "warning", "Предупреждение"
+    BLOCK = "block", "Блокировка"
 
 
 class IntegrationTrackedModel(models.Model):
@@ -476,6 +496,89 @@ class BudgetLimitAdjustmentMonth(models.Model):
 
     def __str__(self) -> str:
         return f"{self.adjustment.number} · {self.month:02d}"
+
+
+class PaymentRequestControlSettings(models.Model):
+    name = models.CharField("Название", max_length=120, default="Контроль лимитов заявок")
+    is_active = models.BooleanField("Активна", default=True)
+    control_mode = models.CharField(
+        "Режим контроля лимита",
+        max_length=16,
+        choices=PaymentLimitControlMode.choices,
+        default=PaymentLimitControlMode.WARNING,
+    )
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Настройка контроля лимита заявок"
+        verbose_name_plural = "Настройки контроля лимита заявок"
+
+    def __str__(self) -> str:
+        return self.name
+
+    @classmethod
+    def active_or_default(cls):
+        active = cls.objects.filter(is_active=True).first()
+        if active is not None:
+            return active
+        return cls()
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_active:
+            PaymentRequestControlSettings.objects.exclude(pk=self.pk).update(is_active=False)
+
+
+class PaymentRequest(models.Model):
+    number = models.CharField("Номер", max_length=32, unique=True)
+    request_kind = models.CharField("Тип заявки", max_length=32, choices=PaymentRequestKind.choices)
+    request_date = models.DateField("Дата заявки", default=timezone.localdate)
+    organization = models.ForeignKey(Organization, verbose_name="Организация", on_delete=models.PROTECT)
+    article = models.ForeignKey(CashFlowArticle, verbose_name="Статья ДДС", on_delete=models.PROTECT)
+    counterparty = models.ForeignKey(Counterparty, verbose_name="Контрагент", on_delete=models.PROTECT)
+    contract = models.ForeignKey(
+        Contract,
+        verbose_name="Договор",
+        on_delete=models.PROTECT,
+        related_name="payment_requests",
+        null=True,
+        blank=True,
+    )
+    invoice_number = models.CharField("Счет", max_length=64, blank=True)
+    currency = models.ForeignKey(Currency, verbose_name="Валюта", on_delete=models.PROTECT)
+    amount = models.DecimalField("Сумма", max_digits=16, decimal_places=2)
+    manual_exchange_rate = models.DecimalField("Курс к RUB", max_digits=12, decimal_places=4, default=1)
+    amount_rub = models.DecimalField("Сумма в RUB", max_digits=16, decimal_places=2)
+    limit_remaining_before_rub = models.DecimalField("Остаток лимита до заявки, RUB", max_digits=16, decimal_places=2)
+    limit_remaining_after_rub = models.DecimalField("Остаток лимита после заявки, RUB", max_digits=16, decimal_places=2)
+    limit_exceeded = models.BooleanField("Превышение лимита", default=False)
+    status = models.CharField("Статус", max_length=32, choices=PaymentRequestStatus.choices, default=PaymentRequestStatus.DRAFT)
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Согласующий",
+        on_delete=models.PROTECT,
+        related_name="payment_requests_to_approve",
+    )
+    approved_at = models.DateTimeField("Дата согласования", null=True, blank=True)
+    transferred_at = models.DateTimeField("Дата передачи в 1С:ДО", null=True, blank=True)
+    do_external_id = models.CharField("ID в 1С:ДО", max_length=64, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.PROTECT,
+        related_name="payment_requests",
+    )
+    comment = models.CharField("Комментарий", max_length=255, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-request_date", "-created_at"]
+        verbose_name = "Заявка на оплату"
+        verbose_name_plural = "Заявки на оплату"
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.counterparty.name}"
 
 
 class SyncRun(models.Model):

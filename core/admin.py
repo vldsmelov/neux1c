@@ -16,6 +16,8 @@ from .models import (
     Nomenclature,
     Organization,
     PaymentFact,
+    PaymentRequest,
+    PaymentRequestControlSettings,
     SyncRun,
     UiThemeSettings,
     UserProfile,
@@ -85,6 +87,30 @@ class ExternalPaymentDocumentAdmin(admin.ModelAdmin):
     list_filter = ("status", "currency", "payment_date")
     search_fields = ("number", "contract__number", "contract__counterparty__name", "accountant__username")
     readonly_fields = ("payment_fact_bu", "payment_fact_nu", "created_at")
+
+
+@admin.register(PaymentRequest)
+class PaymentRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "number",
+        "request_date",
+        "request_kind",
+        "counterparty",
+        "amount",
+        "currency",
+        "status",
+        "limit_exceeded",
+        "approver",
+    )
+    list_filter = ("request_kind", "status", "currency", "limit_exceeded")
+    search_fields = ("number", "invoice_number", "counterparty__name", "contract__number", "do_external_id")
+    readonly_fields = ("amount_rub", "limit_remaining_before_rub", "limit_remaining_after_rub", "approved_at", "transferred_at")
+
+
+@admin.register(PaymentRequestControlSettings)
+class PaymentRequestControlSettingsAdmin(admin.ModelAdmin):
+    list_display = ("name", "control_mode", "is_active", "updated_at")
+    list_editable = ("control_mode", "is_active")
 
 
 class BudgetLimitMonthInline(admin.TabularInline):

@@ -9,6 +9,7 @@ from core.views import (
     external_accounting,
     healthz,
     nsi_dashboard,
+    payment_requests,
     planning_limits,
     workspace,
 )
@@ -17,6 +18,7 @@ from core.views import (
 urlpatterns = [
     path("", workspace, name="workspace"),
     path("planning/limits/", planning_limits, name="planning_limits"),
+    path("payments/requests/", payment_requests, name="payment_requests"),
     path("contracts/reservations/", contracts_reservations, name="contracts_reservations"),
     path("contracts/tree/", contracts_tree, name="contracts_tree"),
     path("nsi/", nsi_dashboard, name="nsi_dashboard"),

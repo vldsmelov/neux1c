@@ -1,0 +1,224 @@
+{% extends "core/base.html" %}
+
+{% block title %}Заявки на оплату · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/payments/requests/">Заявки на оплату</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Заявки на оплату</h1>
+            <p class="app-subtitle">Создание заявок, контроль лимита, согласование руководителем и mock-передача в 1С:ДО.</p>
+        </div>
+        <div class="command-bar">
+            {% if can_manage_payment_requests %}
+                <button class="command-button-primary" type="submit" form="create-request-form">Записать</button>
+            {% endif %}
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            {% if can_manage_payment_requests %}
+                <form id="create-request-form" method="post" class="form-stack">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create">
+                    <div>
+                        <label class="field-label" for="request_kind">Тип заявки</label>
+                        <select class="field-control-select" id="request_kind" name="request_kind">
+                            <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
+                            <option value="{{ request_kind.BY_INVOICE }}">По счету</option>
+                            <option value="{{ request_kind.WITHOUT_CONTRACT }}">Без договора</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="organization_id">Организация</label>
+                        <select class="field-control-select" id="organization_id" name="organization_id">
+                            {% for organization in organizations %}
+                                <option value="{{ organization.id }}">{{ organization.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="article_id">Статья ДДС</label>
+                        <select class="field-control-select" id="article_id" name="article_id">
+                            {% for article in articles %}
+                                <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="counterparty_id">Контрагент</label>
+                        <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                            {% for counterparty in counterparties %}
+                                <option value="{{ counterparty.id }}">{{ counterparty.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="contract_id">Договор поставщика</label>
+                        <select class="field-control-select" id="contract_id" name="contract_id">
+                            <option value="">—</option>
+                            {% for contract in contracts %}
+                                <option value="{{ contract.id }}">{{ contract.number }} · {{ contract.counterparty.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="invoice_number">Счет</label>
+                        <input class="field-control" id="invoice_number" name="invoice_number" value="">
+                    </div>
+                    <div>
+                        <label class="field-label" for="currency_id">Валюта</label>
+                        <select class="field-control-select" id="currency_id" name="currency_id">
+                            {% for currency in currencies %}
+                                <option value="{{ currency.id }}">{{ currency.code }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="amount">Сумма</label>
+                        <input class="field-control is-focused" id="amount" name="amount" value="100000.00">
+                    </div>
+                    <div>
+                        <label class="field-label" for="manual_exchange_rate">Курс к RUB</label>
+                        <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
+                    </div>
+                    <div>
+                        <label class="field-label" for="approver_id">Согласующий</label>
+                        <select class="field-control-select" id="approver_id" name="approver_id">
+                            {% for approver in approvers %}
+                                <option value="{{ approver.id }}">{{ approver.username }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="field-label" for="comment">Комментарий</label>
+                        <input class="field-control" id="comment" name="comment" value="">
+                    </div>
+                </form>
+            {% else %}
+                <div class="form-stack">
+                    <div>
+                        <div class="field-label">Роль</div>
+                        <div class="field-control is-focused">Руководитель</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Доступное действие</div>
+                        <div class="field-control"><span><span class="status-dot"></span>Согласование заявок</span></div>
+                    </div>
+                </div>
+            {% endif %}
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ requests|length }}</div>
+                    <div class="metric-label">Заявок</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ limit_control_mode_label }}</div>
+                    <div class="metric-label">Режим лимита</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ requests|length }}</div>
+                    <div class="metric-label">В workflow</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">1С:ДО</div>
+                    <div class="metric-label">Mock-передача</div>
+                </div>
+            </div>
+
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Номер</th>
+                            <th>Тип</th>
+                            <th>Контрагент</th>
+                            <th>Договор/Счет</th>
+                            <th>Сумма</th>
+                            <th>Лимит до/после (RUB)</th>
+                            <th>Статус</th>
+                            <th>Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request_row in requests %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>{{ request_row.number }}</td>
+                                <td>{{ request_row.get_request_kind_display }}</td>
+                                <td>{{ request_row.counterparty.name }}</td>
+                                <td>
+                                    {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
+                                    {% if request_row.invoice_number %}
+                                        {% if request_row.contract %} · {% endif %}
+                                        {{ request_row.invoice_number }}
+                                    {% endif %}
+                                </td>
+                                <td>{{ request_row.amount }} {{ request_row.currency.code }}</td>
+                                <td>
+                                    {{ request_row.limit_remaining_before_rub }} → {{ request_row.limit_remaining_after_rub }}
+                                    {% if request_row.limit_exceeded %}
+                                        <span class="badge badge-danger">превышение</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
+                                        {{ request_row.get_status_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="submit">
+                                            <input type="hidden" name="request_id" value="{{ request_row.id }}">
+                                            <button class="command-button" type="submit">На согласование</button>
+                                        </form>
+                                    {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="approve">
+                                            <input type="hidden" name="request_id" value="{{ request_row.id }}">
+                                            <button class="command-button-primary" type="submit">Согласовать</button>
+                                        </form>
+                                    {% elif request_row.status == status.APPROVED and can_manage_payment_requests %}
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="transfer">
+                                            <input type="hidden" name="request_id" value="{{ request_row.id }}">
+                                            <button class="command-button-primary" type="submit">Передать в 1С:ДО</button>
+                                        </form>
+                                    {% else %}
+                                        {% if request_row.do_external_id %}
+                                            <span class="badge">{{ request_row.do_external_id }}</span>
+                                        {% else %}
+                                            <span class="badge">Открыть</span>
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="9">Заявок пока нет. Заполните форму слева и нажмите "Записать".</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="summary-line">
+                <span>Контроль лимита</span>
+                <span class="summary-value">{{ limit_control_mode_label }}</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}

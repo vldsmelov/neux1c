@@ -20,6 +20,8 @@ from core.models import (
     Nomenclature,
     Organization,
     PaymentFact,
+    PaymentRequest,
+    PaymentRequestControlSettings,
     SyncRun,
     UiThemeSettings,
     UserProfile,
@@ -48,6 +50,8 @@ REFERENCE_MODELS = [
     BudgetLimitMonth,
     BudgetLimitAdjustment,
     BudgetLimitAdjustmentMonth,
+    PaymentRequest,
+    PaymentRequestControlSettings,
     ExternalPaymentDocument,
     SyncRun,
 ]
