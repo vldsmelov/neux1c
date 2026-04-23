@@ -1,0 +1,78 @@
+from django.contrib import admin
+
+from .models import (
+    AdditionalAgreement,
+    CashFlowArticle,
+    Contract,
+    Counterparty,
+    Currency,
+    Department,
+    Nomenclature,
+    Organization,
+    PaymentFact,
+    SyncRun,
+)
+
+
+class IntegrationTrackedAdmin(admin.ModelAdmin):
+    list_display = ("__str__", "source_system", "external_id", "synced_at")
+    list_filter = ("source_system",)
+
+
+@admin.register(Currency)
+class CurrencyAdmin(IntegrationTrackedAdmin):
+    search_fields = ("code", "name", "external_id")
+
+
+@admin.register(Organization)
+class OrganizationAdmin(IntegrationTrackedAdmin):
+    search_fields = ("name", "inn", "external_id")
+
+
+@admin.register(Department)
+class DepartmentAdmin(IntegrationTrackedAdmin):
+    search_fields = ("code", "name", "external_id")
+
+
+@admin.register(CashFlowArticle)
+class CashFlowArticleAdmin(IntegrationTrackedAdmin):
+    search_fields = ("code", "name", "external_id")
+    list_filter = ("source_system", "exists_in_one_c", "is_internal_turnover")
+
+
+@admin.register(Counterparty)
+class CounterpartyAdmin(IntegrationTrackedAdmin):
+    search_fields = ("name", "inn", "external_id")
+
+
+@admin.register(Nomenclature)
+class NomenclatureAdmin(IntegrationTrackedAdmin):
+    search_fields = ("code", "name", "external_id")
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ("number", "date", "kind", "counterparty", "amount", "currency", "source_system")
+    list_filter = ("kind", "source_system", "currency")
+    search_fields = ("number", "name", "counterparty__name", "external_id")
+
+
+@admin.register(AdditionalAgreement)
+class AdditionalAgreementAdmin(admin.ModelAdmin):
+    list_display = ("number", "date", "contract", "amount", "currency", "source_system")
+    list_filter = ("source_system", "currency")
+    search_fields = ("number", "contract__number", "external_id")
+
+
+@admin.register(PaymentFact)
+class PaymentFactAdmin(admin.ModelAdmin):
+    list_display = ("date", "account", "direction", "accounting_kind", "article", "counterparty", "amount", "currency")
+    list_filter = ("account", "direction", "accounting_kind", "source_system")
+    search_fields = ("external_id", "article__name", "counterparty__name", "contract__number")
+
+
+@admin.register(SyncRun)
+class SyncRunAdmin(admin.ModelAdmin):
+    list_display = ("provider", "status", "started_at", "finished_at")
+    list_filter = ("provider", "status")
+    readonly_fields = ("provider", "status", "started_at", "finished_at", "message", "stats")
