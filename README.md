@@ -16,6 +16,7 @@ docker compose up --build
 - web: http://localhost:8000
 - НСИ / Mock-1C: http://localhost:8000/nsi/
 - Факт оплат БДДС: http://localhost:8000/payments/facts/
+- Дашборд руководителя: http://localhost:8000/reports/manager/
 - План-факт БДДС: http://localhost:8000/reports/plan-fact/
 - healthcheck: http://localhost:8000/healthz/
 - админка: http://localhost:8000/admin/
@@ -178,3 +179,10 @@ git push -u origin develop
 - ручная корректировка факта БУ/НУ экономистом с обязательной причиной;
 - версионирование корректировок с хранением истории;
 - блокировка изменений по закрытому периоду через настройку в админке.
+
+`feature/manager-dashboard`:
+
+- дашборд руководителя `/reports/manager/`;
+- виджеты остатков лимитов и факта оплат;
+- топ-5 статей с превышением лимита;
+- сводка статусов заявок на оплату за период.
