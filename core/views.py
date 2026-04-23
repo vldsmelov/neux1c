@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -37,6 +38,7 @@ from .services.budget_planning import (
     submit_limit_adjustment,
 )
 from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
+from .services.contract_tree import ContractTreeFilters, build_contract_tree
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
 
 
@@ -225,6 +227,32 @@ def contracts_reservations(request):
     )
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def contracts_tree(request):
+    filters = ContractTreeFilters(
+        counterparty_id=_parse_optional_int(request.GET.get("counterparty_id")),
+        contract_query=(request.GET.get("contract") or "").strip().lower(),
+        date_from=_parse_optional_date(request.GET.get("date_from")),
+        date_to=_parse_optional_date(request.GET.get("date_to")),
+    )
+    rows, summary = build_contract_tree(filters)
+    counterparties = Counterparty.objects.filter(contracts__isnull=False).distinct().order_by("name")
+    return render(
+        request,
+        "core/contracts_tree.html",
+        {
+            "active_section": "contracts",
+            "rows": rows,
+            "summary": summary,
+            "counterparties": counterparties,
+            "selected_counterparty_id": filters.counterparty_id,
+            "selected_contract": request.GET.get("contract", ""),
+            "selected_date_from": request.GET.get("date_from", ""),
+            "selected_date_to": request.GET.get("date_to", ""),
+        },
+    )
+
+
 @external_accounting_required
 def external_accounting(request):
     if request.method == "POST":
@@ -304,6 +332,24 @@ def _parse_adjustment_monthly_amounts(post_data):
             return None
         values[month] = _parse_decimal(raw_value)
     return values
+
+
+def _parse_optional_int(raw_value):
+    if not raw_value:
+        return None
+    try:
+        return int(raw_value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_optional_date(raw_value: str | None) -> date | None:
+    if not raw_value:
+        return None
+    try:
+        return date.fromisoformat(raw_value)
+    except ValueError:
+        return None
 
 
 def _can_edit_plans(user) -> bool:

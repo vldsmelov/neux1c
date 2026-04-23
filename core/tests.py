@@ -186,6 +186,21 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_manager_can_open_contract_tree(self):
+        sync_one_c_dataset(MockOneCProvider())
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(reverse("contracts_tree"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_accountant_cannot_open_contract_tree(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("contracts_tree"))
+
+        self.assertEqual(response.status_code, 403)
+
 
 class BudgetPlanningTests(TestCase):
     def setUp(self):
