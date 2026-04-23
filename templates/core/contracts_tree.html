@@ -1,0 +1,130 @@
+{% extends "core/base.html" %}
+
+{% block title %}Дерево договоров · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/contracts/reservations/">Договоры / резерв</a>
+    <a class="app-tab is-active" href="/contracts/tree/">Дерево договоров</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Дерево договоров</h1>
+            <p class="app-subtitle">Иерархия: доходный договор → договор поставщика → допсоглашения, с расчетом сумм и остатков на каждом уровне.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button-primary" href="/contracts/reservations/">К реестру резервов</a>
+            <a class="command-button" href="/planning/limits/">Планы / лимиты</a>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <form method="get" class="form-stack">
+                <div>
+                    <label class="field-label" for="counterparty_id">Контрагент</label>
+                    <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                        <option value="">Все</option>
+                        {% for counterparty in counterparties %}
+                            <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
+                                {{ counterparty.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="contract">Договор</label>
+                    <input class="field-control" id="contract" name="contract" value="{{ selected_contract }}">
+                </div>
+                <div>
+                    <label class="field-label" for="date_from">Дата с</label>
+                    <input class="field-control" id="date_from" type="date" name="date_from" value="{{ selected_date_from }}">
+                </div>
+                <div>
+                    <label class="field-label" for="date_to">Дата по</label>
+                    <input class="field-control" id="date_to" type="date" name="date_to" value="{{ selected_date_to }}">
+                </div>
+                <button class="command-button-primary" type="submit">Применить</button>
+                <a class="command-button" href="/contracts/tree/">Сбросить</a>
+            </form>
+
+            <div class="form-stack" style="margin-top: 18px;">
+                <div>
+                    <div class="field-label">Доходных договоров</div>
+                    <div class="field-control is-focused">{{ summary.customers }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Договоров поставщиков</div>
+                    <div class="field-control">{{ summary.suppliers }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Допсоглашений</div>
+                    <div class="field-control">{{ summary.agreements }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Резерв, RUB</div>
+                    <div class="field-control">{{ summary.total_reserved_rub }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Оплачено, RUB</div>
+                    <div class="field-control">{{ summary.total_paid_rub }}</div>
+                </div>
+                <div>
+                    <div class="field-label">Остаток, RUB</div>
+                    <div class="field-control">{{ summary.total_remaining_rub }}</div>
+                </div>
+            </div>
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"></th>
+                            <th>Вид</th>
+                            <th>Иерархия</th>
+                            <th>Дата</th>
+                            <th>Контрагент</th>
+                            <th>Вал.</th>
+                            <th>Сумма (вал.)</th>
+                            <th>Оплачено (вал.)</th>
+                            <th>Остаток (вал.)</th>
+                            <th>Резерв, RUB</th>
+                            <th>Оплачено, RUB</th>
+                            <th>Остаток, RUB</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td><span class="badge">{{ row.kind_label }}</span></td>
+                                <td><span style="padding-left: {{ row.indent_px }}px; display: inline-block;">{{ row.display_name }}</span></td>
+                                <td>{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                                <td>{{ row.counterparty_name }}</td>
+                                <td>{{ row.currency_code }}</td>
+                                <td>{% if row.reserved_native is not None %}{{ row.reserved_native }}{% else %}—{% endif %}</td>
+                                <td>{% if row.paid_native is not None %}{{ row.paid_native }}{% else %}—{% endif %}</td>
+                                <td>{% if row.remaining_native is not None %}{{ row.remaining_native }}{% else %}—{% endif %}</td>
+                                <td>{{ row.reserved_rub }}</td>
+                                <td>{{ row.paid_rub }}</td>
+                                <td>{{ row.remaining_rub }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="12">Нет данных для выбранных фильтров.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="summary-line">
+                <span>Контроль</span>
+                <span class="summary-value">остатки пересчитаны</span>
+            </div>
+        </section>
+    </div>
+{% endblock %}
