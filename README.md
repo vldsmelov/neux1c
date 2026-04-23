@@ -15,6 +15,7 @@ docker compose up --build
 
 - web: http://localhost:8000
 - НСИ / Mock-1C: http://localhost:8000/nsi/
+- План-факт БДДС: http://localhost:8000/reports/plan-fact/
 - healthcheck: http://localhost:8000/healthz/
 - админка: http://localhost:8000/admin/
 
@@ -161,3 +162,11 @@ git push -u origin develop
 - типы заявок: по договору, по счету, без договора;
 - контроль лимита в режимах предупреждения и блокировки;
 - workflow: черновик -> согласование -> согласовано -> передача в 1С:ДО (mock).
+
+`feature/plan-fact-report`:
+
+- отчет `/reports/plan-fact/`;
+- колонки план / корректировка / резерв / заявлено / факт БУ / факт НУ / остаток;
+- фильтры по периоду, статье, контрагенту и статусу заявки;
+- визуальные индикаторы "нет в 1С" и "ВГО";
+- выгрузка в Excel-совместимый CSV.
