@@ -16,6 +16,8 @@ from .models import (
     Nomenclature,
     Organization,
     PaymentFact,
+    PaymentFactAdjustment,
+    PaymentFactControlSettings,
     PaymentRequest,
     PaymentRequestControlSettings,
     SyncRun,
@@ -79,6 +81,20 @@ class PaymentFactAdmin(admin.ModelAdmin):
     list_display = ("date", "account", "direction", "accounting_kind", "article", "counterparty", "amount", "currency")
     list_filter = ("account", "direction", "accounting_kind", "source_system")
     search_fields = ("external_id", "article__name", "counterparty__name", "contract__number")
+
+
+@admin.register(PaymentFactAdjustment)
+class PaymentFactAdjustmentAdmin(admin.ModelAdmin):
+    list_display = ("payment_fact", "version", "previous_amount", "new_amount", "author", "created_at")
+    list_filter = ("author", "created_at")
+    search_fields = ("payment_fact__external_id", "payment_fact__article__name", "author__username", "reason")
+    readonly_fields = ("payment_fact", "version", "previous_amount", "new_amount", "previous_comment", "new_comment", "reason", "author", "created_at")
+
+
+@admin.register(PaymentFactControlSettings)
+class PaymentFactControlSettingsAdmin(admin.ModelAdmin):
+    list_display = ("name", "closed_through", "is_active", "updated_at")
+    list_editable = ("closed_through", "is_active")
 
 
 @admin.register(ExternalPaymentDocument)

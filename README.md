@@ -15,6 +15,7 @@ docker compose up --build
 
 - web: http://localhost:8000
 - НСИ / Mock-1C: http://localhost:8000/nsi/
+- Факт оплат БДДС: http://localhost:8000/payments/facts/
 - План-факт БДДС: http://localhost:8000/reports/plan-fact/
 - healthcheck: http://localhost:8000/healthz/
 - админка: http://localhost:8000/admin/
@@ -170,3 +171,10 @@ git push -u origin develop
 - фильтры по периоду, статье, контрагенту и статусу заявки;
 - визуальные индикаторы "нет в 1С" и "ВГО";
 - выгрузка в Excel-совместимый CSV.
+
+`feature/payment-fact-adjustments`:
+
+- реестр факта оплат `/payments/facts/`;
+- ручная корректировка факта БУ/НУ экономистом с обязательной причиной;
+- версионирование корректировок с хранением истории;
+- блокировка изменений по закрытому периоду через настройку в админке.
