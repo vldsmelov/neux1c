@@ -1,6 +1,32 @@
 from django.db import OperationalError, ProgrammingError
 
-from .models import UiThemeSettings
+from .models import UiThemeMode, UiThemeSettings
+
+
+DARK_OVERRIDES = {
+    "--app-bg": "#111a26",
+    "--app-surface": "#182433",
+    "--app-sidebar": "#142030",
+    "--app-border": "#2d4158",
+    "--app-text": "#e5edf8",
+    "--app-muted": "#9bb0c7",
+    "--app-primary-soft": "#224063",
+    "--app-toolbar": "#162232",
+    "--app-control": "#0f1b2a",
+    "--app-row-hover": "#203349",
+}
+
+
+def _resolve_theme_mode(request) -> str:
+    session = getattr(request, "session", {})
+    session_mode = session.get("ui_theme_mode")
+    if session_mode in UiThemeMode.values:
+        return session_mode
+    if request.user.is_authenticated:
+        profile = getattr(request.user, "profile", None)
+        if profile and profile.theme_mode in UiThemeMode.values:
+            return profile.theme_mode
+    return UiThemeMode.LIGHT
 
 
 def ui_theme(request):
@@ -12,4 +38,16 @@ def ui_theme(request):
     if theme is None:
         theme = UiThemeSettings.default()
 
-    return {"ui_theme": theme.as_css_variables()}
+    variables = theme.as_css_variables()
+    variables.setdefault("--app-toolbar", "#f4f7fb")
+    variables.setdefault("--app-control", "#ffffff")
+    variables.setdefault("--app-row-hover", "#eef7ff")
+
+    theme_mode = _resolve_theme_mode(request)
+    if theme_mode == UiThemeMode.DARK:
+        variables.update(DARK_OVERRIDES)
+
+    return {
+        "ui_theme": variables,
+        "ui_theme_mode": theme_mode,
+    }
