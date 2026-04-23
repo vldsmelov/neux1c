@@ -522,6 +522,7 @@
     <div class="mobile-nav">
         <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
         <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">Планы</a>
+        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">Заявки</a>
         <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">Договоры</a>
         <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
         <a class="app-tab" href="/admin/">Администрирование</a>
@@ -538,6 +539,9 @@
                 </a>
                 <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">
                     <span class="app-nav-icon">▤</span><span>Планирование</span><span>›</span>
+                </a>
+                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">
+                    <span class="app-nav-icon">✉</span><span>Заявки на оплату</span><span>›</span>
                 </a>
                 <a class="app-nav-link {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">
                     <span class="app-nav-icon">□</span><span>НСИ</span><span>›</span>

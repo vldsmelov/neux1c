@@ -25,6 +25,11 @@ from .models import (
     Nomenclature,
     Organization,
     PaymentFact,
+    PaymentLimitControlMode,
+    PaymentRequest,
+    PaymentRequestControlSettings,
+    PaymentRequestKind,
+    PaymentRequestStatus,
     SyncRun,
     UserRole,
 )
@@ -40,6 +45,12 @@ from .services.budget_planning import (
 from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
 from .services.contract_tree import ContractTreeFilters, build_contract_tree
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
+from .services.payment_requests import (
+    approve_payment_request,
+    create_payment_request,
+    submit_payment_request,
+    transfer_payment_request_to_do,
+)
 
 
 User = get_user_model()
@@ -75,6 +86,12 @@ def workspace(request):
             "document": "Дерево договоров",
             "state": "НСИ готова",
             "check": "Резерв считается",
+        },
+        {
+            "name": "Заявки",
+            "document": "Заявка на оплату",
+            "state": "В работе",
+            "check": "Лимит + согласование + передача в 1С:ДО",
         },
         {
             "name": "Отчетность",
@@ -253,6 +270,89 @@ def contracts_tree(request):
     )
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_requests(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "create":
+                if not _can_manage_payment_requests(request.user):
+                    raise ValueError("Создавать заявки может только экономист или администратор")
+                contract = None
+                contract_id = request.POST.get("contract_id")
+                if contract_id:
+                    contract = get_object_or_404(Contract, pk=contract_id)
+                create_payment_request(
+                    author=request.user,
+                    request_kind=request.POST.get("request_kind"),
+                    organization=get_object_or_404(Organization, pk=request.POST.get("organization_id")),
+                    article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
+                    counterparty=get_object_or_404(Counterparty, pk=request.POST.get("counterparty_id")),
+                    contract=contract,
+                    currency=get_object_or_404(Currency, pk=request.POST.get("currency_id")),
+                    amount=_parse_decimal(request.POST.get("amount")),
+                    manual_exchange_rate=_parse_decimal(request.POST.get("manual_exchange_rate")),
+                    approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
+                    invoice_number=request.POST.get("invoice_number", ""),
+                    comment=request.POST.get("comment", ""),
+                )
+                messages.success(request, "Заявка создана")
+            elif action == "submit":
+                if not _can_manage_payment_requests(request.user):
+                    raise ValueError("Отправлять заявки может только экономист или администратор")
+                submit_payment_request(
+                    get_object_or_404(PaymentRequest, pk=request.POST.get("request_id")),
+                    request.user,
+                )
+                messages.success(request, "Заявка отправлена на согласование")
+            elif action == "approve":
+                approve_payment_request(
+                    get_object_or_404(PaymentRequest, pk=request.POST.get("request_id")),
+                    request.user,
+                )
+                messages.success(request, "Заявка согласована")
+            elif action == "transfer":
+                if not _can_manage_payment_requests(request.user):
+                    raise ValueError("Передавать в 1С:ДО может только экономист или администратор")
+                transfer_payment_request_to_do(
+                    get_object_or_404(PaymentRequest, pk=request.POST.get("request_id")),
+                    request.user,
+                )
+                messages.success(request, "Заявка передана в 1С:ДО")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+        return redirect("payment_requests")
+
+    limit_settings = PaymentRequestControlSettings.active_or_default()
+    context = {
+        "active_section": "payments",
+        "requests": PaymentRequest.objects.select_related(
+            "organization",
+            "article",
+            "counterparty",
+            "contract",
+            "currency",
+            "approver",
+            "author",
+        ),
+        "organizations": Organization.objects.all(),
+        "articles": CashFlowArticle.objects.all(),
+        "counterparties": Counterparty.objects.all(),
+        "contracts": Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related("counterparty", "currency"),
+        "currencies": Currency.objects.all(),
+        "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
+        "status": PaymentRequestStatus,
+        "request_kind": PaymentRequestKind,
+        "can_manage_payment_requests": _can_manage_payment_requests(request.user),
+        "can_approve_payment_requests": _can_approve_plans(request.user),
+        "limit_control_mode": limit_settings.control_mode,
+        "limit_control_mode_label": (
+            "Блокировка" if limit_settings.control_mode == PaymentLimitControlMode.BLOCK else "Предупреждение"
+        ),
+    }
+    return render(request, "core/payment_requests.html", context)
+
+
 @external_accounting_required
 def external_accounting(request):
     if request.method == "POST":
@@ -364,3 +464,10 @@ def _can_approve_plans(user) -> bool:
         return True
     profile = getattr(user, "profile", None)
     return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.MANAGER])
+
+
+def _can_manage_payment_requests(user) -> bool:
+    if user.is_superuser:
+        return True
+    profile = getattr(user, "profile", None)
+    return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
