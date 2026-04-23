@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from .models import (
     AdditionalAgreement,
+    BudgetLimitAdjustment,
     BudgetLimitPlan,
     BudgetPlanStatus,
     CashFlowArticle,
@@ -27,7 +28,14 @@ from .models import (
     UserRole,
 )
 from .access import external_accounting_required, role_required
-from .services.budget_planning import approve_budget_plan, create_budget_plan, submit_budget_plan
+from .services.budget_planning import (
+    approve_budget_plan,
+    approve_limit_adjustment,
+    create_budget_plan,
+    create_limit_adjustment,
+    submit_budget_plan,
+    submit_limit_adjustment,
+)
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
 
 
@@ -155,6 +163,31 @@ def planning_limits(request):
             elif action == "approve":
                 approve_budget_plan(get_object_or_404(BudgetLimitPlan, pk=request.POST.get("plan_id")), request.user)
                 messages.success(request, "План утвержден")
+            elif action == "create_adjustment":
+                if not _can_edit_plans(request.user):
+                    raise ValueError("Создавать корректировки может только экономист или администратор")
+                create_limit_adjustment(
+                    author=request.user,
+                    base_plan=get_object_or_404(BudgetLimitPlan, pk=request.POST.get("base_plan_id")),
+                    new_annual_amount=_parse_decimal(request.POST.get("new_annual_amount")),
+                    reason=request.POST.get("reason", ""),
+                    monthly_amounts=_parse_adjustment_monthly_amounts(request.POST),
+                )
+                messages.success(request, "Корректировка создана")
+            elif action == "submit_adjustment":
+                if not _can_edit_plans(request.user):
+                    raise ValueError("Отправлять корректировки может только экономист или администратор")
+                submit_limit_adjustment(
+                    get_object_or_404(BudgetLimitAdjustment, pk=request.POST.get("adjustment_id")),
+                    request.user,
+                )
+                messages.success(request, "Корректировка отправлена на утверждение")
+            elif action == "approve_adjustment":
+                approve_limit_adjustment(
+                    get_object_or_404(BudgetLimitAdjustment, pk=request.POST.get("adjustment_id")),
+                    request.user,
+                )
+                messages.success(request, "Корректировка утверждена")
         except (InvalidOperation, ValueError) as exc:
             messages.error(request, str(exc))
         return redirect("planning_limits")
@@ -162,6 +195,8 @@ def planning_limits(request):
     context = {
         "active_section": "planning",
         "plans": BudgetLimitPlan.objects.select_related("department", "article", "currency", "approver", "author"),
+        "adjustments": BudgetLimitAdjustment.objects.select_related("base_plan", "article", "approver", "author"),
+        "approved_plans": BudgetLimitPlan.objects.filter(status=BudgetPlanStatus.APPROVED).select_related("currency"),
         "departments": Department.objects.all(),
         "articles": CashFlowArticle.objects.all(),
         "currencies": Currency.objects.all(),
@@ -239,6 +274,16 @@ def _parse_monthly_amounts(post_data):
     values = {}
     for month in range(1, 13):
         raw_value = post_data.get(f"month_{month}")
+        if raw_value in (None, ""):
+            return None
+        values[month] = _parse_decimal(raw_value)
+    return values
+
+
+def _parse_adjustment_monthly_amounts(post_data):
+    values = {}
+    for month in range(1, 13):
+        raw_value = post_data.get(f"adjustment_month_{month}")
         if raw_value in (None, ""):
             return None
         values[month] = _parse_decimal(raw_value)

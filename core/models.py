@@ -400,6 +400,84 @@ class BudgetLimitMonth(models.Model):
         return f"{self.plan.number} · {self.month:02d}"
 
 
+class BudgetLimitAdjustment(models.Model):
+    number = models.CharField("Номер документа", max_length=32, unique=True)
+    document_date = models.DateField("Дата документа", default=timezone.localdate)
+    base_plan = models.ForeignKey(
+        BudgetLimitPlan,
+        verbose_name="Базовый документ",
+        on_delete=models.PROTECT,
+        related_name="adjustments",
+    )
+    article = models.ForeignKey(CashFlowArticle, verbose_name="Статья ДДС", on_delete=models.PROTECT)
+    new_annual_amount = models.DecimalField("Новая сумма", max_digits=16, decimal_places=2)
+    reason = models.TextField("Причина корректировки")
+    version = models.PositiveIntegerField("Версия", default=1)
+    status = models.CharField(
+        "Статус",
+        max_length=32,
+        choices=BudgetPlanStatus.choices,
+        default=BudgetPlanStatus.DRAFT,
+    )
+    approver = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Утверждающий",
+        on_delete=models.PROTECT,
+        related_name="budget_adjustments_to_approve",
+    )
+    approved_at = models.DateTimeField("Дата утверждения", null=True, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.PROTECT,
+        related_name="budget_adjustments",
+    )
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-document_date", "-created_at"]
+        verbose_name = "Корректировка лимита"
+        verbose_name_plural = "Корректировки лимитов"
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.base_plan.number}"
+
+    @property
+    def monthly_total(self):
+        return self.months.aggregate(total=models.Sum("amount"))["total"] or 0
+
+    @property
+    def is_monthly_total_valid(self) -> bool:
+        return self.monthly_total == self.new_annual_amount
+
+
+class BudgetLimitAdjustmentMonth(models.Model):
+    adjustment = models.ForeignKey(
+        BudgetLimitAdjustment,
+        verbose_name="Корректировка лимита",
+        on_delete=models.CASCADE,
+        related_name="months",
+    )
+    month = models.PositiveSmallIntegerField("Месяц")
+    amount = models.DecimalField("Сумма", max_digits=16, decimal_places=2, default=0)
+
+    class Meta:
+        ordering = ["month"]
+        verbose_name = "Строка помесячной корректировки"
+        verbose_name_plural = "Строки помесячной корректировки"
+        constraints = [
+            models.UniqueConstraint(fields=["adjustment", "month"], name="uniq_budget_adjustment_month"),
+            models.CheckConstraint(
+                condition=models.Q(month__gte=1, month__lte=12),
+                name="budget_adjustment_month_1_12",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.adjustment.number} · {self.month:02d}"
+
+
 class SyncRun(models.Model):
     provider = models.CharField("Поставщик", max_length=64, default="mock_1c")
     status = models.CharField("Статус", max_length=16, choices=SyncStatus.choices)

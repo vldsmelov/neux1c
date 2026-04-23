@@ -3,6 +3,8 @@ from django.contrib import admin
 from .models import (
     AdditionalAgreement,
     AuditLog,
+    BudgetLimitAdjustment,
+    BudgetLimitAdjustmentMonth,
     BudgetLimitMonth,
     BudgetLimitPlan,
     CashFlowArticle,
@@ -96,6 +98,19 @@ class BudgetLimitPlanAdmin(admin.ModelAdmin):
     list_filter = ("status", "planning_year", "department", "currency")
     search_fields = ("number", "article__name", "department__name", "author__username", "approver__username")
     inlines = [BudgetLimitMonthInline]
+
+
+class BudgetLimitAdjustmentMonthInline(admin.TabularInline):
+    model = BudgetLimitAdjustmentMonth
+    extra = 0
+
+
+@admin.register(BudgetLimitAdjustment)
+class BudgetLimitAdjustmentAdmin(admin.ModelAdmin):
+    list_display = ("number", "base_plan", "new_annual_amount", "status", "version", "approver", "approved_at")
+    list_filter = ("status", "version", "approver")
+    search_fields = ("number", "base_plan__number", "reason", "author__username", "approver__username")
+    inlines = [BudgetLimitAdjustmentMonthInline]
 
 
 @admin.register(SyncRun)

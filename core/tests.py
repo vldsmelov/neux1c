@@ -11,6 +11,8 @@ from core.models import (
     AccountingKind,
     AuditAction,
     AuditLog,
+    BudgetLimitAdjustment,
+    BudgetLimitAdjustmentMonth,
     BudgetLimitMonth,
     BudgetLimitPlan,
     BudgetPlanStatus,
@@ -23,7 +25,14 @@ from core.models import (
     UserProfile,
     UserRole,
 )
-from core.services.budget_planning import create_budget_plan
+from core.services.budget_planning import (
+    approve_budget_plan,
+    approve_limit_adjustment,
+    create_budget_plan,
+    create_limit_adjustment,
+    submit_budget_plan,
+    submit_limit_adjustment,
+)
 from core.services.one_c_sync import sync_one_c_dataset
 
 
@@ -250,4 +259,118 @@ class BudgetPlanningTests(TestCase):
             "approver_id": self.manager.id,
             "comment": "Тестовый лимит",
             **{f"month_{month}": "100000.00" for month in range(1, 13)},
+        }
+
+
+class LimitAdjustmentTests(TestCase):
+    def setUp(self):
+        call_command("setup_access_roles", "--with-users", verbosity=0)
+        sync_one_c_dataset(MockOneCProvider())
+        User = get_user_model()
+        self.economist = User.objects.get(username="economist")
+        self.manager = User.objects.get(username="manager")
+        self.plan = self._approved_plan()
+
+    def test_create_adjustment_requires_approved_plan(self):
+        draft_plan = self._create_plan()
+
+        with self.assertRaises(ValueError):
+            create_limit_adjustment(
+                author=self.economist,
+                base_plan=draft_plan,
+                new_annual_amount=Decimal("1320000.00"),
+                reason="Уточнение",
+                monthly_amounts={month: Decimal("110000.00") for month in range(1, 13)},
+            )
+
+    def test_create_adjustment_requires_reason(self):
+        with self.assertRaises(ValueError):
+            create_limit_adjustment(
+                author=self.economist,
+                base_plan=self.plan,
+                new_annual_amount=Decimal("1320000.00"),
+                reason="",
+                monthly_amounts={month: Decimal("110000.00") for month in range(1, 13)},
+            )
+
+    def test_approve_adjustment_updates_base_plan_version_and_months(self):
+        adjustment = self._create_adjustment()
+        submit_limit_adjustment(adjustment, self.economist)
+        approve_limit_adjustment(adjustment, self.manager)
+        self.plan.refresh_from_db()
+        adjustment.refresh_from_db()
+
+        self.assertEqual(adjustment.status, BudgetPlanStatus.APPROVED)
+        self.assertEqual(self.plan.annual_amount, Decimal("1320000.00"))
+        self.assertEqual(self.plan.version, 2)
+        self.assertEqual(self.plan.monthly_total, Decimal("1320000.00"))
+        self.assertEqual(BudgetLimitAdjustmentMonth.objects.filter(adjustment=adjustment).count(), 12)
+        self.assertTrue(AuditLog.objects.filter(action=AuditAction.APPROVE, object_type="BudgetLimitAdjustment").exists())
+
+    def test_adjustment_ui_flow(self):
+        self.client.login(username="economist", password="demo12345")
+
+        create_response = self.client.post(reverse("planning_limits"), self._adjustment_payload())
+        adjustment = BudgetLimitAdjustment.objects.get()
+        submit_response = self.client.post(
+            reverse("planning_limits"),
+            {"action": "submit_adjustment", "adjustment_id": adjustment.id},
+        )
+        adjustment.refresh_from_db()
+
+        self.assertRedirects(create_response, reverse("planning_limits"))
+        self.assertRedirects(submit_response, reverse("planning_limits"))
+        self.assertEqual(adjustment.status, BudgetPlanStatus.PENDING_APPROVAL)
+
+        self.client.logout()
+        self.client.login(username="manager", password="demo12345")
+        approve_response = self.client.post(
+            reverse("planning_limits"),
+            {"action": "approve_adjustment", "adjustment_id": adjustment.id},
+        )
+        adjustment.refresh_from_db()
+        self.plan.refresh_from_db()
+
+        self.assertRedirects(approve_response, reverse("planning_limits"))
+        self.assertEqual(adjustment.status, BudgetPlanStatus.APPROVED)
+        self.assertEqual(self.plan.version, 2)
+
+    def _approved_plan(self):
+        plan = self._create_plan()
+        submit_budget_plan(plan, self.economist)
+        approve_budget_plan(plan, self.manager)
+        return plan
+
+    def _create_plan(self):
+        from core.models import Currency, Department
+
+        return create_budget_plan(
+            author=self.economist,
+            department=Department.objects.first(),
+            article=CashFlowArticle.objects.first(),
+            currency=Currency.objects.get(code="RUB"),
+            planning_year=2026,
+            planning_horizon=1,
+            annual_amount=Decimal("1200000.00"),
+            approver=self.manager,
+            monthly_amounts={month: Decimal("100000.00") for month in range(1, 13)},
+            comment="Базовый лимит",
+        )
+
+    def _create_adjustment(self):
+        return create_limit_adjustment(
+            author=self.economist,
+            base_plan=self.plan,
+            new_annual_amount=Decimal("1320000.00"),
+            reason="Уточнение бюджета",
+            monthly_amounts={month: Decimal("110000.00") for month in range(1, 13)},
+        )
+
+    def _adjustment_payload(self):
+        return {
+            "action": "create_adjustment",
+            "base_plan_id": self.plan.id,
+            "new_annual_amount": "1320000.00",
+            "reason": "Уточнение бюджета",
+            **{f"adjustment_month_{month}": "110000.00" for month in range(1, 13)},
         }
