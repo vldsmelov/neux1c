@@ -11,6 +11,7 @@
             {% endfor %}
             --app-shadow: 0 10px 26px rgba(24, 78, 129, 0.08);
             --app-radius: 8px;
+            --content-max-width: 1240px;
         }
 
         * {
@@ -181,6 +182,7 @@
             display: grid;
             place-items: center;
             padding: 0;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         }
 
         .theme-button.is-active {
@@ -202,13 +204,13 @@
             background: var(--app-surface);
             border: 1px solid rgba(215, 228, 242, 0.7);
             border-radius: 10px;
-            min-height: calc(100vh - 86px);
+            min-height: 0;
             box-shadow: var(--app-shadow);
             padding: 18px;
         }
 
         .app-workarea > * {
-            max-width: 1240px;
+            max-width: var(--content-max-width);
             margin-right: auto;
         }
 
@@ -272,6 +274,7 @@
             padding: 0 11px;
             cursor: pointer;
             white-space: nowrap;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
         }
 
         .command-button:hover,
@@ -298,7 +301,7 @@
             grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
             gap: 18px;
             align-items: start;
-            max-width: 1240px;
+            max-width: var(--content-max-width);
         }
 
         .document-grid-compact {
@@ -332,6 +335,7 @@
             padding: 0 10px;
             width: 100%;
             max-width: 100%;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
         }
 
         div.field-control,
@@ -346,11 +350,23 @@
             display: block;
         }
 
+        select.field-control-select {
+            cursor: pointer;
+        }
+
         textarea.field-control {
             min-height: 120px;
             padding: 10px;
             resize: vertical;
             line-height: 1.35;
+        }
+
+        input.field-control:focus-visible,
+        select.field-control-select:focus-visible,
+        textarea.field-control:focus-visible {
+            outline: none;
+            border-color: var(--app-primary);
+            box-shadow: 0 0 0 2px rgba(27, 117, 208, 0.15);
         }
 
         .field-control-sm,
@@ -727,6 +743,17 @@
 
             .app-page-head .command-bar {
                 max-width: 100%;
+            }
+
+            .command-bar {
+                padding: 5px;
+                gap: 5px;
+            }
+
+            .command-button,
+            .command-button-primary {
+                min-height: 30px;
+                padding: 0 9px;
             }
 
             .app-title {
