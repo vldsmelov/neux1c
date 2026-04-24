@@ -71,6 +71,7 @@
                     </div>
                     <div>
                         <label class="field-label" for="invoice_number">Счет</label>
+                        <div class="field-label">Поля по договору заполняются автоматически: контрагент, валюта, сумма, курс.</div>
                         <input class="field-control" id="invoice_number" name="invoice_number" value="">
                     </div>
                     <div>
@@ -221,4 +222,81 @@
             </div>
         </section>
     </div>
+    {% if can_manage_payment_requests %}
+        {{ contracts_autofill|json_script:"contract-autofill-data" }}
+        <script>
+            (() => {
+                const form = document.getElementById("create-request-form");
+                if (!form) {
+                    return;
+                }
+
+                const requestKindSelect = form.querySelector("#request_kind");
+                const contractSelect = form.querySelector("#contract_id");
+                const counterpartySelect = form.querySelector("#counterparty_id");
+                const currencySelect = form.querySelector("#currency_id");
+                const amountInput = form.querySelector("#amount");
+                const exchangeRateInput = form.querySelector("#manual_exchange_rate");
+                const dataNode = document.getElementById("contract-autofill-data");
+                if (!requestKindSelect || !contractSelect || !dataNode) {
+                    return;
+                }
+
+                let contractRows = [];
+                try {
+                    contractRows = JSON.parse(dataNode.textContent);
+                } catch (error) {
+                    return;
+                }
+
+                const contractsById = {};
+                contractRows.forEach((row) => {
+                    contractsById[String(row.id)] = row;
+                });
+                const withoutContractValue = "{{ request_kind.WITHOUT_CONTRACT }}";
+
+                const setSelectValue = (selectNode, value) => {
+                    if (!selectNode || value === null || value === undefined) {
+                        return;
+                    }
+                    const expectedValue = String(value);
+                    const option = Array.from(selectNode.options).find((item) => item.value === expectedValue);
+                    if (option) {
+                        selectNode.value = expectedValue;
+                    }
+                };
+
+                const applyContractAutofill = () => {
+                    const selectedContract = contractsById[contractSelect.value];
+                    if (!selectedContract) {
+                        return;
+                    }
+                    setSelectValue(counterpartySelect, selectedContract.counterparty_id);
+                    setSelectValue(currencySelect, selectedContract.currency_id);
+                    if (amountInput) {
+                        amountInput.value = selectedContract.amount;
+                    }
+                    if (exchangeRateInput) {
+                        exchangeRateInput.value = selectedContract.manual_exchange_rate || "1.0000";
+                    }
+                };
+
+                const syncContractState = () => {
+                    const withoutContract = requestKindSelect.value === withoutContractValue;
+                    contractSelect.disabled = withoutContract;
+                    if (withoutContract) {
+                        contractSelect.value = "";
+                        return;
+                    }
+                    if (contractSelect.value) {
+                        applyContractAutofill();
+                    }
+                };
+
+                contractSelect.addEventListener("change", applyContractAutofill);
+                requestKindSelect.addEventListener("change", syncContractState);
+                syncContractState();
+            })();
+        </script>
+    {% endif %}
 {% endblock %}

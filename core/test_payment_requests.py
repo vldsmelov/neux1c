@@ -84,6 +84,35 @@ class PaymentRequestWorkflowTests(TestCase):
         self.assertEqual(payment_request.status, PaymentRequestStatus.TRANSFERRED)
         self.assertTrue(payment_request.do_external_id.startswith("DO-"))
 
+    def test_contract_fields_are_autofilled_on_create(self):
+        from core.models import Organization
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("payment_requests"),
+            {
+                "action": "create",
+                "request_kind": PaymentRequestKind.BY_CONTRACT,
+                "organization_id": Organization.objects.first().id,
+                "article_id": self.article.id,
+                "counterparty_id": "",
+                "contract_id": self.contract.id,
+                "invoice_number": "",
+                "currency_id": "",
+                "amount": "",
+                "manual_exchange_rate": "",
+                "approver_id": self.manager.id,
+                "comment": "Автозаполнение из договора",
+            },
+        )
+
+        self.assertRedirects(response, reverse("payment_requests"))
+        payment_request = PaymentRequest.objects.get()
+        self.assertEqual(payment_request.counterparty_id, self.contract.counterparty_id)
+        self.assertEqual(payment_request.currency_id, self.contract.currency_id)
+        self.assertEqual(payment_request.amount, self.contract.amount)
+        self.assertEqual(payment_request.manual_exchange_rate, self.contract.manual_exchange_rate)
+
     def test_block_mode_rejects_exceeded_request(self):
         from core.models import Currency, Organization
 
