@@ -17,6 +17,7 @@ from core.models import (
     Currency,
     Department,
     ExternalPaymentDocument,
+    IntegrationRequest,
     Nomenclature,
     Organization,
     PaymentFact,
@@ -56,6 +57,7 @@ REFERENCE_MODELS = [
     BudgetLimitAdjustmentMonth,
     PaymentRequest,
     PaymentRequestControlSettings,
+    IntegrationRequest,
     ExternalPaymentDocument,
     SyncRun,
 ]

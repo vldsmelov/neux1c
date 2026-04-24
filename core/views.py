@@ -24,6 +24,8 @@ from .models import (
     Counterparty,
     Currency,
     Department,
+    IntegrationRequest,
+    IntegrationRequestStatus,
     Nomenclature,
     Organization,
     PaymentFact,
@@ -49,6 +51,7 @@ from .services.budget_planning import (
 from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
 from .services.contract_tree import ContractTreeFilters, build_contract_tree
 from .services.external_accounting import paid_amount_for_contract, pay_contract, remaining_contract_amount
+from .services.integration_requests import create_integration_request, update_integration_request_status
 from .services.manager_dashboard import build_manager_dashboard
 from .services.payment_requests import (
     approve_payment_request,
@@ -92,6 +95,52 @@ def set_theme_mode(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def integration_requests(request):
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "create":
+                create_integration_request(
+                    requested_by=request.user,
+                    integration_name=request.POST.get("integration_name", ""),
+                    target_system=request.POST.get("target_system", ""),
+                    description=request.POST.get("description", ""),
+                )
+                messages.success(request, "Заявка на интеграцию создана")
+            elif action == "set_status":
+                if not _is_administrator(request.user):
+                    raise ValueError("Изменять статус заявки может только администратор")
+                update_integration_request_status(
+                    request=get_object_or_404(IntegrationRequest, pk=request.POST.get("request_id")),
+                    admin_user=request.user,
+                    status=request.POST.get("status", ""),
+                    admin_comment=request.POST.get("admin_comment", ""),
+                )
+                messages.success(request, "Статус заявки обновлен")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+        return redirect("integration_requests")
+
+    selected_status = (request.GET.get("status") or "").strip()
+    if selected_status not in IntegrationRequestStatus.values:
+        selected_status = ""
+
+    requests_query = IntegrationRequest.objects.select_related("requested_by", "assigned_admin")
+    if selected_status:
+        requests_query = requests_query.filter(status=selected_status)
+    requests_list = list(requests_query)
+
+    context = {
+        "active_section": "settings",
+        "requests": requests_list,
+        "status_choices": [("", "Все статусы")] + list(IntegrationRequestStatus.choices),
+        "selected_status": selected_status,
+        "can_manage_integration_requests": _is_administrator(request.user),
+    }
+    return render(request, "core/integration_requests.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def workspace(request):
     modules = [
         {
@@ -123,6 +172,12 @@ def workspace(request):
             "document": "Дашборд руководителя",
             "state": "Готово",
             "check": "Остатки + превышения + статусы",
+        },
+        {
+            "name": "Настройки",
+            "document": "Заявки на интеграцию",
+            "state": "В работе",
+            "check": "Запрос администратору",
         },
     ]
     counts = {
@@ -635,3 +690,10 @@ def _can_edit_payment_facts(user) -> bool:
         return True
     profile = getattr(user, "profile", None)
     return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
+
+
+def _is_administrator(user) -> bool:
+    if user.is_superuser:
+        return True
+    profile = getattr(user, "profile", None)
+    return bool(profile and profile.role == UserRole.ADMINISTRATOR)

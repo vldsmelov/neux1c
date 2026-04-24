@@ -13,6 +13,7 @@ from .models import (
     Currency,
     Department,
     ExternalPaymentDocument,
+    IntegrationRequest,
     Nomenclature,
     Organization,
     PaymentFact,
@@ -194,6 +195,13 @@ class UserProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "role", "theme_mode", "department", "is_app_access_enabled", "updated_at")
     list_filter = ("role", "theme_mode", "is_app_access_enabled", "department")
     search_fields = ("user__username", "user__email")
+
+
+@admin.register(IntegrationRequest)
+class IntegrationRequestAdmin(admin.ModelAdmin):
+    list_display = ("number", "integration_name", "target_system", "requested_by", "status", "assigned_admin", "created_at")
+    list_filter = ("status", "target_system", "created_at")
+    search_fields = ("number", "integration_name", "target_system", "requested_by__username")
 
 
 @admin.register(AuditLog)

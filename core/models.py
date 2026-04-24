@@ -49,6 +49,13 @@ class UiThemeMode(models.TextChoices):
     DARK = "dark", "Темная"
 
 
+class IntegrationRequestStatus(models.TextChoices):
+    NEW = "new", "Новая"
+    IN_PROGRESS = "in_progress", "В работе"
+    COMPLETED = "completed", "Выполнена"
+    REJECTED = "rejected", "Отклонена"
+
+
 class AuditAction(models.TextChoices):
     VIEW = "view", "Просмотр"
     CREATE = "create", "Создание"
@@ -740,6 +747,44 @@ class UserProfile(models.Model):
     @property
     def can_access_app(self) -> bool:
         return self.is_app_access_enabled and self.role != UserRole.ACCOUNTANT
+
+
+class IntegrationRequest(models.Model):
+    number = models.CharField("Номер заявки", max_length=32, unique=True)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Инициатор",
+        on_delete=models.PROTECT,
+        related_name="integration_requests",
+    )
+    integration_name = models.CharField("Название интеграции", max_length=120)
+    target_system = models.CharField("Целевая система", max_length=120)
+    description = models.TextField("Описание потребности")
+    status = models.CharField(
+        "Статус",
+        max_length=20,
+        choices=IntegrationRequestStatus.choices,
+        default=IntegrationRequestStatus.NEW,
+    )
+    assigned_admin = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Ответственный администратор",
+        on_delete=models.PROTECT,
+        related_name="assigned_integration_requests",
+        null=True,
+        blank=True,
+    )
+    admin_comment = models.TextField("Комментарий администратора", blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Заявка на интеграцию"
+        verbose_name_plural = "Заявки на интеграцию"
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.integration_name}"
 
 
 class AuditLog(models.Model):
