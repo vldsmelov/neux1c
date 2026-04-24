@@ -8,6 +8,7 @@ from core.views import (
     contracts_tree,
     external_accounting,
     healthz,
+    integration_requests,
     manager_dashboard,
     nsi_dashboard,
     payment_facts,
@@ -33,6 +34,7 @@ urlpatterns = [
     path("login/", RoleAwareLoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),
     path("settings/theme/", set_theme_mode, name="set_theme_mode"),
+    path("settings/integration-requests/", integration_requests, name="integration_requests"),
     path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
 ]

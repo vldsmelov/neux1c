@@ -277,6 +277,20 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_manager_can_open_integration_requests(self):
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(reverse("integration_requests"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_accountant_cannot_open_integration_requests(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("integration_requests"))
+
+        self.assertEqual(response.status_code, 403)
+
     def test_user_can_change_theme_mode(self):
         self.client.login(username="economist", password="demo12345")
 

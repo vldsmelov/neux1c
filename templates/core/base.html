@@ -553,6 +553,7 @@
         <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">Отчеты</a>
         <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">Договоры</a>
         <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
+        <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">Настройки</a>
         <a class="app-tab" href="/admin/">Администрирование</a>
     </div>
     <div class="app-shell">
@@ -586,7 +587,7 @@
                 <a class="app-nav-link {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">
                     <span class="app-nav-icon">⌘</span><span>Договоры</span><span>›</span>
                 </a>
-                <a class="app-nav-link" href="/">
+                <a class="app-nav-link {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">
                     <span class="app-nav-icon">⚙</span><span>Настройки</span><span>›</span>
                 </a>
                 <a class="app-nav-link" href="/admin/">
