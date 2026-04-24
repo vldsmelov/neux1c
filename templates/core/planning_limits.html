@@ -71,7 +71,7 @@
                     <div>
                         <div class="field-label">Разбивка по месяцам</div>
                         <div class="data-table-wrap">
-                            <table class="data-table" style="min-width: 320px;">
+                            <table class="data-table table-narrow">
                                 <tbody>
                                     <tr><td>Январь</td><td><input class="field-control" name="month_1" value="100000.00"></td></tr>
                                     <tr><td>Февраль</td><td><input class="field-control" name="month_2" value="100000.00"></td></tr>
@@ -102,7 +102,7 @@
                         <input class="field-control" id="comment" name="comment" value="Пилотный лимит">
                     </div>
                 </form>
-                <div class="form-stack" style="margin-top: 22px;">
+                <div class="form-stack panel-stack-top-lg">
                     <h2 class="section-title">Корректировка лимита</h2>
                     <form method="post" class="form-stack">
                         {% csrf_token %}
@@ -126,7 +126,7 @@
                         <div>
                             <div class="field-label">Новая разбивка по месяцам</div>
                             <div class="data-table-wrap">
-                                <table class="data-table" style="min-width: 320px;">
+                                <table class="data-table table-narrow">
                                     <tbody>
                                         <tr><td>Январь</td><td><input class="field-control" name="adjustment_month_1" value="110000.00"></td></tr>
                                         <tr><td>Февраль</td><td><input class="field-control" name="adjustment_month_2" value="110000.00"></td></tr>

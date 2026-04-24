@@ -75,10 +75,10 @@
                                 <td>{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
                                 <td>
                                     {% if row.remaining_amount > 0 %}
-                                        <form method="post" style="display: flex; gap: 8px; align-items: center;">
+                                        <form method="post" class="inline-form-row">
                                             {% csrf_token %}
                                             <input type="hidden" name="contract_id" value="{{ row.contract.id }}">
-                                            <input class="field-control" name="amount" value="{{ row.remaining_amount }}" style="width: 132px;">
+                                            <input class="field-control inline-input-132" name="amount" value="{{ row.remaining_amount }}">
                                             <button class="command-button-primary" type="submit">Оплатить</button>
                                         </form>
                                     {% else %}

@@ -69,7 +69,7 @@
                 <a class="command-button" href="/reports/plan-fact/">Сбросить</a>
             </form>
 
-            <div class="form-stack" style="margin-top: 18px;">
+            <div class="form-stack panel-stack-top">
                 <div>
                     <div class="field-label">Статей в отчете</div>
                     <div class="field-control is-focused">{{ summary.articles }}</div>
@@ -117,7 +117,7 @@
                     </thead>
                     <tbody>
                         {% for row in rows %}
-                            <tr {% if row.is_internal_turnover %}style="background: #fffaf0;"{% endif %}>
+                            <tr{% if row.is_internal_turnover %} class="vgo-row"{% endif %}>
                                 <td><span class="fake-checkbox"></span></td>
                                 <td>{{ row.article.code }} · {{ row.article.name }}</td>
                                 <td>

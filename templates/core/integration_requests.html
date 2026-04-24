@@ -13,8 +13,8 @@
             <p class="app-subtitle">Инициаторы фиксируют потребность в новой интеграции, администратор ведет статус выполнения.</p>
         </div>
         <form class="command-bar" method="get">
-            <label class="field-label" for="status" style="margin: 0 8px 0 0;">Статус</label>
-            <select class="field-control-select" id="status" name="status" style="width: 200px;">
+            <label class="toolbar-label" for="status">Статус</label>
+            <select class="field-control-select toolbar-select-md" id="status" name="status">
                 {% for value, label in status_choices %}
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
@@ -42,7 +42,7 @@
                 </div>
                 <div>
                     <label class="field-label" for="description">Описание потребности</label>
-                    <textarea id="description" name="description" style="width: 100%; min-height: 120px; border: 1px solid #aeb8c4; border-radius: 7px; padding: 10px; resize: vertical; background: var(--app-control); color: var(--app-text);"></textarea>
+                    <textarea class="field-control" id="description" name="description"></textarea>
                 </div>
                 <button class="command-button-primary" type="submit">Создать заявку</button>
             </form>
@@ -98,18 +98,18 @@
                                 </td>
                                 <td>
                                     {% if can_manage_integration_requests %}
-                                        <form method="post" class="form-stack" style="gap: 6px;">
+                                        <form method="post" class="form-stack-compact">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="set_status">
                                             <input type="hidden" name="request_id" value="{{ item.id }}">
-                                            <select class="field-control-select" name="status" style="height: 30px;">
+                                            <select class="field-control-select field-control-select-sm" name="status">
                                                 {% for value, label in status_choices %}
                                                     {% if value %}
                                                         <option value="{{ value }}" {% if value == item.status %}selected{% endif %}>{{ label }}</option>
                                                     {% endif %}
                                                 {% endfor %}
                                             </select>
-                                            <input class="field-control" name="admin_comment" value="{{ item.admin_comment }}" style="height: 30px;">
+                                            <input class="field-control field-control-sm" name="admin_comment" value="{{ item.admin_comment }}">
                                             <button class="command-button" type="submit">Сохранить</button>
                                         </form>
                                     {% else %}

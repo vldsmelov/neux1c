@@ -25,7 +25,7 @@
         </aside>
 
         <section class="data-panel">
-            <form method="post" class="form-stack" style="max-width: 420px;">
+            <form method="post" class="form-stack login-form">
                 {% csrf_token %}
                 {% if form.errors %}
                     <div class="badge badge-danger">Неверный логин или пароль</div>
@@ -38,7 +38,7 @@
                     <label class="field-label" for="{{ form.password.id_for_label }}">Пароль</label>
                     <input class="field-control" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" type="password">
                 </div>
-                <button class="command-button-primary" type="submit" style="width: fit-content;">Войти</button>
+                <button class="command-button-primary" type="submit">Войти</button>
             </form>
         </section>
     </div>
