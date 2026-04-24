@@ -14,8 +14,8 @@
             <p class="app-subtitle">Остатки лимитов, топ превышений и текущие статусы заявок на оплату.</p>
         </div>
         <form class="command-bar" method="get">
-            <label class="field-label" for="year" style="margin: 0 8px 0 0;">Период</label>
-            <select class="field-control-select" id="year" name="year" style="width: 120px;">
+            <label class="toolbar-label" for="year">Период</label>
+            <select class="field-control-select toolbar-select-sm" id="year" name="year">
                 {% for year in years %}
                     <option value="{{ year }}" {% if selected_year == year %}selected{% endif %}>{{ year }}</option>
                 {% endfor %}

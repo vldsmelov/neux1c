@@ -52,7 +52,7 @@
                 <a class="command-button" href="/contracts/tree/">Сбросить</a>
             </form>
 
-            <div class="form-stack" style="margin-top: 18px;">
+            <div class="form-stack panel-stack-top">
                 <div>
                     <div class="field-label">Доходных договоров</div>
                     <div class="field-control is-focused">{{ summary.customers }}</div>
@@ -104,7 +104,7 @@
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
                                 <td><span class="badge">{{ row.kind_label }}</span></td>
-                                <td><span style="padding-left: {{ row.indent_px }}px; display: inline-block;">{{ row.display_name }}</span></td>
+                                <td><span class="tree-indent" style="--indent: {{ row.indent_px }}px;">{{ row.display_name }}</span></td>
                                 <td>{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
                                 <td>{{ row.counterparty_name }}</td>
                                 <td>{{ row.currency_code }}</td>

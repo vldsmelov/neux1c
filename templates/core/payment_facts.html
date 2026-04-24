@@ -130,20 +130,20 @@
                                 <td>
                                     {% if row.versions %}
                                         <span class="badge">v{{ row.latest_version }}</span>
-                                        <span style="color: var(--app-muted);">({{ row.versions }})</span>
+                                        <span class="muted-text">({{ row.versions }})</span>
                                     {% else %}
                                         <span class="badge">база</span>
                                     {% endif %}
                                 </td>
                                 <td>
                                     {% if can_edit_payment_facts %}
-                                        <form method="post" style="display: flex; gap: 8px; align-items: center;">
+                                        <form method="post" class="inline-form-row">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="adjust">
                                             <input type="hidden" name="fact_id" value="{{ row.fact.id }}">
-                                            <input class="field-control" name="new_amount" value="{{ row.fact.amount }}" style="width: 120px;">
-                                            <input class="field-control" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий" style="width: 180px;">
-                                            <input class="field-control" name="reason" value="" placeholder="Причина" style="width: 210px;">
+                                            <input class="field-control inline-input-120" name="new_amount" value="{{ row.fact.amount }}">
+                                            <input class="field-control inline-input-180" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий">
+                                            <input class="field-control inline-input-210" name="reason" value="" placeholder="Причина">
                                             <button class="command-button-primary" type="submit">Записать</button>
                                         </form>
                                     {% else %}
