@@ -29,7 +29,6 @@
             font-size: 14px;
             line-height: 1.35;
             letter-spacing: 0;
-            overflow-x: hidden;
         }
 
         a {
@@ -208,6 +207,11 @@
             padding: 18px;
         }
 
+        .app-workarea > * {
+            max-width: 1240px;
+            margin-right: auto;
+        }
+
         .app-page-head {
             display: flex;
             justify-content: space-between;
@@ -215,6 +219,10 @@
             align-items: flex-end;
             flex-wrap: wrap;
             margin-bottom: 18px;
+        }
+
+        .app-page-head > div {
+            min-width: 0;
         }
 
         .app-title {
@@ -228,6 +236,8 @@
             color: var(--app-muted);
             margin: 6px 0 0;
             line-height: 1.45;
+            max-width: 92ch;
+            overflow-wrap: anywhere;
         }
 
         .command-bar {
@@ -288,6 +298,12 @@
             grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
             gap: 18px;
             align-items: start;
+            max-width: 1240px;
+        }
+
+        .document-grid-compact {
+            grid-template-columns: minmax(280px, 360px) minmax(300px, 520px);
+            max-width: 920px;
         }
 
         .form-panel {
@@ -640,6 +656,12 @@
 
             .document-grid {
                 grid-template-columns: 1fr;
+                max-width: 100%;
+            }
+
+            .document-grid-compact {
+                grid-template-columns: 1fr;
+                max-width: 100%;
             }
 
             .form-panel {
