@@ -362,16 +362,32 @@ def payment_requests(request):
                 contract_id = request.POST.get("contract_id")
                 if contract_id:
                     contract = get_object_or_404(Contract, pk=contract_id)
+                counterparty = contract.counterparty if contract else get_object_or_404(
+                    Counterparty,
+                    pk=request.POST.get("counterparty_id"),
+                )
+                currency = contract.currency if contract else get_object_or_404(
+                    Currency,
+                    pk=request.POST.get("currency_id"),
+                )
+                amount_raw = (request.POST.get("amount") or "").strip()
+                amount = _parse_decimal(amount_raw) if amount_raw else (contract.amount if contract else None)
+                manual_exchange_rate_raw = (request.POST.get("manual_exchange_rate") or "").strip()
+                manual_exchange_rate = (
+                    _parse_decimal(manual_exchange_rate_raw)
+                    if manual_exchange_rate_raw
+                    else (contract.manual_exchange_rate if contract else None)
+                )
                 create_payment_request(
                     author=request.user,
                     request_kind=request.POST.get("request_kind"),
                     organization=get_object_or_404(Organization, pk=request.POST.get("organization_id")),
                     article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
-                    counterparty=get_object_or_404(Counterparty, pk=request.POST.get("counterparty_id")),
+                    counterparty=counterparty,
                     contract=contract,
-                    currency=get_object_or_404(Currency, pk=request.POST.get("currency_id")),
-                    amount=_parse_decimal(request.POST.get("amount")),
-                    manual_exchange_rate=_parse_decimal(request.POST.get("manual_exchange_rate")),
+                    currency=currency,
+                    amount=amount,
+                    manual_exchange_rate=manual_exchange_rate,
                     approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
                     invoice_number=request.POST.get("invoice_number", ""),
                     comment=request.POST.get("comment", ""),
@@ -403,6 +419,9 @@ def payment_requests(request):
             messages.error(request, str(exc))
         return redirect("payment_requests")
 
+    contracts = list(
+        Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related("counterparty", "currency")
+    )
     limit_settings = PaymentRequestControlSettings.active_or_default()
     context = {
         "active_section": "payments",
@@ -418,7 +437,17 @@ def payment_requests(request):
         "organizations": Organization.objects.all(),
         "articles": CashFlowArticle.objects.all(),
         "counterparties": Counterparty.objects.all(),
-        "contracts": Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related("counterparty", "currency"),
+        "contracts": contracts,
+        "contracts_autofill": [
+            {
+                "id": contract.id,
+                "counterparty_id": contract.counterparty_id,
+                "currency_id": contract.currency_id,
+                "amount": str(contract.amount),
+                "manual_exchange_rate": str(contract.manual_exchange_rate),
+            }
+            for contract in contracts
+        ],
         "currencies": Currency.objects.all(),
         "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
         "status": PaymentRequestStatus,
