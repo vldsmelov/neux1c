@@ -42,11 +42,11 @@
                 </div>
                 <div>
                     <label class="field-label" for="date_from">Дата с</label>
-                    <input class="field-control" id="date_from" type="date" name="date_from" value="{{ selected_date_from }}">
+                    <input class="field-control" id="date_from" type="text" name="date_from" value="{{ selected_date_from }}" placeholder="дд.мм.гггг">
                 </div>
                 <div>
                     <label class="field-label" for="date_to">Дата по</label>
-                    <input class="field-control" id="date_to" type="date" name="date_to" value="{{ selected_date_to }}">
+                    <input class="field-control" id="date_to" type="text" name="date_to" value="{{ selected_date_to }}" placeholder="дд.мм.гггг">
                 </div>
                 <button class="command-button-primary" type="submit">Применить</button>
                 <a class="command-button" href="/contracts/tree/">Сбросить</a>
@@ -66,23 +66,33 @@
                     <div class="field-control">{{ summary.agreements }}</div>
                 </div>
                 <div>
-                    <div class="field-label">Резерв, RUB</div>
+                    <div class="field-label">Резерв, руб.</div>
                     <div class="field-control">{{ summary.total_reserved_rub }}</div>
                 </div>
                 <div>
-                    <div class="field-label">Оплачено, RUB</div>
+                    <div class="field-label">Оплачено, руб.</div>
                     <div class="field-control">{{ summary.total_paid_rub }}</div>
                 </div>
                 <div>
-                    <div class="field-label">Остаток, RUB</div>
+                    <div class="field-label">Остаток, руб.</div>
                     <div class="field-control">{{ summary.total_remaining_rub }}</div>
                 </div>
             </div>
         </aside>
 
         <section class="data-panel stack">
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в дереве: <strong id="contracts-tree-table-count">{{ rows|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по дереву договоров"
+                    data-table-search="#contracts-tree-table"
+                    data-table-count="#contracts-tree-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="contracts-tree-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -94,9 +104,9 @@
                             <th>Сумма (вал.)</th>
                             <th>Оплачено (вал.)</th>
                             <th>Остаток (вал.)</th>
-                            <th>Резерв, RUB</th>
-                            <th>Оплачено, RUB</th>
-                            <th>Остаток, RUB</th>
+                            <th>Резерв, руб.</th>
+                            <th>Оплачено, руб.</th>
+                            <th>Остаток, руб.</th>
                         </tr>
                     </thead>
                     <tbody>

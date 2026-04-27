@@ -22,13 +22,14 @@
         </div>
     </div>
 
-    <div class="document-grid">
+    <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
             {% if can_create_payment_requests %}
-                <form id="create-request-form" method="post" enctype="multipart/form-data" class="form-stack">
+                <h2 class="section-title">Создание заявки</h2>
+                <form id="create-request-form" method="post" enctype="multipart/form-data" class="form-stack form-grid form-grid-2">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="create">
-                    <div>
+                    <div class="form-grid-span-full">
                         <label class="field-label" for="request_kind">Тип заявки</label>
                         <select class="field-control-select" id="request_kind" name="request_kind">
                             <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
@@ -81,18 +82,6 @@
                         </select>
                     </div>
                     <div>
-                        <label class="field-label" for="invoice_number">Номер счета</label>
-                        <input class="field-control" id="invoice_number" name="invoice_number" value="">
-                    </div>
-                    <div>
-                        <label class="field-label" for="invoice_date">Дата счета</label>
-                        <input class="field-control" id="invoice_date" name="invoice_date" type="date" value="">
-                    </div>
-                    <div>
-                        <label class="field-label" for="payment_purpose">Назначение платежа</label>
-                        <input class="field-control" id="payment_purpose" name="payment_purpose" value="">
-                    </div>
-                    <div>
                         <label class="field-label" for="currency_id">Валюта</label>
                         <select class="field-control-select" id="currency_id" name="currency_id">
                             {% for currency in currencies %}
@@ -105,18 +94,6 @@
                         <input class="field-control is-focused" id="amount" name="amount" value="100000.00">
                     </div>
                     <div>
-                        <label class="field-label" for="manual_exchange_rate">Курс к RUB</label>
-                        <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
-                    </div>
-                    <div>
-                        <label class="field-label" for="justification_text">Обоснование (для заявки без договора)</label>
-                        <textarea class="field-control" id="justification_text" name="justification_text"></textarea>
-                    </div>
-                    <div>
-                        <label class="field-label" for="justification_file">Файл обоснования</label>
-                        <input class="field-control" id="justification_file" name="justification_file" type="file">
-                    </div>
-                    <div>
                         <label class="field-label" for="approver_id">Согласующий</label>
                         <select class="field-control-select" id="approver_id" name="approver_id">
                             {% for approver in approvers %}
@@ -124,10 +101,39 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div>
-                        <label class="field-label" for="comment">Комментарий инициатора</label>
-                        <input class="field-control" id="comment" name="comment" value="">
-                    </div>
+                    <details class="form-section form-grid-span-full">
+                        <summary>Расширенные реквизиты</summary>
+                        <div class="form-section-content form-grid form-grid-2">
+                            <div>
+                                <label class="field-label" for="invoice_number">Номер счета</label>
+                                <input class="field-control" id="invoice_number" name="invoice_number" value="">
+                            </div>
+                            <div>
+                                <label class="field-label" for="invoice_date">Дата счета</label>
+                                <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="" placeholder="дд.мм.гггг">
+                            </div>
+                            <div class="form-grid-span-full">
+                                <label class="field-label" for="payment_purpose">Назначение платежа</label>
+                                <input class="field-control" id="payment_purpose" name="payment_purpose" value="">
+                            </div>
+                            <div>
+                                <label class="field-label" for="manual_exchange_rate">Курс к руб.</label>
+                                <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
+                            </div>
+                            <div class="form-grid-span-full">
+                                <label class="field-label" for="justification_text">Обоснование (для заявки без договора)</label>
+                                <textarea class="field-control" id="justification_text" name="justification_text"></textarea>
+                            </div>
+                            <div class="form-grid-span-full">
+                                <label class="field-label" for="justification_file">Файл обоснования</label>
+                                <input class="field-control" id="justification_file" name="justification_file" type="file">
+                            </div>
+                            <div class="form-grid-span-full">
+                                <label class="field-label" for="comment">Комментарий инициатора</label>
+                                <input class="field-control" id="comment" name="comment" value="">
+                            </div>
+                        </div>
+                    </details>
                 </form>
             {% else %}
                 <div class="form-stack">
@@ -155,16 +161,26 @@
                 </div>
                 <div class="metric-cell">
                     <div class="metric-value">{{ requests|length }}</div>
-                    <div class="metric-label">В workflow</div>
+                    <div class="metric-label">В работе</div>
                 </div>
                 <div class="metric-cell">
-                    <div class="metric-value">{{ payments_acl.edit|yesno:"edit,view" }}</div>
-                    <div class="metric-label">ACL заявки</div>
+                    <div class="metric-value">{{ payments_acl.edit|yesno:"Редактирование,Просмотр" }}</div>
+                    <div class="metric-label">Права заявки</div>
                 </div>
             </div>
 
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по реестру заявок"
+                    data-table-search="#payment-requests-table"
+                    data-table-count="#payment-requests-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="payment-requests-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -173,9 +189,9 @@
                             <th>Контрагент</th>
                             <th>Договор / счет</th>
                             <th>Сумма</th>
-                            <th>Лимит до/после (RUB)</th>
+                            <th>Лимит до/после (руб.)</th>
                             <th>Статус</th>
-                            <th>Действие</th>
+                            <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -211,7 +227,7 @@
                                         {{ request_row.get_status_display }}
                                     </span>
                                 </td>
-                                <td>
+                                <td class="table-action-col">
                                     {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
                                         <form method="post">
                                             {% csrf_token %}
@@ -254,7 +270,7 @@
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="9">Заявок пока нет. Заполните форму слева и нажмите "Записать".</td></tr>
+                            <tr><td colspan="9">Заявок пока нет. Заполните форму ниже и нажмите "Записать".</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

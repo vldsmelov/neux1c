@@ -97,8 +97,18 @@
                 </div>
             </div>
 
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в реестре: <strong id="payment-facts-table-count">{{ rows|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по факту оплат"
+                    data-table-search="#payment-facts-table"
+                    data-table-count="#payment-facts-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="payment-facts-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -110,7 +120,7 @@
                             <th>Договор</th>
                             <th>Сумма</th>
                             <th>Версии</th>
-                            <th>Корректировка</th>
+                            <th class="table-action-col">Корректировка</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -120,7 +130,7 @@
                                 <td>{{ row.fact.date|date:"d.m.Y" }}</td>
                                 <td>{{ row.fact.get_accounting_kind_display }}</td>
                                 <td>{{ row.fact.account }}</td>
-                                <td>
+                                <td class="table-action-col">
                                     {{ row.fact.article.code }} · {{ row.fact.article.name }}
                                     {% if row.fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                 </td>

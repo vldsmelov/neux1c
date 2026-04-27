@@ -22,13 +22,14 @@
         </div>
     </div>
 
-    <div class="document-grid">
+    <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
             {% if can_create_plans %}
-                <form id="create-plan-form" method="post" class="form-stack">
+                <h2 class="section-title">Создание плана</h2>
+                <form id="create-plan-form" method="post" class="form-stack form-grid form-grid-2">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="create">
-                    <div>
+                    <div class="form-grid-span-full">
                         <label class="field-label" for="planning_year">Период планирования</label>
                         <input class="field-control is-focused" id="planning_year" name="planning_year" value="{{ current_year }}">
                     </div>
@@ -68,27 +69,29 @@
                         <label class="field-label" for="annual_amount">Годовая сумма</label>
                         <input class="field-control" id="annual_amount" name="annual_amount" value="1200000.00">
                     </div>
-                    <div>
-                        <div class="field-label">Разбивка по месяцам</div>
-                        <div class="data-table-wrap">
-                            <table class="data-table table-narrow">
-                                <tbody>
-                                    <tr><td>Январь</td><td><input class="field-control" name="month_1" value="100000.00"></td></tr>
-                                    <tr><td>Февраль</td><td><input class="field-control" name="month_2" value="100000.00"></td></tr>
-                                    <tr><td>Март</td><td><input class="field-control" name="month_3" value="100000.00"></td></tr>
-                                    <tr><td>Апрель</td><td><input class="field-control" name="month_4" value="100000.00"></td></tr>
-                                    <tr><td>Май</td><td><input class="field-control" name="month_5" value="100000.00"></td></tr>
-                                    <tr><td>Июнь</td><td><input class="field-control" name="month_6" value="100000.00"></td></tr>
-                                    <tr><td>Июль</td><td><input class="field-control" name="month_7" value="100000.00"></td></tr>
-                                    <tr><td>Август</td><td><input class="field-control" name="month_8" value="100000.00"></td></tr>
-                                    <tr><td>Сентябрь</td><td><input class="field-control" name="month_9" value="100000.00"></td></tr>
-                                    <tr><td>Октябрь</td><td><input class="field-control" name="month_10" value="100000.00"></td></tr>
-                                    <tr><td>Ноябрь</td><td><input class="field-control" name="month_11" value="100000.00"></td></tr>
-                                    <tr><td>Декабрь</td><td><input class="field-control" name="month_12" value="100000.00"></td></tr>
-                                </tbody>
-                            </table>
+                    <details class="form-section form-grid-span-full">
+                        <summary>Помесячная разбивка плана</summary>
+                        <div class="form-section-content">
+                            <div class="data-table-wrap">
+                                <table class="data-table table-narrow">
+                                    <tbody>
+                                        <tr><td>Январь</td><td><input class="field-control" name="month_1" value="100000.00"></td></tr>
+                                        <tr><td>Февраль</td><td><input class="field-control" name="month_2" value="100000.00"></td></tr>
+                                        <tr><td>Март</td><td><input class="field-control" name="month_3" value="100000.00"></td></tr>
+                                        <tr><td>Апрель</td><td><input class="field-control" name="month_4" value="100000.00"></td></tr>
+                                        <tr><td>Май</td><td><input class="field-control" name="month_5" value="100000.00"></td></tr>
+                                        <tr><td>Июнь</td><td><input class="field-control" name="month_6" value="100000.00"></td></tr>
+                                        <tr><td>Июль</td><td><input class="field-control" name="month_7" value="100000.00"></td></tr>
+                                        <tr><td>Август</td><td><input class="field-control" name="month_8" value="100000.00"></td></tr>
+                                        <tr><td>Сентябрь</td><td><input class="field-control" name="month_9" value="100000.00"></td></tr>
+                                        <tr><td>Октябрь</td><td><input class="field-control" name="month_10" value="100000.00"></td></tr>
+                                        <tr><td>Ноябрь</td><td><input class="field-control" name="month_11" value="100000.00"></td></tr>
+                                        <tr><td>Декабрь</td><td><input class="field-control" name="month_12" value="100000.00"></td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                    </details>
                     <div>
                         <label class="field-label" for="approver_id">Утверждающий</label>
                         <select class="field-control-select" id="approver_id" name="approver_id">
@@ -97,17 +100,17 @@
                             {% endfor %}
                         </select>
                     </div>
-                    <div>
+                    <div class="form-grid-span-full">
                         <label class="field-label" for="comment">Комментарий</label>
                         <input class="field-control" id="comment" name="comment" value="Пилотный лимит">
                     </div>
                 </form>
                 <div class="form-stack panel-stack-top-lg">
                     <h2 class="section-title">Корректировка лимита</h2>
-                    <form method="post" class="form-stack">
+                    <form method="post" class="form-stack form-grid form-grid-2">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="create_adjustment">
-                        <div>
+                        <div class="form-grid-span-full">
                             <label class="field-label" for="base_plan_id">Базовый план</label>
                             <select class="field-control-select" id="base_plan_id" name="base_plan_id">
                                 {% for plan in approved_plans %}
@@ -123,28 +126,30 @@
                             <label class="field-label" for="reason">Причина</label>
                             <input class="field-control" id="reason" name="reason" value="Уточнение бюджета">
                         </div>
-                        <div>
-                            <div class="field-label">Новая разбивка по месяцам</div>
-                            <div class="data-table-wrap">
-                                <table class="data-table table-narrow">
-                                    <tbody>
-                                        <tr><td>Январь</td><td><input class="field-control" name="adjustment_month_1" value="110000.00"></td></tr>
-                                        <tr><td>Февраль</td><td><input class="field-control" name="adjustment_month_2" value="110000.00"></td></tr>
-                                        <tr><td>Март</td><td><input class="field-control" name="adjustment_month_3" value="110000.00"></td></tr>
-                                        <tr><td>Апрель</td><td><input class="field-control" name="adjustment_month_4" value="110000.00"></td></tr>
-                                        <tr><td>Май</td><td><input class="field-control" name="adjustment_month_5" value="110000.00"></td></tr>
-                                        <tr><td>Июнь</td><td><input class="field-control" name="adjustment_month_6" value="110000.00"></td></tr>
-                                        <tr><td>Июль</td><td><input class="field-control" name="adjustment_month_7" value="110000.00"></td></tr>
-                                        <tr><td>Август</td><td><input class="field-control" name="adjustment_month_8" value="110000.00"></td></tr>
-                                        <tr><td>Сентябрь</td><td><input class="field-control" name="adjustment_month_9" value="110000.00"></td></tr>
-                                        <tr><td>Октябрь</td><td><input class="field-control" name="adjustment_month_10" value="110000.00"></td></tr>
-                                        <tr><td>Ноябрь</td><td><input class="field-control" name="adjustment_month_11" value="110000.00"></td></tr>
-                                        <tr><td>Декабрь</td><td><input class="field-control" name="adjustment_month_12" value="110000.00"></td></tr>
-                                    </tbody>
-                                </table>
+                        <details class="form-section form-grid-span-full">
+                            <summary>Новая помесячная разбивка</summary>
+                            <div class="form-section-content">
+                                <div class="data-table-wrap">
+                                    <table class="data-table table-narrow">
+                                        <tbody>
+                                            <tr><td>Январь</td><td><input class="field-control" name="adjustment_month_1" value="110000.00"></td></tr>
+                                            <tr><td>Февраль</td><td><input class="field-control" name="adjustment_month_2" value="110000.00"></td></tr>
+                                            <tr><td>Март</td><td><input class="field-control" name="adjustment_month_3" value="110000.00"></td></tr>
+                                            <tr><td>Апрель</td><td><input class="field-control" name="adjustment_month_4" value="110000.00"></td></tr>
+                                            <tr><td>Май</td><td><input class="field-control" name="adjustment_month_5" value="110000.00"></td></tr>
+                                            <tr><td>Июнь</td><td><input class="field-control" name="adjustment_month_6" value="110000.00"></td></tr>
+                                            <tr><td>Июль</td><td><input class="field-control" name="adjustment_month_7" value="110000.00"></td></tr>
+                                            <tr><td>Август</td><td><input class="field-control" name="adjustment_month_8" value="110000.00"></td></tr>
+                                            <tr><td>Сентябрь</td><td><input class="field-control" name="adjustment_month_9" value="110000.00"></td></tr>
+                                            <tr><td>Октябрь</td><td><input class="field-control" name="adjustment_month_10" value="110000.00"></td></tr>
+                                            <tr><td>Ноябрь</td><td><input class="field-control" name="adjustment_month_11" value="110000.00"></td></tr>
+                                            <tr><td>Декабрь</td><td><input class="field-control" name="adjustment_month_12" value="110000.00"></td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
-                        </div>
-                        <button class="command-button-primary" type="submit">Создать корректировку</button>
+                        </details>
+                        <button class="command-button-primary form-grid-span-full" type="submit">Создать корректировку</button>
                     </form>
                 </div>
             {% else %}
@@ -181,8 +186,18 @@
                 </div>
             </div>
 
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Планов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по планам"
+                    data-table-search="#plans-table"
+                    data-table-count="#plans-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="plans-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -192,7 +207,7 @@
                             <th>Статья</th>
                             <th>Сумма</th>
                             <th>Статус</th>
-                            <th>Действие</th>
+                            <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -207,7 +222,7 @@
                                 <td>
                                     <span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span>
                                 </td>
-                                <td>
+                                <td class="table-action-col">
                                     {% if plan.status == status.DRAFT and can_edit_plans %}
                                         <form method="post">
                                             {% csrf_token %}
@@ -228,7 +243,7 @@
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="8">Планов пока нет. Заполните реквизиты слева и нажмите "Записать".</td></tr>
+                            <tr><td colspan="8">Планов пока нет. Заполните реквизиты ниже и нажмите "Записать".</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -241,8 +256,18 @@
 
             <div>
                 <h2 class="section-title">Корректировки лимитов</h2>
-                <div class="data-table-wrap">
-                    <table class="data-table">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Корректировок: <strong id="adjustments-table-count">{{ adjustments|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по корректировкам"
+                        data-table-search="#adjustments-table"
+                        data-table-count="#adjustments-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="adjustments-table" class="data-table">
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
@@ -251,7 +276,7 @@
                                 <th>Новая сумма</th>
                                 <th>Версия</th>
                                 <th>Статус</th>
-                                <th>Действие</th>
+                                <th class="table-action-col">Действие</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -265,7 +290,7 @@
                                     <td>
                                         <span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span>
                                     </td>
-                                    <td>
+                                    <td class="table-action-col">
                                         {% if adjustment.status == status.DRAFT and can_edit_plans %}
                                             <form method="post">
                                                 {% csrf_token %}

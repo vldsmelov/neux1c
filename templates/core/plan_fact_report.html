@@ -187,21 +187,31 @@
             </div>
             <div class="report-summary-cell">
                 <div class="report-summary-value">{{ summary.total_plan }}</div>
-                <div class="report-summary-label">Итог план, RUB</div>
+                <div class="report-summary-label">Итог план, руб.</div>
             </div>
             <div class="report-summary-cell">
                 <div class="report-summary-value">{{ summary.total_fact_bu }}</div>
-                <div class="report-summary-label">Итог факт БУ, RUB</div>
+                <div class="report-summary-label">Итог факт БУ, руб.</div>
             </div>
             <div class="report-summary-cell">
                 <div class="report-summary-value">{{ summary.total_balance_bu }}</div>
-                <div class="report-summary-label">Итог остаток БУ, RUB</div>
+                <div class="report-summary-label">Итог остаток БУ, руб.</div>
             </div>
         </section>
 
         <section class="data-panel stack">
-            <div class="data-table-wrap">
-                <table class="data-table plan-fact-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в отчете: <strong id="plan-fact-table-count">{{ rows|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по строкам отчета"
+                    data-table-search="#plan-fact-table"
+                    data-table-count="#plan-fact-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll-lg">
+                <table id="plan-fact-table" class="data-table plan-fact-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -257,7 +267,7 @@
             </div>
             <div class="summary-line">
                 <span>Контроль БУ / НУ</span>
-                <span class="summary-value">{{ summary.total_balance_bu }} RUB</span>
+                <span class="summary-value">{{ summary.total_balance_bu }} руб.</span>
             </div>
         </section>
     </div>

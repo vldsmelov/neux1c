@@ -329,6 +329,53 @@
             gap: 12px;
         }
 
+        .form-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .form-grid-span-full {
+            grid-column: 1 / -1;
+        }
+
+        .form-section {
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: #fbfdff;
+            padding: 10px 12px;
+        }
+
+        .form-section > summary {
+            cursor: pointer;
+            font-weight: 700;
+            color: var(--app-text);
+            line-height: 1.25;
+            list-style: none;
+        }
+
+        .form-section > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .form-section > summary::before {
+            content: "▸";
+            color: var(--app-muted);
+            margin-right: 6px;
+        }
+
+        .form-section[open] > summary {
+            margin-bottom: 10px;
+        }
+
+        .form-section[open] > summary::before {
+            content: "▾";
+        }
+
+        .form-section-content {
+            display: grid;
+            gap: 10px;
+        }
+
         .field-label {
             color: var(--app-muted);
             margin-bottom: 5px;
@@ -507,6 +554,26 @@
             background: var(--app-surface);
         }
 
+        .table-toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 8px;
+        }
+
+        .table-toolbar-note {
+            color: var(--app-muted);
+            font-size: 13px;
+            line-height: 1.3;
+        }
+
+        .table-search-input {
+            width: 320px;
+            max-width: 100%;
+        }
+
         .data-table {
             width: 100%;
             min-width: 960px;
@@ -517,10 +584,10 @@
         .data-table th,
         .data-table td {
             border-bottom: 1px solid var(--app-border);
-            padding: 9px 10px;
+            padding: 8px 10px;
             text-align: left;
             vertical-align: middle;
-            height: 38px;
+            min-height: 34px;
             word-break: normal;
             overflow-wrap: break-word;
         }
@@ -537,6 +604,15 @@
 
         .data-table tbody tr:hover {
             background: var(--app-row-hover);
+        }
+
+        .data-table tbody tr:nth-child(even):not(.vgo-row) {
+            background: rgba(27, 117, 208, 0.03);
+        }
+
+        .table-action-col {
+            min-width: 220px;
+            width: 220px;
         }
 
         .guide-content {
@@ -810,8 +886,8 @@
             border: 1px solid var(--app-border);
             border-radius: var(--app-radius);
             background: #fbfdff;
-            min-height: 76px;
-            padding: 12px;
+            min-height: 70px;
+            padding: 10px 12px;
             transition: border-color 0.15s ease, box-shadow 0.15s ease;
         }
 
@@ -917,11 +993,35 @@
         }
 
         @media (min-width: 1041px) {
+            .form-grid-2 {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
             .form-panel {
                 position: static;
                 top: auto;
                 max-height: none;
                 overflow: visible;
+            }
+
+            .document-grid-priority-data .data-panel {
+                order: 1;
+            }
+
+            .document-grid-priority-data .form-panel {
+                order: 2;
+                border-top: 1px solid var(--app-border);
+                border-bottom: 0;
+                padding-top: 14px;
+                padding-bottom: 0;
+            }
+
+            .data-table-wrap.desktop-scroll {
+                max-height: 52vh;
+            }
+
+            .data-table-wrap.desktop-scroll-lg {
+                max-height: 62vh;
             }
         }
 
@@ -1099,5 +1199,47 @@
             <span class="app-rail-button">≡</span>
         </aside>
     </div>
+    <script>
+        (() => {
+            const normalize = (value) => (value || "").toString().toLowerCase().trim();
+
+            const bindTableSearch = (input) => {
+                const selector = input.dataset.tableSearch;
+                if (!selector) {
+                    return;
+                }
+                const table = document.querySelector(selector);
+                if (!table) {
+                    return;
+                }
+                const rows = Array.from(table.querySelectorAll("tbody tr"));
+                const countNodeSelector = input.dataset.tableCount;
+                const countNode = countNodeSelector ? document.querySelector(countNodeSelector) : null;
+
+                const applyFilter = () => {
+                    const query = normalize(input.value);
+                    let visibleCount = 0;
+                    rows.forEach((row) => {
+                        const isMatch = normalize(row.textContent).includes(query);
+                        row.style.display = isMatch ? "" : "none";
+                        if (isMatch) {
+                            visibleCount += 1;
+                        }
+                    });
+                    if (countNode) {
+                        countNode.textContent = visibleCount.toString();
+                    }
+                };
+
+                input.addEventListener("input", applyFilter);
+            };
+
+            document.querySelectorAll("[data-table-search]").forEach(bindTableSearch);
+            document.querySelectorAll("input[type='date']").forEach((input) => {
+                input.setAttribute("lang", "ru");
+                input.setAttribute("placeholder", "дд.мм.гггг");
+            });
+        })();
+    </script>
 </body>
 </html>

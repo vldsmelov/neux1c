@@ -82,8 +82,18 @@
 
             <div>
                 <h2 class="section-title">Статьи ДДС</h2>
-                <div class="data-table-wrap">
-                    <table class="data-table">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Статей ДДС: <strong id="nsi-articles-table-count">{{ articles|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по статье"
+                        data-table-search="#nsi-articles-table"
+                        data-table-count="#nsi-articles-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="nsi-articles-table" class="data-table">
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
@@ -120,8 +130,18 @@
 
             <div>
                 <h2 class="section-title">Договоры с единственным поставщиком</h2>
-                <div class="data-table-wrap">
-                    <table class="data-table">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Договоров: <strong id="nsi-contracts-table-count">{{ supplier_contracts|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по договору"
+                        data-table-search="#nsi-contracts-table"
+                        data-table-count="#nsi-contracts-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="nsi-contracts-table" class="data-table">
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
@@ -150,8 +170,18 @@
 
             <div>
                 <h2 class="section-title">Факт оплат из 1С:БП</h2>
-                <div class="data-table-wrap">
-                    <table class="data-table">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Строк факта: <strong id="nsi-facts-table-count">{{ payment_facts|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по факту оплаты"
+                        data-table-search="#nsi-facts-table"
+                        data-table-count="#nsi-facts-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="nsi-facts-table" class="data-table">
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
@@ -187,7 +217,7 @@
 
             <div class="summary-line">
                 <span>Факт оплат</span>
-                <span class="summary-value">{{ facts_total }} RUB</span>
+                <span class="summary-value">{{ facts_total }} руб.</span>
             </div>
         </section>
     </div>

@@ -68,8 +68,18 @@
                 </div>
             </div>
 
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Заявок в списке: <strong id="integration-requests-table-count">{{ requests|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по заявкам интеграции"
+                    data-table-search="#integration-requests-table"
+                    data-table-count="#integration-requests-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="integration-requests-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -80,7 +90,7 @@
                             <th>Описание</th>
                             <th>Статус</th>
                             <th>Админ-комментарий</th>
-                            <th>Действие</th>
+                            <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -93,7 +103,7 @@
                                 <td>{{ item.target_system }}</td>
                                 <td>{{ item.description|truncatechars:90 }}</td>
                                 <td><span class="badge">{{ item.get_status_display }}</span></td>
-                                <td>
+                                <td class="table-action-col">
                                     {% if item.admin_comment %}{{ item.admin_comment|truncatechars:70 }}{% else %}—{% endif %}
                                 </td>
                                 <td>

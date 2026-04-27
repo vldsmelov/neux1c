@@ -38,7 +38,7 @@
                 </div>
                 <div>
                     <div class="field-label">Всего оплачено</div>
-                    <div class="field-control">{{ payments_total }} RUB</div>
+                    <div class="field-control">{{ payments_total }} руб.</div>
                 </div>
             </div>
         </aside>
@@ -51,8 +51,18 @@
                 <button class="command-button" type="button">Поиск</button>
             </div>
 
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Договоров к оплате: <strong id="external-payments-table-count">{{ rows|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по договору или контрагенту"
+                    data-table-search="#external-payments-table"
+                    data-table-count="#external-payments-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="external-payments-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -61,7 +71,7 @@
                             <th>К оплате</th>
                             <th>Оплачено</th>
                             <th>Остаток</th>
-                            <th>Действие</th>
+                            <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -73,7 +83,7 @@
                                 <td>{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
                                 <td>{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
                                 <td>{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
-                                <td>
+                                <td class="table-action-col">
                                     {% if row.remaining_amount > 0 %}
                                         <form method="post" class="inline-form-row">
                                             {% csrf_token %}

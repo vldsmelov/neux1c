@@ -31,7 +31,7 @@
     <div class="metric-strip">
         <div class="metric-cell">
             <div class="metric-value">{{ summary.total_balance_bu }}</div>
-            <div class="metric-label">Остаток лимитов (БУ), RUB</div>
+            <div class="metric-label">Остаток лимитов (БУ), руб.</div>
         </div>
         <div class="metric-cell">
             <div class="metric-value">{{ summary.overrun_articles }}</div>
@@ -43,15 +43,25 @@
         </div>
         <div class="metric-cell">
             <div class="metric-value">{{ summary.total_fact_bu }}</div>
-            <div class="metric-label">Факт оплат БУ, RUB</div>
+            <div class="metric-label">Факт оплат БУ, руб.</div>
         </div>
     </div>
 
     <div class="stack">
         <div>
             <h2 class="section-title">Остатки лимитов по статьям (БУ)</h2>
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в разделе: <strong id="manager-limits-table-count">{{ limit_residuals|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по статьям и показателям"
+                    data-table-search="#manager-limits-table"
+                    data-table-count="#manager-limits-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="manager-limits-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -93,8 +103,18 @@
 
         <div>
             <h2 class="section-title">Топ превышений лимита</h2>
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в разделе: <strong id="manager-overruns-table-count">{{ top_overruns|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по превышениям"
+                    data-table-search="#manager-overruns-table"
+                    data-table-count="#manager-overruns-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="manager-overruns-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -123,8 +143,18 @@
 
         <div>
             <h2 class="section-title">Статусы заявок на оплату</h2>
-            <div class="data-table-wrap">
-                <table class="data-table">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Статусов в разделе: <strong id="manager-statuses-table-count">{{ status_rows|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по статусам"
+                    data-table-search="#manager-statuses-table"
+                    data-table-count="#manager-statuses-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="manager-statuses-table" class="data-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>

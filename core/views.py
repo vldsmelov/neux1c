@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from mimetypes import guess_type
@@ -911,6 +911,10 @@ def _parse_optional_date(raw_value: str | None) -> date | None:
         return None
     try:
         return date.fromisoformat(raw_value)
+    except ValueError:
+        pass
+    try:
+        return datetime.strptime(raw_value, "%d.%m.%Y").date()
     except ValueError:
         return None
 
