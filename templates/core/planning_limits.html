@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Планы и лимиты · NE UX{% endblock %}
 
@@ -122,7 +123,7 @@
                                 <label class="field-label" for="base_plan_id">Базовый план</label>
                                 <select class="field-control-select" id="base_plan_id" name="base_plan_id">
                                     {% for plan in approved_plans %}
-                                        <option value="{{ plan.id }}">{{ plan.number }} · {{ plan.annual_amount }} {{ plan.currency.code }}</option>
+                                        <option value="{{ plan.id }}">{{ plan.number }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</option>
                                     {% endfor %}
                                 </select>
                             </div>
@@ -230,7 +231,7 @@
                                 <td class="table-col-short">{{ plan.planning_year }}</td>
                                 <td class="table-col-counterparty">{{ plan.department.name }}</td>
                                 <td class="table-col-article">{{ plan.article.name }}</td>
-                                <td class="table-col-number">{{ plan.annual_amount }} {{ plan.currency.code }}</td>
+                                <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
                                 <td class="table-col-status">
                                     <span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span>
                                 </td>
@@ -297,7 +298,7 @@
                                     <td><span class="fake-checkbox"></span></td>
                                     <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
                                     <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
-                                    <td class="table-col-number">{{ adjustment.new_annual_amount }} {{ adjustment.base_plan.currency.code }}</td>
+                                    <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
                                     <td class="table-col-short">v{{ adjustment.version }}</td>
                                     <td class="table-col-status">
                                         <span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span>

@@ -5,7 +5,7 @@ from core.services.one_c_sync import sync_one_c_dataset
 
 
 class Command(BaseCommand):
-    help = "Load pilot reference data and payment facts from the Mock-1C provider."
+    help = "Load pilot reference data and payment facts from the Mock-1С provider."
 
     def handle(self, *args, **options):
         run = sync_one_c_dataset(MockOneCProvider())

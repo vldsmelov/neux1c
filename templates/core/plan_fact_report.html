@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}План-факт БДДС · NE UX{% endblock %}
 
@@ -189,15 +190,15 @@
                 <div class="report-summary-label">Статей ВГО</div>
             </div>
             <div class="report-summary-cell">
-                <div class="report-summary-value">{{ summary.total_plan }}</div>
+                <div class="report-summary-value">{{ summary.total_plan|ru_number }}</div>
                 <div class="report-summary-label">Итог план, руб.</div>
             </div>
             <div class="report-summary-cell">
-                <div class="report-summary-value">{{ summary.total_fact_bu }}</div>
+                <div class="report-summary-value">{{ summary.total_fact_bu|ru_number }}</div>
                 <div class="report-summary-label">Итог факт БУ, руб.</div>
             </div>
             <div class="report-summary-cell">
-                <div class="report-summary-value">{{ summary.total_balance_bu }}</div>
+                <div class="report-summary-value">{{ summary.total_balance_bu|ru_number }}</div>
                 <div class="report-summary-label">Итог остаток БУ, руб.</div>
             </div>
         </section>
@@ -270,7 +271,7 @@
             </div>
             <div class="summary-line">
                 <span>Контроль БУ / НУ</span>
-                <span class="summary-value">{{ summary.total_balance_bu }} руб.</span>
+                <span class="summary-value">{{ summary.total_balance_bu|ru_number }} руб.</span>
             </div>
         </section>
     </div>

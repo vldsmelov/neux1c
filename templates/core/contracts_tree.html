@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Дерево договоров · NE UX{% endblock %}
 
@@ -78,15 +79,15 @@
                         </div>
                         <div>
                             <div class="field-label">Резерв, руб.</div>
-                            <div class="field-control">{{ summary.total_reserved_rub }}</div>
+                            <div class="field-control">{{ summary.total_reserved_rub|ru_number }}</div>
                         </div>
                         <div>
                             <div class="field-label">Оплачено, руб.</div>
-                            <div class="field-control">{{ summary.total_paid_rub }}</div>
+                            <div class="field-control">{{ summary.total_paid_rub|ru_number }}</div>
                         </div>
                         <div>
                             <div class="field-label">Остаток, руб.</div>
-                            <div class="field-control">{{ summary.total_remaining_rub }}</div>
+                            <div class="field-control">{{ summary.total_remaining_rub|ru_number }}</div>
                         </div>
                     </div>
                 </div>
@@ -131,12 +132,12 @@
                                 <td class="table-col-date">{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
                                 <td class="table-col-counterparty">{{ row.counterparty_name }}</td>
                                 <td class="table-col-short">{{ row.currency_code }}</td>
-                                <td class="table-col-number">{% if row.reserved_native is not None %}{{ row.reserved_native }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{% if row.paid_native is not None %}{{ row.paid_native }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{% if row.remaining_native is not None %}{{ row.remaining_native }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{{ row.reserved_rub }}</td>
-                                <td class="table-col-number">{{ row.paid_rub }}</td>
-                                <td class="table-col-number">{{ row.remaining_rub }}</td>
+                                <td class="table-col-number">{% if row.reserved_native is not None %}{{ row.reserved_native|ru_number }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{% if row.paid_native is not None %}{{ row.paid_native|ru_number }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{% if row.remaining_native is not None %}{{ row.remaining_native|ru_number }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{{ row.reserved_rub|ru_number }}</td>
+                                <td class="table-col-number">{{ row.paid_rub|ru_number }}</td>
+                                <td class="table-col-number">{{ row.remaining_rub|ru_number }}</td>
                             </tr>
                         {% empty %}
                             <tr><td colspan="12">Нет данных для выбранных фильтров.</td></tr>

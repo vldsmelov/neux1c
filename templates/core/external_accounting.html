@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Внешняя 1С:БП · Оплата договоров{% endblock %}
 
@@ -38,7 +39,7 @@
                 </div>
                 <div>
                     <div class="field-label">Всего оплачено</div>
-                    <div class="field-control">{{ payments_total }} руб.</div>
+                    <div class="field-control">{{ payments_total|ru_number }} руб.</div>
                 </div>
             </div>
         </aside>
@@ -80,15 +81,15 @@
                                 <td><span class="fake-checkbox"></span></td>
                                 <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
                                 <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
-                                <td class="table-col-number">{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
                                 <td class="table-action-col">
                                     {% if row.remaining_amount > 0 %}
                                         <form method="post" class="inline-form-row">
                                             {% csrf_token %}
                                             <input type="hidden" name="contract_id" value="{{ row.contract.id }}">
-                                            <input class="field-control inline-input-132" name="amount" value="{{ row.remaining_amount }}">
+                                            <input class="field-control inline-input-132" name="amount" value="{{ row.remaining_amount|ru_number }}">
                                             <button class="command-button-primary" type="submit">Оплатить</button>
                                         </form>
                                     {% else %}
@@ -97,7 +98,7 @@
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1C.</td></tr>
+                            <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1С.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

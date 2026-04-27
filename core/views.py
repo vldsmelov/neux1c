@@ -164,7 +164,7 @@ def workspace(request):
         },
         {
             "name": "НСИ",
-            "document": "Синхронизация Mock-1C",
+            "document": "Синхронизация Mock-1С",
             "state": "Готово",
             "check": "Данные загружены",
         },

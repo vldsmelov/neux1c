@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Договоры и резервирование · NE UX{% endblock %}
 
@@ -36,15 +37,15 @@
                         </div>
                         <div>
                             <div class="field-label">Общий резерв</div>
-                            <div class="field-control">{{ summary.total_reserved }} руб.</div>
+                            <div class="field-control">{{ summary.total_reserved|ru_number }} руб.</div>
                         </div>
                         <div>
                             <div class="field-label">Оплачено</div>
-                            <div class="field-control">{{ summary.total_paid }} руб.</div>
+                            <div class="field-control">{{ summary.total_paid|ru_number }} руб.</div>
                         </div>
                         <div>
                             <div class="field-label">Остаток к оплате</div>
-                            <div class="field-control">{{ summary.total_remaining }} руб.</div>
+                            <div class="field-control">{{ summary.total_remaining|ru_number }} руб.</div>
                         </div>
                         <div>
                             <div class="field-label">Без привязки к статье ДДС</div>
@@ -94,26 +95,26 @@
                                         <span class="badge">Не определена</span>
                                     {% endif %}
                                 </td>
-                                <td class="table-col-number">{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
                                 <td class="table-col-number">
                                     {% if row.approved_limit is not None %}
-                                        {{ row.approved_limit }} {{ row.contract.currency.code }}
+                                        {{ row.approved_limit|ru_number }} {{ row.contract.currency.code }}
                                     {% else %}
                                         <span class="badge badge-danger">Нет лимита</span>
                                     {% endif %}
                                 </td>
                                 <td class="table-col-number">
                                     {% if row.available_limit_after_reserve is not None %}
-                                        {{ row.available_limit_after_reserve }} {{ row.contract.currency.code }}
+                                        {{ row.available_limit_after_reserve|ru_number }} {{ row.contract.currency.code }}
                                     {% else %}
                                         <span class="badge">—</span>
                                     {% endif %}
                                 </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="9">Нет договоров. Загрузите демо-данные Mock-1C.</td></tr>
+                            <tr><td colspan="9">Нет договоров. Загрузите демо-данные Mock-1С.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>

@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Факт оплат БДДС · NE UX{% endblock %}
 
@@ -144,7 +145,7 @@
                                 </td>
                                 <td class="table-col-counterparty">{{ row.fact.counterparty.name }}</td>
                                 <td class="table-col-doc">{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{{ row.fact.amount }} {{ row.fact.currency.code }}</td>
+                                <td class="table-col-number">{{ row.fact.amount|ru_number }} {{ row.fact.currency.code }}</td>
                                 <td class="table-col-status">
                                     {% if row.versions %}
                                         <span class="badge">v{{ row.latest_version }}</span>

@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Заявки на оплату · NE UX{% endblock %}
 
@@ -10,7 +11,7 @@
     <div class="app-page-head">
         <div>
             <h1 class="app-title">Заявки на оплату</h1>
-            <p class="app-subtitle">Создание и согласование заявок, контроль лимита и передача в mock-1С:ДО.</p>
+            <p class="app-subtitle">Создание и согласование заявок, контроль лимита и передача в Mock-1С:ДО.</p>
         </div>
         <div class="command-bar">
             {% if can_create_payment_requests %}
@@ -223,9 +224,9 @@
                                         · {{ request_row.invoice_date|date:"d.m.Y" }}
                                     {% endif %}
                                 </td>
-                                <td class="table-col-number">{{ request_row.amount }} {{ request_row.currency.code }}</td>
+                                <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
                                 <td class="table-col-limit table-cell-nowrap">
-                                    {{ request_row.limit_remaining_before_rub }} → {{ request_row.limit_remaining_after_rub }}
+                                    {{ request_row.limit_remaining_before_rub|ru_number }} → {{ request_row.limit_remaining_after_rub|ru_number }}
                                     {% if request_row.limit_exceeded %}
                                         <span class="badge badge-danger">превышение</span>
                                     {% endif %}

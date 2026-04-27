@@ -1,15 +1,16 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
-{% block title %}НСИ и Mock-1C · NE UX{% endblock %}
+{% block title %}НСИ и Mock-1С · NE UX{% endblock %}
 
 {% block tabs %}
-    <a class="app-tab is-active" href="/nsi/">НСИ и Mock-1C</a>
+    <a class="app-tab is-active" href="/nsi/">НСИ и Mock-1С</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
-            <h1 class="app-title">НСИ и Mock-1C</h1>
+            <h1 class="app-title">НСИ и Mock-1С</h1>
             <p class="app-subtitle">Справочники · договоры · факт оплат</p>
         </div>
         <div class="command-bar">
@@ -29,7 +30,7 @@
                 <div class="form-section-content">
                     <div>
                         <div class="field-label">Поставщик данных</div>
-                        <div class="field-control is-focused">Mock-1C</div>
+                        <div class="field-control is-focused">Mock-1С</div>
                     </div>
                     <div>
                         <div class="field-label">Статус обмена</div>
@@ -168,8 +169,8 @@
                                     <td><span class="fake-checkbox"></span></td>
                                     <td class="table-col-doc">{{ contract.number }} от {{ contract.date|date:"d.m.Y" }}</td>
                                     <td class="table-col-counterparty">{{ contract.counterparty.name }}</td>
-                                    <td class="table-col-number">{{ contract.amount }} {{ contract.currency.code }}</td>
-                                    <td class="table-col-number">{{ contract.reserved_amount }} {{ contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ contract.amount|ru_number }} {{ contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ contract.reserved_amount|ru_number }} {{ contract.currency.code }}</td>
                                 </tr>
                             {% empty %}
                                 <tr><td colspan="5">Нет данных</td></tr>
@@ -217,7 +218,7 @@
                                         {% if fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                     </td>
                                     <td class="table-col-counterparty">{{ fact.counterparty.name }}</td>
-                                    <td class="table-col-number">{{ fact.amount }} {{ fact.currency.code }}</td>
+                                    <td class="table-col-number">{{ fact.amount|ru_number }} {{ fact.currency.code }}</td>
                                 </tr>
                             {% empty %}
                                 <tr><td colspan="7">Нет данных</td></tr>
@@ -229,7 +230,7 @@
 
             <div class="summary-line">
                 <span>Факт оплат</span>
-                <span class="summary-value">{{ facts_total }} руб.</span>
+                <span class="summary-value">{{ facts_total|ru_number }} руб.</span>
             </div>
         </section>
     </div>
