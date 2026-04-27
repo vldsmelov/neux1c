@@ -25,13 +25,15 @@
 
     <div class="wide-layout report-layout">
         {% if report_templates or can_manage_report_templates %}
-            <section class="report-panel">
-                <div class="report-template-grid">
+            <section class="report-panel report-panel-compact">
+                <details class="report-templates-details"{% if not report_templates or selected_template_id %} open{% endif %}>
+                    <summary>Шаблоны отчета</summary>
+                    <div class="report-templates-toolbar">
                     {% if report_templates %}
-                        <form method="post" class="report-template-form">
+                        <form method="post" class="report-template-inline">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="apply_template">
-                            <div>
+                            <div class="report-template-field">
                                 <label class="field-label" for="template_id_apply">Шаблон отчета</label>
                                 <select class="field-control-select" id="template_id_apply" name="template_id">
                                     <option value="">Выберите шаблон</option>
@@ -47,7 +49,7 @@
                     {% endif %}
 
                     {% if can_manage_report_templates %}
-                        <form method="post" class="report-template-form">
+                        <form method="post" class="report-template-inline">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="save_template">
                             <input type="hidden" name="year" value="{{ active_filters_payload.year }}">
@@ -57,11 +59,11 @@
                             <input type="hidden" name="customer_contract_id" value="{{ active_filters_payload.customer_contract_id|default_if_none:'' }}">
                             <input type="hidden" name="supplier_contract_id" value="{{ active_filters_payload.supplier_contract_id|default_if_none:'' }}">
                             <input type="hidden" name="request_status" value="{{ active_filters_payload.request_status }}">
-                            <div>
+                            <div class="report-template-name-field">
                                 <label class="field-label" for="template_name">Сохранить как шаблон</label>
                                 <input class="field-control" id="template_name" name="template_name" value="">
                             </div>
-                            <label class="field-label">
+                            <label class="inline-checkbox">
                                 <input type="checkbox" name="is_default" value="1">
                                 Сделать шаблоном по умолчанию
                             </label>
@@ -70,10 +72,10 @@
                     {% endif %}
 
                     {% if can_manage_report_templates and report_templates %}
-                        <form method="post" class="report-template-form">
+                        <form method="post" class="report-template-inline">
                             {% csrf_token %}
                             <input type="hidden" name="action" value="delete_template">
-                            <div>
+                            <div class="report-template-field">
                                 <label class="field-label" for="template_id_delete">Удалить шаблон</label>
                                 <select class="field-control-select" id="template_id_delete" name="template_id">
                                     <option value="">Выберите шаблон</option>
@@ -85,12 +87,13 @@
                             <button class="command-button" type="submit">Удалить</button>
                         </form>
                     {% endif %}
-                </div>
+                    </div>
+                </details>
             </section>
         {% endif %}
 
-        <section class="report-panel">
-            <form method="get" class="report-filter-grid">
+        <section class="report-panel report-panel-compact">
+            <form method="get" class="report-filter-grid report-filter-grid-compact">
                 {% if selected_template_id %}
                     <input type="hidden" name="template_id" value="{{ selected_template_id }}">
                 {% endif %}
