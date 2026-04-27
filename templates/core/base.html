@@ -11,7 +11,7 @@
             {% endfor %}
             --app-shadow: 0 10px 26px rgba(24, 78, 129, 0.08);
             --app-radius: 8px;
-            --content-max-width: 1240px;
+            --content-max-width: 100%;
         }
 
         * {
@@ -211,7 +211,8 @@
 
         .app-workarea > * {
             max-width: var(--content-max-width);
-            margin-right: auto;
+            width: 100%;
+            margin-right: 0;
         }
 
         .app-workarea > .wide-layout {
@@ -304,20 +305,22 @@
 
         .document-grid {
             display: grid;
-            grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
-            gap: 18px;
+            grid-template-columns: minmax(0, 1fr);
+            gap: 14px;
             align-items: start;
-            max-width: var(--content-max-width);
+            max-width: 100%;
         }
 
         .document-grid-compact {
-            grid-template-columns: minmax(280px, 360px) minmax(300px, 520px);
-            max-width: 920px;
+            grid-template-columns: minmax(0, 1fr);
+            max-width: 100%;
         }
 
         .form-panel {
-            border-right: 1px solid var(--app-border);
-            padding-right: 16px;
+            border-right: 0;
+            border-bottom: 1px solid var(--app-border);
+            padding-right: 0;
+            padding-bottom: 14px;
             align-self: start;
         }
 
@@ -506,7 +509,7 @@
 
         .data-table {
             width: 100%;
-            min-width: 760px;
+            min-width: 960px;
             border-collapse: collapse;
             background: var(--app-surface);
         }
@@ -518,13 +521,15 @@
             text-align: left;
             vertical-align: middle;
             height: 38px;
-            overflow-wrap: anywhere;
+            word-break: normal;
+            overflow-wrap: break-word;
         }
 
         .data-table th {
             background: #f7faff;
             color: var(--app-text);
             font-weight: 700;
+            white-space: nowrap;
             position: sticky;
             top: 0;
             z-index: 1;
@@ -913,10 +918,10 @@
 
         @media (min-width: 1041px) {
             .form-panel {
-                position: sticky;
-                top: 8px;
-                max-height: calc(100vh - 130px);
-                overflow: auto;
+                position: static;
+                top: auto;
+                max-height: none;
+                overflow: visible;
             }
         }
 
