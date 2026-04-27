@@ -13,7 +13,7 @@
             <p class="app-subtitle">Годовой план с помесячной разбивкой и утверждением руководителем.</p>
         </div>
         <div class="command-bar">
-            {% if can_edit_plans %}
+            {% if can_create_plans %}
                 <button class="command-button-primary" type="submit" form="create-plan-form">Записать</button>
             {% endif %}
             <span class="command-spacer"></span>
@@ -24,7 +24,7 @@
 
     <div class="document-grid">
         <aside class="form-panel">
-            {% if can_edit_plans %}
+            {% if can_create_plans %}
                 <form id="create-plan-form" method="post" class="form-stack">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="create">

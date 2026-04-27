@@ -21,6 +21,8 @@ from core.models import (
     PaymentRequest,
     PaymentRequestKind,
     PaymentRequestStatus,
+    ReportTemplate,
+    ReportTemplateType,
 )
 from core.services.one_c_sync import sync_one_c_dataset
 
@@ -75,6 +77,7 @@ class PlanFactReportTests(TestCase):
             article=self.article_ops,
             counterparty=self.counterparty_supplier_1,
             contract=self.contract_supplier_1,
+            payment_purpose="Оплата поставки",
             invoice_number="",
             currency=self.currency_rub,
             amount=Decimal("100000.00"),
@@ -96,15 +99,43 @@ class PlanFactReportTests(TestCase):
         response = self.client.get(reverse("plan_fact_report"), {"year": 2026})
 
         self.assertEqual(response.status_code, 200)
-        row = next(item for item in response.context["rows"] if item["article"].code == "DDS-010")
-        self.assertEqual(row["plan"], Decimal("1200000.00"))
-        self.assertEqual(row["adjustments"], Decimal("200000.00"))
-        self.assertEqual(row["reserved"], Decimal("3860000.00"))
-        self.assertEqual(row["requested"], Decimal("100000.00"))
-        self.assertEqual(row["fact_bu"], Decimal("800000.00"))
-        self.assertEqual(row["fact_nu"], Decimal("760000.00"))
-        self.assertEqual(row["balance_bu"], Decimal("-3360000.00"))
-        self.assertTrue(row["has_limit_overrun"])
+        rows = [item for item in response.context["rows"] if item["article"].code == "DDS-010"]
+        self.assertGreaterEqual(len(rows), 1)
+
+        self.assertEqual(sum(row["plan"] for row in rows), Decimal("1200000.00"))
+        self.assertEqual(sum(row["adjustments"] for row in rows), Decimal("200000.00"))
+        self.assertEqual(sum(row["reserved"] for row in rows), Decimal("3860000.00"))
+        self.assertEqual(sum(row["requested"] for row in rows), Decimal("100000.00"))
+        self.assertEqual(sum(row["fact_bu"] for row in rows), Decimal("800000.00"))
+        self.assertEqual(sum(row["fact_nu"] for row in rows), Decimal("760000.00"))
+        self.assertEqual(sum(row["balance_bu"] for row in rows), Decimal("-3360000.00"))
+        self.assertTrue(any(row["has_limit_overrun"] for row in rows))
+        self.assertTrue(any("Тестовая заявка" in row["comments"] for row in rows))
+        self.assertTrue(any("Оплата поставки" in row["comments"] for row in rows))
+
+    def test_plan_fact_report_detailed_filters(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.get(
+            reverse("plan_fact_report"),
+            {
+                "year": 2026,
+                "organization_id": self.organization.id,
+                "counterparty_id": self.counterparty_supplier_1.id,
+                "supplier_contract_id": self.contract_supplier_1.id,
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["rows"]
+        self.assertGreaterEqual(len(rows), 1)
+        for row in rows:
+            if row["organization"] is not None:
+                self.assertEqual(row["organization"].id, self.organization.id)
+            if row["counterparty"] is not None:
+                self.assertEqual(row["counterparty"].id, self.counterparty_supplier_1.id)
+            if row["supplier_contract"] is not None:
+                self.assertEqual(row["supplier_contract"].id, self.contract_supplier_1.id)
 
     def test_plan_fact_report_export_csv(self):
         self.client.login(username="economist", password="demo12345")
@@ -115,5 +146,78 @@ class PlanFactReportTests(TestCase):
         self.assertTrue(response["Content-Type"].startswith("text/csv"))
         self.assertIn("plan_fact_2026.csv", response["Content-Disposition"])
         payload = response.content.decode("utf-8-sig")
-        self.assertIn("Статья ДДС", payload)
+        self.assertIn("Организация", payload)
+        self.assertIn("Контрагент", payload)
+        self.assertIn("Комментарии", payload)
         self.assertIn("DDS-010", payload)
+        self.assertIn("Тестовая заявка", payload)
+
+    def test_economist_can_save_apply_and_delete_template(self):
+        self.client.login(username="economist", password="demo12345")
+
+        save_response = self.client.post(
+            reverse("plan_fact_report"),
+            {
+                "action": "save_template",
+                "template_name": "Операционные расходы",
+                "is_default": "1",
+                "year": "2026",
+                "article_id": str(self.article_ops.id),
+                "organization_id": str(self.organization.id),
+                "counterparty_id": str(self.counterparty_supplier_1.id),
+                "customer_contract_id": "",
+                "supplier_contract_id": str(self.contract_supplier_1.id),
+                "request_status": PaymentRequestStatus.APPROVED,
+            },
+        )
+        self.assertEqual(save_response.status_code, 302)
+        template = ReportTemplate.objects.get(
+            owner=self.economist,
+            report_type=ReportTemplateType.PLAN_FACT,
+            name="Операционные расходы",
+        )
+        self.assertTrue(template.is_default)
+        self.assertEqual(template.filters["year"], 2026)
+        self.assertEqual(template.filters["article_id"], self.article_ops.id)
+
+        apply_response = self.client.post(
+            reverse("plan_fact_report"),
+            {"action": "apply_template", "template_id": template.id},
+        )
+        self.assertEqual(apply_response.status_code, 302)
+        self.assertIn("template_id=", apply_response["Location"])
+        self.assertIn("article_id=", apply_response["Location"])
+
+        delete_response = self.client.post(
+            reverse("plan_fact_report"),
+            {"action": "delete_template", "template_id": template.id},
+        )
+        self.assertRedirects(delete_response, reverse("plan_fact_report"))
+        self.assertFalse(
+            ReportTemplate.objects.filter(
+                owner=self.economist,
+                report_type=ReportTemplateType.PLAN_FACT,
+                name="Операционные расходы",
+            ).exists()
+        )
+
+    def test_manager_cannot_save_template(self):
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.post(
+            reverse("plan_fact_report"),
+            {
+                "action": "save_template",
+                "template_name": "Недоступный шаблон",
+                "year": "2026",
+            },
+        )
+
+        self.assertRedirects(response, reverse("plan_fact_report"))
+        self.assertFalse(
+            ReportTemplate.objects.filter(
+                owner=self.manager,
+                report_type=ReportTemplateType.PLAN_FACT,
+                name="Недоступный шаблон",
+            ).exists()
+        )

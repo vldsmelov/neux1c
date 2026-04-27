@@ -99,6 +99,13 @@ class PaymentLimitControlMode(models.TextChoices):
     BLOCK = "block", "Блокировка"
 
 
+class ReportTemplateType(models.TextChoices):
+    PLAN_FACT = "plan_fact", "РџР»Р°РЅ-С„Р°РєС‚ Р‘Р”Р”РЎ"
+
+
+    # PLAN_FACT = "plan_fact", "Plan-Fact BDDS"
+
+
 class IntegrationTrackedModel(models.Model):
     external_id = models.CharField("ID во внешней системе", max_length=128, blank=True)
     source_system = models.CharField(
@@ -615,6 +622,16 @@ class PaymentRequest(models.Model):
         null=True,
         blank=True,
     )
+    additional_agreement = models.ForeignKey(
+        AdditionalAgreement,
+        verbose_name="Допсоглашение",
+        on_delete=models.PROTECT,
+        related_name="payment_requests",
+        null=True,
+        blank=True,
+    )
+    invoice_date = models.DateField("Дата счета", null=True, blank=True)
+    payment_purpose = models.CharField("Назначение платежа", max_length=255, blank=True)
     invoice_number = models.CharField("Счет", max_length=64, blank=True)
     currency = models.ForeignKey(Currency, verbose_name="Валюта", on_delete=models.PROTECT)
     amount = models.DecimalField("Сумма", max_digits=16, decimal_places=2)
@@ -630,6 +647,8 @@ class PaymentRequest(models.Model):
         on_delete=models.PROTECT,
         related_name="payment_requests_to_approve",
     )
+    approver_comment = models.TextField("Комментарий согласующего", blank=True)
+    rejected_at = models.DateTimeField("Дата отклонения", null=True, blank=True)
     approved_at = models.DateTimeField("Дата согласования", null=True, blank=True)
     transferred_at = models.DateTimeField("Дата передачи в 1С:ДО", null=True, blank=True)
     do_external_id = models.CharField("ID в 1С:ДО", max_length=64, blank=True)
@@ -639,6 +658,8 @@ class PaymentRequest(models.Model):
         on_delete=models.PROTECT,
         related_name="payment_requests",
     )
+    justification_text = models.TextField("Обоснование оплаты", blank=True)
+    justification_file = models.FileField("Файл обоснования", upload_to="payment_requests/justifications/", blank=True)
     comment = models.CharField("Комментарий", max_length=255, blank=True)
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)
@@ -650,6 +671,39 @@ class PaymentRequest(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} · {self.counterparty.name}"
+
+
+class ReportTemplate(models.Model):
+    name = models.CharField("Название", max_length=120)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Владелец",
+        on_delete=models.CASCADE,
+        related_name="report_templates",
+    )
+    report_type = models.CharField("Тип отчета", max_length=32, choices=ReportTemplateType.choices)
+    filters = models.JSONField("Настройки фильтров", default=dict, blank=True)
+    is_default = models.BooleanField("По умолчанию", default=False)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "Шаблон отчета"
+        verbose_name_plural = "Шаблоны отчетов"
+        constraints = [
+            models.UniqueConstraint(fields=["owner", "report_type", "name"], name="uniq_report_template_owner_type_name"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.get_report_type_display()})"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        if self.is_default:
+            ReportTemplate.objects.filter(owner=self.owner, report_type=self.report_type).exclude(pk=self.pk).update(
+                is_default=False
+            )
 
 
 class SyncRun(models.Model):

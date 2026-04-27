@@ -1,5 +1,6 @@
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
@@ -15,6 +16,8 @@ from django.utils import timezone
 
 from .models import (
     AdditionalAgreement,
+    AuditAction,
+    AuditLog,
     BudgetLimitAdjustment,
     BudgetLimitPlan,
     BudgetPlanStatus,
@@ -35,6 +38,8 @@ from .models import (
     PaymentRequestControlSettings,
     PaymentRequestKind,
     PaymentRequestStatus,
+    ReportTemplate,
+    ReportTemplateType,
     SyncRun,
     UiThemeMode,
     UserRole,
@@ -56,6 +61,7 @@ from .services.manager_dashboard import build_manager_dashboard
 from .services.payment_requests import (
     approve_payment_request,
     create_payment_request,
+    reject_payment_request,
     submit_payment_request,
     transfer_payment_request_to_do,
 )
@@ -240,7 +246,7 @@ def planning_limits(request):
         action = request.POST.get("action")
         try:
             if action == "create":
-                if not _can_edit_plans(request.user):
+                if not _can_create_plans(request.user):
                     raise ValueError("Создавать планы может только экономист или администратор")
                 create_budget_plan(
                     author=request.user,
@@ -264,7 +270,7 @@ def planning_limits(request):
                 approve_budget_plan(get_object_or_404(BudgetLimitPlan, pk=request.POST.get("plan_id")), request.user)
                 messages.success(request, "План утвержден")
             elif action == "create_adjustment":
-                if not _can_edit_plans(request.user):
+                if not _has_model_permission(request.user, BudgetLimitAdjustment, "add"):
                     raise ValueError("Создавать корректировки может только экономист или администратор")
                 create_limit_adjustment(
                     author=request.user,
@@ -275,7 +281,7 @@ def planning_limits(request):
                 )
                 messages.success(request, "Корректировка создана")
             elif action == "submit_adjustment":
-                if not _can_edit_plans(request.user):
+                if not _has_model_permission(request.user, BudgetLimitAdjustment, "change"):
                     raise ValueError("Отправлять корректировки может только экономист или администратор")
                 submit_limit_adjustment(
                     get_object_or_404(BudgetLimitAdjustment, pk=request.POST.get("adjustment_id")),
@@ -304,7 +310,14 @@ def planning_limits(request):
         "current_year": timezone.localdate().year,
         "status": BudgetPlanStatus,
         "can_edit_plans": _can_edit_plans(request.user),
+        "can_create_plans": _can_create_plans(request.user),
         "can_approve_plans": _can_approve_plans(request.user),
+        "plans_acl": {
+            "view": _has_model_permission(request.user, BudgetLimitPlan, "view"),
+            "create": _can_create_plans(request.user),
+            "edit": _can_edit_plans(request.user),
+            "delete": _can_delete_plans(request.user),
+        },
     }
     return render(request, "core/planning_limits.html", context)
 
@@ -356,12 +369,16 @@ def payment_requests(request):
         action = request.POST.get("action")
         try:
             if action == "create":
-                if not _can_manage_payment_requests(request.user):
+                if not _can_create_payment_requests(request.user):
                     raise ValueError("Создавать заявки может только экономист или администратор")
                 contract = None
                 contract_id = request.POST.get("contract_id")
                 if contract_id:
                     contract = get_object_or_404(Contract, pk=contract_id)
+                additional_agreement = None
+                additional_agreement_id = request.POST.get("additional_agreement_id")
+                if additional_agreement_id:
+                    additional_agreement = get_object_or_404(AdditionalAgreement, pk=additional_agreement_id)
                 counterparty = contract.counterparty if contract else get_object_or_404(
                     Counterparty,
                     pk=request.POST.get("counterparty_id"),
@@ -385,12 +402,17 @@ def payment_requests(request):
                     article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
                     counterparty=counterparty,
                     contract=contract,
+                    additional_agreement=additional_agreement,
                     currency=currency,
                     amount=amount,
                     manual_exchange_rate=manual_exchange_rate,
                     approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
                     invoice_number=request.POST.get("invoice_number", ""),
+                    invoice_date=_parse_optional_date(request.POST.get("invoice_date")),
+                    payment_purpose=request.POST.get("payment_purpose", ""),
                     comment=request.POST.get("comment", ""),
+                    justification_text=request.POST.get("justification_text", ""),
+                    justification_file=request.FILES.get("justification_file"),
                 )
                 messages.success(request, "Заявка создана")
             elif action == "submit":
@@ -402,11 +424,22 @@ def payment_requests(request):
                 )
                 messages.success(request, "Заявка отправлена на согласование")
             elif action == "approve":
+                if not _can_approve_payment_requests(request.user):
+                    raise ValueError("Согласовывать заявки может только назначенный руководитель")
                 approve_payment_request(
                     get_object_or_404(PaymentRequest, pk=request.POST.get("request_id")),
                     request.user,
                 )
                 messages.success(request, "Заявка согласована")
+            elif action == "reject":
+                if not _can_approve_payment_requests(request.user):
+                    raise ValueError("Отклонять заявки может только назначенный руководитель")
+                reject_payment_request(
+                    get_object_or_404(PaymentRequest, pk=request.POST.get("request_id")),
+                    request.user,
+                    request.POST.get("approver_comment", ""),
+                )
+                messages.success(request, "Заявка отклонена")
             elif action == "transfer":
                 if not _can_manage_payment_requests(request.user):
                     raise ValueError("Передавать в 1С:ДО может только экономист или администратор")
@@ -422,6 +455,9 @@ def payment_requests(request):
     contracts = list(
         Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related("counterparty", "currency")
     )
+    agreements = list(
+        AdditionalAgreement.objects.select_related("contract", "currency", "contract__counterparty").order_by("date", "number")
+    )
     limit_settings = PaymentRequestControlSettings.active_or_default()
     context = {
         "active_section": "payments",
@@ -430,6 +466,7 @@ def payment_requests(request):
             "article",
             "counterparty",
             "contract",
+            "additional_agreement",
             "currency",
             "approver",
             "author",
@@ -438,6 +475,7 @@ def payment_requests(request):
         "articles": CashFlowArticle.objects.all(),
         "counterparties": Counterparty.objects.all(),
         "contracts": contracts,
+        "agreements": agreements,
         "contracts_autofill": [
             {
                 "id": contract.id,
@@ -448,12 +486,26 @@ def payment_requests(request):
             }
             for contract in contracts
         ],
+        "agreements_autofill": [
+            {
+                "id": agreement.id,
+                "contract_id": agreement.contract_id,
+            }
+            for agreement in agreements
+        ],
         "currencies": Currency.objects.all(),
         "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
         "status": PaymentRequestStatus,
         "request_kind": PaymentRequestKind,
+        "can_create_payment_requests": _can_create_payment_requests(request.user),
         "can_manage_payment_requests": _can_manage_payment_requests(request.user),
-        "can_approve_payment_requests": _can_approve_plans(request.user),
+        "can_approve_payment_requests": _can_approve_payment_requests(request.user),
+        "payments_acl": {
+            "view": _has_model_permission(request.user, PaymentRequest, "view"),
+            "create": _can_create_payment_requests(request.user),
+            "edit": _can_manage_payment_requests(request.user),
+            "delete": _can_delete_payment_requests(request.user),
+        },
         "limit_control_mode": limit_settings.control_mode,
         "limit_control_mode_label": (
             "Блокировка" if limit_settings.control_mode == PaymentLimitControlMode.BLOCK else "Предупреждение"
@@ -538,13 +590,20 @@ def payment_facts(request):
         "selected_accounting_kind": selected_accounting_kind,
         "selected_article_id": selected_article_id,
         "selected_counterparty_id": selected_counterparty_id,
+        "can_view_payment_facts": _can_view_payment_facts(request.user),
         "can_edit_payment_facts": _can_edit_payment_facts(request.user),
+        "payment_facts_acl": {
+            "view": _can_view_payment_facts(request.user),
+            "create": _can_create_payment_facts(request.user),
+            "edit": _can_edit_payment_facts(request.user),
+            "delete": _can_delete_payment_facts(request.user),
+        },
     }
     return render(request, "core/payment_facts.html", context)
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
-def plan_fact_report(request):
+def _legacy_plan_fact_report(request):
     current_year = timezone.localdate().year
     selected_year = _parse_optional_int(request.GET.get("year")) or current_year
     selected_status = (request.GET.get("request_status") or "").strip()
@@ -576,6 +635,126 @@ def plan_fact_report(request):
         "selected_article_id": filters.article_id,
         "selected_counterparty_id": filters.counterparty_id,
         "selected_request_status": selected_status,
+    }
+    return render(request, "core/plan_fact_report.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def plan_fact_report(request):
+    current_year = timezone.localdate().year
+    templates = list(
+        ReportTemplate.objects.filter(owner=request.user, report_type=ReportTemplateType.PLAN_FACT).order_by("name")
+    )
+    templates_by_id = {template.id: template for template in templates}
+    default_template = next((template for template in templates if template.is_default), None)
+
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "apply_template":
+                template = _resolve_report_template(templates_by_id, request.POST.get("template_id"))
+                query = _plan_fact_payload_to_query(template.filters, template_id=template.id)
+                return redirect(f"{reverse('plan_fact_report')}?{query}")
+
+            if action in {"save_template", "delete_template"} and not _can_manage_report_templates(request.user):
+                raise ValueError("Сохранять и удалять шаблоны может только пользователь с правом создания шаблонов")
+
+            if action == "save_template":
+                template_name = (request.POST.get("template_name") or "").strip()
+                if not template_name:
+                    raise ValueError("Укажите название шаблона")
+                payload = _collect_plan_fact_filter_payload(request.POST, default_year=current_year)
+                template, created = ReportTemplate.objects.update_or_create(
+                    owner=request.user,
+                    report_type=ReportTemplateType.PLAN_FACT,
+                    name=template_name,
+                    defaults={
+                        "filters": payload,
+                        "is_default": request.POST.get("is_default") == "1",
+                    },
+                )
+                messages.success(request, "Шаблон отчета создан" if created else "Шаблон отчета обновлен")
+                query = _plan_fact_payload_to_query(payload, template_id=template.id)
+                return redirect(f"{reverse('plan_fact_report')}?{query}")
+            if action == "delete_template":
+                template = _resolve_report_template(templates_by_id, request.POST.get("template_id"))
+                template.delete()
+                messages.success(request, "Шаблон отчета удален")
+                return redirect("plan_fact_report")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("plan_fact_report")
+
+    selected_template_id = _parse_optional_int(request.GET.get("template_id"))
+    selected_template = templates_by_id.get(selected_template_id) if selected_template_id else None
+
+    base_filters = {}
+    if selected_template:
+        base_filters = selected_template.filters or {}
+    elif not request.GET and default_template:
+        base_filters = default_template.filters or {}
+        selected_template = default_template
+        selected_template_id = default_template.id
+
+    selected_year = _read_filter_int(request.GET, base_filters, "year") or current_year
+    selected_status = _read_filter_text(
+        request.GET,
+        base_filters,
+        "request_status",
+        allowed_values=PaymentRequestStatus.values,
+    )
+    selected_article_id = _read_filter_int(request.GET, base_filters, "article_id")
+    selected_counterparty_id = _read_filter_int(request.GET, base_filters, "counterparty_id")
+    selected_organization_id = _read_filter_int(request.GET, base_filters, "organization_id")
+    selected_customer_contract_id = _read_filter_int(request.GET, base_filters, "customer_contract_id")
+    selected_supplier_contract_id = _read_filter_int(request.GET, base_filters, "supplier_contract_id")
+
+    filters = PlanFactFilters(
+        year=selected_year,
+        article_id=selected_article_id,
+        counterparty_id=selected_counterparty_id,
+        organization_id=selected_organization_id,
+        customer_contract_id=selected_customer_contract_id,
+        supplier_contract_id=selected_supplier_contract_id,
+        request_status=selected_status,
+    )
+    rows, summary = build_plan_fact_report(filters)
+
+    if request.GET.get("export") == "excel":
+        response = HttpResponse(plan_fact_to_csv(rows), content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="plan_fact_{selected_year}.csv"'
+        return response
+
+    context = {
+        "active_section": "reports",
+        "rows": rows,
+        "summary": summary,
+        "years": list(range(current_year - 1, current_year + 3)),
+        "articles": CashFlowArticle.objects.order_by("code"),
+        "organizations": Organization.objects.order_by("name"),
+        "counterparties": Counterparty.objects.order_by("name"),
+        "customer_contracts": Contract.objects.filter(kind=ContractKind.CUSTOMER).order_by("number"),
+        "supplier_contracts": Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).order_by("number"),
+        "request_status_choices": [("", "Все статусы")] + list(PaymentRequestStatus.choices),
+        "selected_year": selected_year,
+        "selected_article_id": selected_article_id,
+        "selected_counterparty_id": selected_counterparty_id,
+        "selected_organization_id": selected_organization_id,
+        "selected_customer_contract_id": selected_customer_contract_id,
+        "selected_supplier_contract_id": selected_supplier_contract_id,
+        "selected_request_status": selected_status,
+        "report_templates": templates,
+        "selected_template_id": selected_template_id,
+        "can_manage_report_templates": _can_manage_report_templates(request.user),
+        "active_filters_payload": {
+            "year": selected_year,
+            "article_id": selected_article_id,
+            "organization_id": selected_organization_id,
+            "counterparty_id": selected_counterparty_id,
+            "customer_contract_id": selected_customer_contract_id,
+            "supplier_contract_id": selected_supplier_contract_id,
+            "request_status": selected_status,
+        },
     }
     return render(request, "core/plan_fact_report.html", context)
 
@@ -693,11 +872,70 @@ def _parse_optional_date(raw_value: str | None) -> date | None:
         return None
 
 
+def _resolve_report_template(templates_by_id: dict[int, ReportTemplate], raw_template_id) -> ReportTemplate:
+    template_id = _parse_optional_int(raw_template_id)
+    if not template_id:
+        raise ValueError("Выберите шаблон отчета")
+    template = templates_by_id.get(template_id)
+    if template is None:
+        raise ValueError("Шаблон отчета не найден")
+    return template
+
+
+def _read_filter_int(query_params, base_filters: dict, key: str) -> int | None:
+    if key in query_params:
+        return _parse_optional_int(query_params.get(key))
+    return _parse_optional_int(base_filters.get(key))
+
+
+def _read_filter_text(query_params, base_filters: dict, key: str, allowed_values) -> str:
+    if key in query_params:
+        raw_value = (query_params.get(key) or "").strip()
+    else:
+        fallback = base_filters.get(key)
+        raw_value = str(fallback).strip() if fallback is not None else ""
+    if raw_value not in allowed_values:
+        return ""
+    return raw_value
+
+
+def _collect_plan_fact_filter_payload(data, *, default_year: int) -> dict:
+    year = _parse_optional_int(data.get("year")) or default_year
+    request_status = (data.get("request_status") or "").strip()
+    if request_status not in PaymentRequestStatus.values:
+        request_status = ""
+    return {
+        "year": year,
+        "article_id": _parse_optional_int(data.get("article_id")),
+        "counterparty_id": _parse_optional_int(data.get("counterparty_id")),
+        "organization_id": _parse_optional_int(data.get("organization_id")),
+        "customer_contract_id": _parse_optional_int(data.get("customer_contract_id")),
+        "supplier_contract_id": _parse_optional_int(data.get("supplier_contract_id")),
+        "request_status": request_status,
+    }
+
+
+def _plan_fact_payload_to_query(payload: dict, template_id: int | None = None) -> str:
+    query = {}
+    for key, value in payload.items():
+        if value in (None, ""):
+            continue
+        query[key] = str(value)
+    if template_id:
+        query["template_id"] = str(template_id)
+    return urlencode(query)
+
+
 def _can_edit_plans(user) -> bool:
-    if user.is_superuser:
-        return True
-    profile = getattr(user, "profile", None)
-    return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
+    return _has_model_permission(user, BudgetLimitPlan, "change")
+
+
+def _can_create_plans(user) -> bool:
+    return _has_model_permission(user, BudgetLimitPlan, "add")
+
+
+def _can_delete_plans(user) -> bool:
+    return _has_model_permission(user, BudgetLimitPlan, "delete")
 
 
 def _can_approve_plans(user) -> bool:
@@ -707,18 +945,40 @@ def _can_approve_plans(user) -> bool:
     return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.MANAGER])
 
 
+def _can_approve_payment_requests(user) -> bool:
+    return _can_approve_plans(user) and _has_model_permission(user, PaymentRequest, "view")
+
+
 def _can_manage_payment_requests(user) -> bool:
-    if user.is_superuser:
-        return True
-    profile = getattr(user, "profile", None)
-    return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
+    return _has_model_permission(user, PaymentRequest, "change")
+
+
+def _can_create_payment_requests(user) -> bool:
+    return _has_model_permission(user, PaymentRequest, "add")
+
+
+def _can_delete_payment_requests(user) -> bool:
+    return _has_model_permission(user, PaymentRequest, "delete")
 
 
 def _can_edit_payment_facts(user) -> bool:
-    if user.is_superuser:
-        return True
-    profile = getattr(user, "profile", None)
-    return bool(profile and profile.role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST])
+    return _has_model_permission(user, PaymentFact, "change")
+
+
+def _can_view_payment_facts(user) -> bool:
+    return _has_model_permission(user, PaymentFact, "view")
+
+
+def _can_create_payment_facts(user) -> bool:
+    return _has_model_permission(user, PaymentFact, "add")
+
+
+def _can_delete_payment_facts(user) -> bool:
+    return _has_model_permission(user, PaymentFact, "delete")
+
+
+def _can_manage_report_templates(user) -> bool:
+    return _has_model_permission(user, ReportTemplate, "add")
 
 
 def _is_administrator(user) -> bool:
@@ -726,3 +986,11 @@ def _is_administrator(user) -> bool:
         return True
     profile = getattr(user, "profile", None)
     return bool(profile and profile.role == UserRole.ADMINISTRATOR)
+
+
+def _has_model_permission(user, model, action: str) -> bool:
+    if not user.is_authenticated or not user.is_active:
+        return False
+    if user.is_superuser:
+        return True
+    return user.has_perm(f"{model._meta.app_label}.{action}_{model._meta.model_name}")

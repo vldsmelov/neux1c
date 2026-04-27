@@ -20,8 +20,11 @@ from core.models import (
     CashFlowArticle,
     Contract,
     ContractKind,
+    Currency,
     ExternalPaymentDocument,
+    Organization,
     PaymentFact,
+    PaymentRequest,
     UiThemeMode,
     UiThemeSettings,
     UserProfile,
@@ -224,6 +227,57 @@ class AccessControlTests(TestCase):
         response = self.client.get(reverse("payment_requests"))
 
         self.assertEqual(response.status_code, 200)
+
+    def test_granular_acl_matrix_for_key_entities(self):
+        User = get_user_model()
+        admin = User.objects.get(username="admin")
+        economist = User.objects.get(username="economist")
+        manager = User.objects.get(username="manager")
+
+        self.assertTrue(admin.has_perm("core.view_budgetlimitplan"))
+        self.assertTrue(admin.has_perm("core.add_budgetlimitplan"))
+        self.assertTrue(admin.has_perm("core.change_budgetlimitplan"))
+        self.assertTrue(admin.has_perm("core.delete_budgetlimitplan"))
+
+        self.assertTrue(economist.has_perm("core.view_paymentrequest"))
+        self.assertTrue(economist.has_perm("core.add_paymentrequest"))
+        self.assertTrue(economist.has_perm("core.change_paymentrequest"))
+        self.assertFalse(economist.has_perm("core.delete_paymentrequest"))
+
+        self.assertTrue(manager.has_perm("core.view_paymentfact"))
+        self.assertFalse(manager.has_perm("core.add_paymentfact"))
+        self.assertFalse(manager.has_perm("core.change_paymentfact"))
+        self.assertFalse(manager.has_perm("core.delete_paymentfact"))
+
+    def test_manager_cannot_create_payment_request_by_acl(self):
+        sync_one_c_dataset(MockOneCProvider())
+        self.client.login(username="manager", password="demo12345")
+
+        contract = Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).order_by("id").first()
+        self.assertIsNotNone(contract)
+        article = CashFlowArticle.objects.get(code="DDS-010")
+        currency = Currency.objects.get(code="RUB")
+        organization = Organization.objects.first()
+
+        response = self.client.post(
+            reverse("payment_requests"),
+            {
+                "action": "create",
+                "request_kind": "by_contract",
+                "organization_id": organization.id,
+                "article_id": article.id,
+                "counterparty_id": contract.counterparty_id,
+                "contract_id": contract.id,
+                "currency_id": currency.id,
+                "amount": "1000.00",
+                "manual_exchange_rate": "1.0000",
+                "approver_id": get_user_model().objects.get(username="manager").id,
+                "payment_purpose": "Проверка ACL",
+            },
+        )
+
+        self.assertRedirects(response, reverse("payment_requests"))
+        self.assertEqual(PaymentRequest.objects.count(), 0)
 
     def test_accountant_cannot_open_payment_requests(self):
         self.client.login(username="accountant", password="demo12345")

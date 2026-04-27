@@ -7,6 +7,8 @@ from django.urls import reverse
 
 from core.integrations.one_c.mock import MockOneCProvider
 from core.models import (
+    AuditAction,
+    AuditLog,
     CashFlowArticle,
     Contract,
     PaymentLimitControlMode,
@@ -27,7 +29,8 @@ class PaymentRequestWorkflowTests(TestCase):
         User = get_user_model()
         self.economist = User.objects.get(username="economist")
         self.manager = User.objects.get(username="manager")
-        self.contract = Contract.objects.get(number="ЕП-2026-014")
+        self.contract = Contract.objects.filter(kind="sole_supplier").order_by("id").first()
+        self.assertIsNotNone(self.contract)
         self.article = CashFlowArticle.objects.get(code="DDS-010")
         self._approve_limit_for_article(self.article, Decimal("2000000.00"))
 
@@ -49,7 +52,8 @@ class PaymentRequestWorkflowTests(TestCase):
                 "amount": "100000.00",
                 "manual_exchange_rate": "1.0000",
                 "approver_id": self.manager.id,
-                "comment": "Пилотная заявка",
+                "payment_purpose": "Оплата поставки",
+                "comment": "Pilot request",
             },
         )
         payment_request = PaymentRequest.objects.get()
@@ -102,7 +106,8 @@ class PaymentRequestWorkflowTests(TestCase):
                 "amount": "",
                 "manual_exchange_rate": "",
                 "approver_id": self.manager.id,
-                "comment": "Автозаполнение из договора",
+                "payment_purpose": "Autofill purpose",
+                "comment": "Autofill from contract",
             },
         )
 
@@ -134,6 +139,7 @@ class PaymentRequestWorkflowTests(TestCase):
                 amount=Decimal("5000000.00"),
                 manual_exchange_rate=Decimal("1.0000"),
                 approver=self.manager,
+                payment_purpose="Оплата поставки",
             )
 
     def test_warning_mode_allows_exceeded_request(self):
@@ -156,6 +162,7 @@ class PaymentRequestWorkflowTests(TestCase):
             amount=Decimal("5000000.00"),
             manual_exchange_rate=Decimal("1.0000"),
             approver=self.manager,
+            payment_purpose="Оплата поставки",
         )
         self.assertTrue(payment_request.limit_exceeded)
         self.assertLess(payment_request.limit_remaining_after_rub, 0)
@@ -178,8 +185,90 @@ class PaymentRequestWorkflowTests(TestCase):
                 amount=Decimal("150000.00"),
                 manual_exchange_rate=Decimal("1.0000"),
                 approver=self.manager,
+                payment_purpose="Оплата по счету",
                 invoice_number="",
             )
+
+    def test_invoice_request_requires_invoice_date(self):
+        from core.models import Currency, Organization
+
+        with self.assertRaises(ValueError):
+            create_payment_request(
+                author=self.economist,
+                request_kind=PaymentRequestKind.BY_INVOICE,
+                organization=Organization.objects.first(),
+                article=self.article,
+                counterparty=self.contract.counterparty,
+                contract=None,
+                currency=Currency.objects.get(code="RUB"),
+                amount=Decimal("150000.00"),
+                manual_exchange_rate=Decimal("1.0000"),
+                approver=self.manager,
+                payment_purpose="Оплата по счету",
+                invoice_number="INV-2026-001",
+                invoice_date=None,
+            )
+
+    def test_without_contract_requires_justification(self):
+        from core.models import Currency, Organization
+
+        with self.assertRaises(ValueError):
+            create_payment_request(
+                author=self.economist,
+                request_kind=PaymentRequestKind.WITHOUT_CONTRACT,
+                organization=Organization.objects.first(),
+                article=self.article,
+                counterparty=self.contract.counterparty,
+                contract=None,
+                currency=Currency.objects.get(code="RUB"),
+                amount=Decimal("35000.00"),
+                manual_exchange_rate=Decimal("1.0000"),
+                approver=self.manager,
+                payment_purpose="Прочие расходы",
+                justification_text="",
+            )
+
+    def test_manager_can_reject_with_comment(self):
+        from core.models import Currency, Organization
+
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Оплата поставки",
+            comment="На проверку",
+        )
+        submit_payment_request(payment_request, self.economist)
+
+        self.client.login(username="manager", password="demo12345")
+        response = self.client.post(
+            reverse("payment_requests"),
+            {
+                "action": "reject",
+                "request_id": payment_request.id,
+                "approver_comment": "Нужно уточнить назначение платежа",
+            },
+        )
+
+        self.assertRedirects(response, reverse("payment_requests"))
+        payment_request.refresh_from_db()
+        self.assertEqual(payment_request.status, PaymentRequestStatus.REJECTED)
+        self.assertEqual(payment_request.approver_comment, "Нужно уточнить назначение платежа")
+        self.assertIsNotNone(payment_request.rejected_at)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                object_type="PaymentRequest",
+                object_id=str(payment_request.id),
+                action=AuditAction.UPDATE,
+            ).exists()
+        )
 
     def _approve_limit_for_article(self, article, amount: Decimal):
         from core.models import Currency, Department

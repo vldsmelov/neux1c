@@ -5,6 +5,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from core.models import (
+    AdditionalAgreement,
     AuditAction,
     AuditLog,
     BudgetLimitPlan,
@@ -44,14 +45,23 @@ def create_payment_request(
     amount: Decimal,
     manual_exchange_rate: Decimal | None,
     approver,
+    additional_agreement: AdditionalAgreement | None = None,
     invoice_number: str = "",
+    invoice_date=None,
+    payment_purpose: str = "",
     comment: str = "",
+    justification_text: str = "",
+    justification_file=None,
 ) -> PaymentRequest:
     _validate_request_payload(
         request_kind=request_kind,
         counterparty=counterparty,
         contract=contract,
+        additional_agreement=additional_agreement,
         invoice_number=invoice_number,
+        invoice_date=invoice_date,
+        payment_purpose=payment_purpose,
+        justification_text=justification_text,
         amount=amount,
         manual_exchange_rate=manual_exchange_rate,
     )
@@ -68,7 +78,10 @@ def create_payment_request(
         article=article,
         counterparty=counterparty,
         contract=contract,
+        additional_agreement=additional_agreement,
         invoice_number=invoice_number.strip(),
+        invoice_date=invoice_date,
+        payment_purpose=payment_purpose.strip(),
         currency=currency,
         amount=amount.quantize(MONEY_QUANT),
         manual_exchange_rate=_normalized_rate(currency.code, manual_exchange_rate),
@@ -79,6 +92,8 @@ def create_payment_request(
         approver=approver,
         author=author,
         comment=comment,
+        justification_text=justification_text.strip(),
+        justification_file=justification_file,
     )
     AuditLog.objects.create(
         user=author,
@@ -170,6 +185,30 @@ def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
 
 
 @transaction.atomic
+def reject_payment_request(request: PaymentRequest, user, approver_comment: str) -> PaymentRequest:
+    if request.status != PaymentRequestStatus.PENDING_APPROVAL:
+        raise ValueError("Отклонить можно только заявку в статусе 'На согласовании'")
+    if request.approver_id != user.id and not user.is_superuser:
+        raise ValueError("Заявку может отклонить только назначенный руководитель")
+    if not approver_comment.strip():
+        raise ValueError("При отклонении укажите комментарий согласующего")
+
+    request.status = PaymentRequestStatus.REJECTED
+    request.approver_comment = approver_comment.strip()
+    request.rejected_at = timezone.now()
+    request.save(update_fields=["status", "approver_comment", "rejected_at", "updated_at"])
+    AuditLog.objects.create(
+        user=user,
+        action=AuditAction.UPDATE,
+        path=WORKFLOW_PATH,
+        object_type="PaymentRequest",
+        object_id=str(request.pk),
+        message=f"Заявка {request.number} отклонена",
+    )
+    return request
+
+
+@transaction.atomic
 def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequest:
     if request.status != PaymentRequestStatus.APPROVED:
         raise ValueError("Передавать в 1С:ДО можно только согласованную заявку")
@@ -248,6 +287,55 @@ def next_do_external_id() -> str:
 
 
 def _validate_request_payload(
+    *,
+    request_kind: str,
+    counterparty,
+    contract: Contract | None,
+    additional_agreement: AdditionalAgreement | None,
+    invoice_number: str,
+    invoice_date,
+    payment_purpose: str,
+    justification_text: str,
+    amount: Decimal,
+    manual_exchange_rate: Decimal | None,
+) -> None:
+    if request_kind not in PaymentRequestKind.values:
+        raise ValueError("Неизвестный тип заявки")
+    if amount is None:
+        raise ValueError("Укажите сумму заявки")
+    if amount <= 0:
+        raise ValueError("Сумма заявки должна быть больше нуля")
+    if not payment_purpose.strip():
+        raise ValueError("Укажите назначение платежа")
+
+    if request_kind == PaymentRequestKind.BY_CONTRACT and contract is None:
+        raise ValueError("Для заявки по договору выберите договор")
+    if request_kind == PaymentRequestKind.BY_INVOICE and not invoice_number.strip():
+        raise ValueError("Для заявки по счету укажите номер счета")
+    if request_kind == PaymentRequestKind.BY_INVOICE and invoice_date is None:
+        raise ValueError("Для заявки по счету укажите дату счета")
+    if request_kind == PaymentRequestKind.WITHOUT_CONTRACT and contract is not None:
+        raise ValueError("Для заявки без договора поле договора должно быть пустым")
+    if request_kind == PaymentRequestKind.WITHOUT_CONTRACT and not justification_text.strip():
+        raise ValueError("Для заявки без договора заполните обоснование оплаты")
+
+    if contract is not None:
+        if contract.kind != ContractKind.SOLE_SUPPLIER:
+            raise ValueError("В заявке можно использовать только договор поставщика")
+        if contract.counterparty_id != counterparty.id:
+            raise ValueError("Контрагент заявки должен совпадать с контрагентом договора")
+
+    if additional_agreement is not None:
+        if contract is None:
+            raise ValueError("Допсоглашение можно выбрать только при выборе договора")
+        if additional_agreement.contract_id != contract.id:
+            raise ValueError("Выбранное допсоглашение должно принадлежать договору заявки")
+
+    if manual_exchange_rate is not None and manual_exchange_rate < 0:
+        raise ValueError("Курс к RUB не может быть отрицательным")
+
+
+def _validate_request_payload_legacy(
     *,
     request_kind: str,
     counterparty,

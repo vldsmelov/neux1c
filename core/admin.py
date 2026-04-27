@@ -21,6 +21,7 @@ from .models import (
     PaymentFactControlSettings,
     PaymentRequest,
     PaymentRequestControlSettings,
+    ReportTemplate,
     SyncRun,
     UiThemeSettings,
     UserProfile,
@@ -128,6 +129,13 @@ class PaymentRequestAdmin(admin.ModelAdmin):
 class PaymentRequestControlSettingsAdmin(admin.ModelAdmin):
     list_display = ("name", "control_mode", "is_active", "updated_at")
     list_editable = ("control_mode", "is_active")
+
+
+@admin.register(ReportTemplate)
+class ReportTemplateAdmin(admin.ModelAdmin):
+    list_display = ("name", "report_type", "owner", "is_default", "updated_at")
+    list_filter = ("report_type", "is_default")
+    search_fields = ("name", "owner__username")
 
 
 class BudgetLimitMonthInline(admin.TabularInline):
