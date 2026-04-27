@@ -12,7 +12,7 @@
             <h1 class="app-title">Отчет «План-факт БДДС»</h1>
             <p class="app-subtitle">Детализация по организациям, контрагентам и договорам с учетом заявок, факта и резервов.</p>
         </div>
-        <div class="command-bar">
+        <div class="command-bar report-head-actions">
             <a class="command-button-primary" href="/reports/plan-fact/?year={{ selected_year }}{% if selected_article_id %}&article_id={{ selected_article_id }}{% endif %}{% if selected_organization_id %}&organization_id={{ selected_organization_id }}{% endif %}{% if selected_counterparty_id %}&counterparty_id={{ selected_counterparty_id }}{% endif %}{% if selected_customer_contract_id %}&customer_contract_id={{ selected_customer_contract_id }}{% endif %}{% if selected_supplier_contract_id %}&supplier_contract_id={{ selected_supplier_contract_id }}{% endif %}{% if selected_request_status %}&request_status={{ selected_request_status }}{% endif %}{% if selected_template_id %}&template_id={{ selected_template_id }}{% endif %}&export=excel">Выгрузить CSV</a>
             <a class="command-button" href="/reports/manager/?year={{ selected_year }}">Дашборд руководителя</a>
             <a class="command-button" href="/planning/limits/">Планы / лимиты</a>
@@ -23,28 +23,74 @@
         </div>
     </div>
 
-    <div class="document-grid">
-        <aside class="form-panel">
-            {% if report_templates %}
-                <form method="post" class="form-stack panel-stack-top">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="apply_template">
-                    <div>
-                        <label class="field-label" for="template_id_apply">Шаблон отчета</label>
-                        <select class="field-control-select" id="template_id_apply" name="template_id">
-                            <option value="">Выберите шаблон</option>
-                            {% for template in report_templates %}
-                                <option value="{{ template.id }}" {% if selected_template_id == template.id %}selected{% endif %}>
-                                    {{ template.name }}{% if template.is_default %} · по умолчанию{% endif %}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <button class="command-button" type="submit">Применить шаблон</button>
-                </form>
-            {% endif %}
+    <div class="wide-layout report-layout">
+        {% if report_templates or can_manage_report_templates %}
+            <section class="report-panel">
+                <div class="report-template-grid">
+                    {% if report_templates %}
+                        <form method="post" class="report-template-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="apply_template">
+                            <div>
+                                <label class="field-label" for="template_id_apply">Шаблон отчета</label>
+                                <select class="field-control-select" id="template_id_apply" name="template_id">
+                                    <option value="">Выберите шаблон</option>
+                                    {% for template in report_templates %}
+                                        <option value="{{ template.id }}" {% if selected_template_id == template.id %}selected{% endif %}>
+                                            {{ template.name }}{% if template.is_default %} · по умолчанию{% endif %}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button class="command-button" type="submit">Применить шаблон</button>
+                        </form>
+                    {% endif %}
 
-            <form method="get" class="form-stack panel-stack-top">
+                    {% if can_manage_report_templates %}
+                        <form method="post" class="report-template-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="save_template">
+                            <input type="hidden" name="year" value="{{ active_filters_payload.year }}">
+                            <input type="hidden" name="article_id" value="{{ active_filters_payload.article_id|default_if_none:'' }}">
+                            <input type="hidden" name="organization_id" value="{{ active_filters_payload.organization_id|default_if_none:'' }}">
+                            <input type="hidden" name="counterparty_id" value="{{ active_filters_payload.counterparty_id|default_if_none:'' }}">
+                            <input type="hidden" name="customer_contract_id" value="{{ active_filters_payload.customer_contract_id|default_if_none:'' }}">
+                            <input type="hidden" name="supplier_contract_id" value="{{ active_filters_payload.supplier_contract_id|default_if_none:'' }}">
+                            <input type="hidden" name="request_status" value="{{ active_filters_payload.request_status }}">
+                            <div>
+                                <label class="field-label" for="template_name">Сохранить как шаблон</label>
+                                <input class="field-control" id="template_name" name="template_name" value="">
+                            </div>
+                            <label class="field-label">
+                                <input type="checkbox" name="is_default" value="1">
+                                Сделать шаблоном по умолчанию
+                            </label>
+                            <button class="command-button" type="submit">Сохранить шаблон</button>
+                        </form>
+                    {% endif %}
+
+                    {% if can_manage_report_templates and report_templates %}
+                        <form method="post" class="report-template-form">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="delete_template">
+                            <div>
+                                <label class="field-label" for="template_id_delete">Удалить шаблон</label>
+                                <select class="field-control-select" id="template_id_delete" name="template_id">
+                                    <option value="">Выберите шаблон</option>
+                                    {% for template in report_templates %}
+                                        <option value="{{ template.id }}">{{ template.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <button class="command-button" type="submit">Удалить</button>
+                        </form>
+                    {% endif %}
+                </div>
+            </section>
+        {% endif %}
+
+        <section class="report-panel">
+            <form method="get" class="report-filter-grid">
                 {% if selected_template_id %}
                     <input type="hidden" name="template_id" value="{{ selected_template_id }}">
                 {% endif %}
@@ -115,85 +161,47 @@
                         {% endfor %}
                     </select>
                 </div>
-                <button class="command-button-primary" type="submit">Применить</button>
-                <a class="command-button" href="/reports/plan-fact/">Сбросить</a>
+                <div class="report-filter-actions">
+                    <button class="command-button-primary" type="submit">Применить</button>
+                    <a class="command-button" href="/reports/plan-fact/">Сбросить</a>
+                </div>
             </form>
+        </section>
 
-            {% if can_manage_report_templates %}
-                <form method="post" class="form-stack panel-stack-top">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="save_template">
-                    <input type="hidden" name="year" value="{{ active_filters_payload.year }}">
-                    <input type="hidden" name="article_id" value="{{ active_filters_payload.article_id|default_if_none:'' }}">
-                    <input type="hidden" name="organization_id" value="{{ active_filters_payload.organization_id|default_if_none:'' }}">
-                    <input type="hidden" name="counterparty_id" value="{{ active_filters_payload.counterparty_id|default_if_none:'' }}">
-                    <input type="hidden" name="customer_contract_id" value="{{ active_filters_payload.customer_contract_id|default_if_none:'' }}">
-                    <input type="hidden" name="supplier_contract_id" value="{{ active_filters_payload.supplier_contract_id|default_if_none:'' }}">
-                    <input type="hidden" name="request_status" value="{{ active_filters_payload.request_status }}">
-                    <div>
-                        <label class="field-label" for="template_name">Сохранить как шаблон</label>
-                        <input class="field-control" id="template_name" name="template_name" value="">
-                    </div>
-                    <label class="inline-form-row">
-                        <input type="checkbox" name="is_default" value="1">
-                        <span>Сделать шаблоном по умолчанию</span>
-                    </label>
-                    <button class="command-button" type="submit">Сохранить шаблон</button>
-                </form>
-
-                {% if report_templates %}
-                    <form method="post" class="form-stack panel-stack-top">
-                        {% csrf_token %}
-                        <input type="hidden" name="action" value="delete_template">
-                        <div>
-                            <label class="field-label" for="template_id_delete">Удалить шаблон</label>
-                            <select class="field-control-select" id="template_id_delete" name="template_id">
-                                <option value="">Выберите шаблон</option>
-                                {% for template in report_templates %}
-                                    <option value="{{ template.id }}">{{ template.name }}</option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <button class="command-button" type="submit">Удалить</button>
-                    </form>
-                {% endif %}
-            {% endif %}
-
-            <div class="form-stack panel-stack-top">
-                <div>
-                    <div class="field-label">Строк в отчете</div>
-                    <div class="field-control is-focused">{{ rows|length }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Статей в отчете</div>
-                    <div class="field-control">{{ summary.articles }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Превышений (БУ)</div>
-                    <div class="field-control">{{ summary.overrun_articles }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Статей ВГО</div>
-                    <div class="field-control">{{ summary.vgo_articles }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Итог план, RUB</div>
-                    <div class="field-control">{{ summary.total_plan }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Итог факт БУ, RUB</div>
-                    <div class="field-control">{{ summary.total_fact_bu }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Итог остаток БУ, RUB</div>
-                    <div class="field-control">{{ summary.total_balance_bu }}</div>
-                </div>
+        <section class="report-summary-grid">
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ rows|length }}</div>
+                <div class="report-summary-label">Строк в отчете</div>
             </div>
-        </aside>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.articles }}</div>
+                <div class="report-summary-label">Статей в отчете</div>
+            </div>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.overrun_articles }}</div>
+                <div class="report-summary-label">Превышений (БУ)</div>
+            </div>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.vgo_articles }}</div>
+                <div class="report-summary-label">Статей ВГО</div>
+            </div>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.total_plan }}</div>
+                <div class="report-summary-label">Итог план, RUB</div>
+            </div>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.total_fact_bu }}</div>
+                <div class="report-summary-label">Итог факт БУ, RUB</div>
+            </div>
+            <div class="report-summary-cell">
+                <div class="report-summary-value">{{ summary.total_balance_bu }}</div>
+                <div class="report-summary-label">Итог остаток БУ, RUB</div>
+            </div>
+        </section>
 
         <section class="data-panel stack">
             <div class="data-table-wrap">
-                <table class="data-table">
+                <table class="data-table plan-fact-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
@@ -203,15 +211,15 @@
                             <th>Доходный договор</th>
                             <th>Договор поставщика</th>
                             <th>Признаки</th>
-                            <th>План</th>
-                            <th>Корр. лимита</th>
-                            <th>Резерв</th>
-                            <th>Заявлено</th>
-                            <th>Факт БУ</th>
-                            <th>Факт НУ</th>
-                            <th>Остаток БУ</th>
-                            <th>Остаток НУ</th>
-                            <th>Комментарии</th>
+                            <th class="num-col">План</th>
+                            <th class="num-col">Корр. лимита</th>
+                            <th class="num-col">Резерв</th>
+                            <th class="num-col">Заявлено</th>
+                            <th class="num-col">Факт БУ</th>
+                            <th class="num-col">Факт НУ</th>
+                            <th class="num-col">Остаток БУ</th>
+                            <th class="num-col">Остаток НУ</th>
+                            <th class="comments-col">Комментарии</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -228,18 +236,18 @@
                                     {% if row.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                     {% if not row.missing_in_one_c and not row.is_internal_turnover %}<span class="badge">из 1С</span>{% endif %}
                                 </td>
-                                <td>{{ row.plan }}</td>
-                                <td>{{ row.adjustments }}</td>
-                                <td>{{ row.reserved }}</td>
-                                <td>{{ row.requested }}</td>
-                                <td>{{ row.fact_bu }}</td>
-                                <td>{{ row.fact_nu }}</td>
-                                <td>
+                                <td class="num-col">{{ row.plan }}</td>
+                                <td class="num-col">{{ row.adjustments }}</td>
+                                <td class="num-col">{{ row.reserved }}</td>
+                                <td class="num-col">{{ row.requested }}</td>
+                                <td class="num-col">{{ row.fact_bu }}</td>
+                                <td class="num-col">{{ row.fact_nu }}</td>
+                                <td class="num-col">
                                     {{ row.balance_bu }}
                                     {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
-                                <td>{{ row.balance_nu }}</td>
-                                <td>{% if row.comments %}{{ row.comments }}{% else %}<span class="muted-text">—</span>{% endif %}</td>
+                                <td class="num-col">{{ row.balance_nu }}</td>
+                                <td class="comments-col">{% if row.comments %}{{ row.comments }}{% else %}<span class="muted-text">—</span>{% endif %}</td>
                             </tr>
                         {% empty %}
                             <tr><td colspan="16">Нет данных для выбранных фильтров.</td></tr>

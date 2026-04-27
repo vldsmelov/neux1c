@@ -214,6 +214,12 @@
             margin-right: auto;
         }
 
+        .app-workarea > .wide-layout {
+            max-width: none;
+            width: 100%;
+            margin-right: 0;
+        }
+
         .app-page-head {
             display: flex;
             justify-content: space-between;
@@ -616,6 +622,111 @@
             color: var(--app-muted);
         }
 
+        .report-layout {
+            display: grid;
+            gap: 12px;
+        }
+
+        .report-panel {
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            background: var(--app-toolbar);
+            padding: 12px;
+        }
+
+        .report-filter-grid {
+            display: grid;
+            grid-template-columns: repeat(6, minmax(160px, 1fr));
+            gap: 10px;
+            align-items: end;
+        }
+
+        .report-filter-actions {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+        }
+
+        .report-template-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 10px;
+        }
+
+        .report-template-form {
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: var(--app-surface);
+            padding: 10px;
+            display: grid;
+            gap: 8px;
+            align-content: start;
+        }
+
+        .report-summary-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(130px, 1fr));
+            gap: 10px;
+        }
+
+        .report-summary-cell {
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: #fbfdff;
+            min-height: 74px;
+            padding: 10px;
+            display: grid;
+            align-content: center;
+            gap: 4px;
+        }
+
+        .report-summary-value {
+            font-size: 20px;
+            line-height: 1.15;
+            font-weight: 700;
+            color: var(--app-text);
+            white-space: nowrap;
+        }
+
+        .report-summary-label {
+            color: var(--app-muted);
+            line-height: 1.25;
+            font-size: 12px;
+        }
+
+        .report-head-actions {
+            max-width: none !important;
+        }
+
+        .plan-fact-table {
+            min-width: 1480px;
+            table-layout: auto;
+        }
+
+        .plan-fact-table th {
+            white-space: nowrap;
+            overflow-wrap: normal;
+        }
+
+        .plan-fact-table td {
+            overflow-wrap: normal;
+            word-break: normal;
+        }
+
+        .plan-fact-table .num-col {
+            white-space: nowrap;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .plan-fact-table .comments-col {
+            min-width: 320px;
+            white-space: normal;
+        }
+
         .checkbox-cell {
             width: 36px;
         }
@@ -786,6 +897,18 @@
             .metric-strip {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
             }
+
+            .report-filter-grid {
+                grid-template-columns: repeat(3, minmax(160px, 1fr));
+            }
+
+            .report-template-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .report-summary-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
         }
 
         @media (min-width: 1041px) {
@@ -849,6 +972,23 @@
             }
 
             .metric-strip {
+                grid-template-columns: 1fr;
+            }
+
+            .report-filter-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .report-filter-actions {
+                justify-content: stretch;
+            }
+
+            .report-filter-actions .command-button,
+            .report-filter-actions .command-button-primary {
+                width: 100%;
+            }
+
+            .report-summary-grid {
                 grid-template-columns: 1fr;
             }
         }
