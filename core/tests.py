@@ -345,6 +345,46 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_instruction_page_is_available_for_internal_roles(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.get(reverse("instruction"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Руководство пользователя и Use Case по ролям")
+
+    def test_accountant_can_open_instruction_page(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("instruction"))
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_instruction_asset_is_available_for_logged_in_user(self):
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(
+            reverse(
+                "instruction_asset",
+                kwargs={"asset_path": "images/annotated/01_login.png"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "image/png")
+
+    def test_instruction_asset_blocks_path_traversal(self):
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(
+            reverse(
+                "instruction_asset",
+                kwargs={"asset_path": "../tz/v_0_1.docx"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
     def test_user_can_change_theme_mode(self):
         self.client.login(username="economist", password="demo12345")
 

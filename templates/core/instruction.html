@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+
+{% block title %}Инструкция · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="{% url 'instruction' %}">Инструкция</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Инструкция по ролям</h1>
+            <p class="app-subtitle">
+                Практический сценарий работы в системе: шаги, ожидаемые результаты и скриншоты для каждой роли.
+            </p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="{% url 'workspace' %}">К рабочему месту</a>
+            <span class="command-spacer"></span>
+            <button class="icon-button" type="button">⌕</button>
+            <button class="icon-button" type="button">⋮</button>
+        </div>
+    </div>
+
+    {{ guide_html|safe }}
+{% endblock %}
