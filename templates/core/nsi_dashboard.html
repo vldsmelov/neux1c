@@ -22,42 +22,51 @@
         </div>
     </div>
 
-    <div class="document-grid">
+    <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
-            <div class="form-stack">
-                <div>
-                    <div class="field-label">Поставщик данных</div>
-                    <div class="field-control is-focused">Mock-1C</div>
-                </div>
-                <div>
-                    <div class="field-label">Статус обмена</div>
-                    <div class="field-control">
-                        {% if latest_sync %}
-                            <span><span class="status-dot"></span>{{ latest_sync.get_status_display }}</span>
-                        {% else %}
-                            <span><span class="status-dot"></span>Не выполнялся</span>
-                        {% endif %}
+            <details class="form-section" open>
+                <summary>Состояние обмена</summary>
+                <div class="form-section-content">
+                    <div>
+                        <div class="field-label">Поставщик данных</div>
+                        <div class="field-control is-focused">Mock-1C</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Статус обмена</div>
+                        <div class="field-control">
+                            {% if latest_sync %}
+                                <span><span class="status-dot"></span>{{ latest_sync.get_status_display }}</span>
+                            {% else %}
+                                <span><span class="status-dot"></span>Не выполнялся</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <div class="field-label">Дата обмена</div>
+                        <div class="field-control">
+                            {% if latest_sync %}{{ latest_sync.finished_at|date:"d.m.Y H:i" }}{% else %}--{% endif %}
+                        </div>
                     </div>
                 </div>
-                <div>
-                    <div class="field-label">Дата обмена</div>
-                    <div class="field-control">
-                        {% if latest_sync %}{{ latest_sync.finished_at|date:"d.m.Y H:i" }}{% else %}--{% endif %}
+            </details>
+
+            <details class="form-section" open>
+                <summary>Сводка справочников</summary>
+                <div class="form-section-content">
+                    <div>
+                        <div class="field-label">Организации</div>
+                        <div class="field-control">{{ counts.organizations }}</div>
+                    </div>
+                    <div>
+                        <div class="field-label">ЦФО</div>
+                        <div class="field-control">{{ counts.departments }}</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Валюты</div>
+                        <div class="field-control">{{ counts.currencies }}</div>
                     </div>
                 </div>
-                <div>
-                    <div class="field-label">Организации</div>
-                    <div class="field-control">{{ counts.organizations }}</div>
-                </div>
-                <div>
-                    <div class="field-label">ЦФО</div>
-                    <div class="field-control">{{ counts.departments }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Валюты</div>
-                    <div class="field-control">{{ counts.currencies }}</div>
-                </div>
-            </div>
+            </details>
         </aside>
 
         <section class="data-panel stack">

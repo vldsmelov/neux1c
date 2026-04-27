@@ -22,62 +22,75 @@
         </div>
     </div>
 
-    <div class="document-grid">
+    <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
-            <form method="get" class="form-stack">
-                <div>
-                    <label class="field-label" for="counterparty_id">Контрагент</label>
-                    <select class="field-control-select" id="counterparty_id" name="counterparty_id">
-                        <option value="">Все</option>
-                        {% for counterparty in counterparties %}
-                            <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
-                                {{ counterparty.name }}
-                            </option>
-                        {% endfor %}
-                    </select>
+            <details class="form-section" open>
+                <summary>Фильтры дерева</summary>
+                <div class="form-section-content">
+                    <p class="section-subtitle">Отбор по контрагенту, номеру договора и диапазону дат.</p>
+                    <form method="get" class="form-stack form-grid form-grid-2">
+                        <div>
+                            <label class="field-label" for="counterparty_id">Контрагент</label>
+                            <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                                <option value="">Все</option>
+                                {% for counterparty in counterparties %}
+                                    <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
+                                        {{ counterparty.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="contract">Договор</label>
+                            <input class="field-control" id="contract" name="contract" value="{{ selected_contract }}">
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_from">Дата с</label>
+                            <input class="field-control" id="date_from" type="text" name="date_from" value="{{ selected_date_from }}" placeholder="дд.мм.гггг">
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_to">Дата по</label>
+                            <input class="field-control" id="date_to" type="text" name="date_to" value="{{ selected_date_to }}" placeholder="дд.мм.гггг">
+                        </div>
+                        <div class="form-grid-span-full inline-form-row">
+                            <button class="command-button-primary" type="submit">Применить</button>
+                            <a class="command-button" href="/contracts/tree/">Сбросить</a>
+                        </div>
+                    </form>
                 </div>
-                <div>
-                    <label class="field-label" for="contract">Договор</label>
-                    <input class="field-control" id="contract" name="contract" value="{{ selected_contract }}">
-                </div>
-                <div>
-                    <label class="field-label" for="date_from">Дата с</label>
-                    <input class="field-control" id="date_from" type="text" name="date_from" value="{{ selected_date_from }}" placeholder="дд.мм.гггг">
-                </div>
-                <div>
-                    <label class="field-label" for="date_to">Дата по</label>
-                    <input class="field-control" id="date_to" type="text" name="date_to" value="{{ selected_date_to }}" placeholder="дд.мм.гггг">
-                </div>
-                <button class="command-button-primary" type="submit">Применить</button>
-                <a class="command-button" href="/contracts/tree/">Сбросить</a>
-            </form>
+            </details>
 
-            <div class="form-stack panel-stack-top">
-                <div>
-                    <div class="field-label">Доходных договоров</div>
-                    <div class="field-control is-focused">{{ summary.customers }}</div>
+            <details class="form-section" open>
+                <summary>Сводка дерева</summary>
+                <div class="form-section-content">
+                    <div class="form-stack">
+                        <div>
+                            <div class="field-label">Доходных договоров</div>
+                            <div class="field-control is-focused">{{ summary.customers }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Договоров поставщиков</div>
+                            <div class="field-control">{{ summary.suppliers }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Допсоглашений</div>
+                            <div class="field-control">{{ summary.agreements }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Резерв, руб.</div>
+                            <div class="field-control">{{ summary.total_reserved_rub }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Оплачено, руб.</div>
+                            <div class="field-control">{{ summary.total_paid_rub }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Остаток, руб.</div>
+                            <div class="field-control">{{ summary.total_remaining_rub }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div class="field-label">Договоров поставщиков</div>
-                    <div class="field-control">{{ summary.suppliers }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Допсоглашений</div>
-                    <div class="field-control">{{ summary.agreements }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Резерв, руб.</div>
-                    <div class="field-control">{{ summary.total_reserved_rub }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Оплачено, руб.</div>
-                    <div class="field-control">{{ summary.total_paid_rub }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Остаток, руб.</div>
-                    <div class="field-control">{{ summary.total_remaining_rub }}</div>
-                </div>
-            </div>
+            </details>
         </aside>
 
         <section class="data-panel stack">

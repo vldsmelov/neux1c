@@ -23,30 +23,36 @@
         </div>
     </div>
 
-    <div class="document-grid">
+    <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
-            <div class="form-stack">
-                <div>
-                    <div class="field-label">Договоров в реестре</div>
-                    <div class="field-control is-focused">{{ summary.contracts }}</div>
+            <details class="form-section" open>
+                <summary>Показатели резервирования</summary>
+                <div class="form-section-content">
+                    <p class="section-subtitle">Сводка реестра для контроля резервов, оплат и остатка к оплате.</p>
+                    <div class="form-stack">
+                        <div>
+                            <div class="field-label">Договоров в реестре</div>
+                            <div class="field-control is-focused">{{ summary.contracts }}</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Общий резерв</div>
+                            <div class="field-control">{{ summary.total_reserved }} руб.</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Оплачено</div>
+                            <div class="field-control">{{ summary.total_paid }} руб.</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Остаток к оплате</div>
+                            <div class="field-control">{{ summary.total_remaining }} руб.</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Без привязки к статье ДДС</div>
+                            <div class="field-control">{{ summary.contracts_without_article }}</div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <div class="field-label">Общий резерв</div>
-                    <div class="field-control">{{ summary.total_reserved }} руб.</div>
-                </div>
-                <div>
-                    <div class="field-label">Оплачено</div>
-                    <div class="field-control">{{ summary.total_paid }} руб.</div>
-                </div>
-                <div>
-                    <div class="field-label">Остаток к оплате</div>
-                    <div class="field-control">{{ summary.total_remaining }} руб.</div>
-                </div>
-                <div>
-                    <div class="field-label">Без привязки к статье ДДС</div>
-                    <div class="field-control">{{ summary.contracts_without_article }}</div>
-                </div>
-            </div>
+            </details>
         </aside>
 
         <section class="data-panel stack">
