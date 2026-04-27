@@ -213,12 +213,12 @@
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Номер</th>
-                            <th>Год</th>
-                            <th>ЦФО</th>
-                            <th>Статья</th>
-                            <th>Сумма</th>
-                            <th>Статус</th>
+                            <th class="table-col-doc">Номер</th>
+                            <th class="table-col-short">Год</th>
+                            <th class="table-col-counterparty">ЦФО</th>
+                            <th class="table-col-article">Статья</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-status">Статус</th>
                             <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
@@ -226,12 +226,12 @@
                         {% for plan in plans %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td>{{ plan.number }}</td>
-                                <td>{{ plan.planning_year }}</td>
-                                <td>{{ plan.department.name }}</td>
-                                <td>{{ plan.article.name }}</td>
-                                <td>{{ plan.annual_amount }} {{ plan.currency.code }}</td>
-                                <td>
+                                <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
+                                <td class="table-col-short">{{ plan.planning_year }}</td>
+                                <td class="table-col-counterparty">{{ plan.department.name }}</td>
+                                <td class="table-col-article">{{ plan.article.name }}</td>
+                                <td class="table-col-number">{{ plan.annual_amount }} {{ plan.currency.code }}</td>
+                                <td class="table-col-status">
                                     <span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span>
                                 </td>
                                 <td class="table-action-col">
@@ -283,11 +283,11 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
-                                <th>Номер</th>
-                                <th>Базовый план</th>
-                                <th>Новая сумма</th>
-                                <th>Версия</th>
-                                <th>Статус</th>
+                                <th class="table-col-doc">Номер</th>
+                                <th class="table-col-doc">Базовый план</th>
+                                <th class="table-col-number">Новая сумма</th>
+                                <th class="table-col-short">Версия</th>
+                                <th class="table-col-status">Статус</th>
                                 <th class="table-action-col">Действие</th>
                             </tr>
                         </thead>
@@ -295,11 +295,11 @@
                             {% for adjustment in adjustments %}
                                 <tr>
                                     <td><span class="fake-checkbox"></span></td>
-                                    <td>{{ adjustment.number }}</td>
-                                    <td>{{ adjustment.base_plan.number }}</td>
-                                    <td>{{ adjustment.new_annual_amount }} {{ adjustment.base_plan.currency.code }}</td>
-                                    <td>v{{ adjustment.version }}</td>
-                                    <td>
+                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
+                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
+                                    <td class="table-col-number">{{ adjustment.new_annual_amount }} {{ adjustment.base_plan.currency.code }}</td>
+                                    <td class="table-col-short">v{{ adjustment.version }}</td>
+                                    <td class="table-col-status">
                                         <span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span>
                                     </td>
                                     <td class="table-action-col">

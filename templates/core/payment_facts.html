@@ -116,36 +116,36 @@
                 >
             </div>
             <div class="data-table-wrap desktop-scroll">
-                <table id="payment-facts-table" class="data-table">
+                <table id="payment-facts-table" class="data-table payment-facts-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Дата</th>
-                            <th>Учет</th>
-                            <th>Счет</th>
-                            <th>Статья ДДС</th>
-                            <th>Контрагент</th>
-                            <th>Договор</th>
-                            <th>Сумма</th>
-                            <th>Версии</th>
-                            <th class="table-action-col">Корректировка</th>
+                            <th class="table-col-date">Дата</th>
+                            <th class="table-col-short">Учет</th>
+                            <th class="table-col-short">Счет</th>
+                            <th class="table-col-article">Статья ДДС</th>
+                            <th class="table-col-counterparty">Контрагент</th>
+                            <th class="table-col-doc">Договор</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-status">Версии</th>
+                            <th class="table-action-col-lg">Корректировка</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in rows %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td>{{ row.fact.date|date:"d.m.Y" }}</td>
-                                <td>{{ row.fact.get_accounting_kind_display }}</td>
-                                <td>{{ row.fact.account }}</td>
-                                <td class="table-action-col">
+                                <td class="table-col-date">{{ row.fact.date|date:"d.m.Y" }}</td>
+                                <td class="table-col-short">{{ row.fact.get_accounting_kind_display }}</td>
+                                <td class="table-col-short">{{ row.fact.account }}</td>
+                                <td class="table-col-article">
                                     {{ row.fact.article.code }} · {{ row.fact.article.name }}
                                     {% if row.fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                 </td>
-                                <td>{{ row.fact.counterparty.name }}</td>
-                                <td>{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
-                                <td>{{ row.fact.amount }} {{ row.fact.currency.code }}</td>
-                                <td>
+                                <td class="table-col-counterparty">{{ row.fact.counterparty.name }}</td>
+                                <td class="table-col-doc">{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{{ row.fact.amount }} {{ row.fact.currency.code }}</td>
+                                <td class="table-col-status">
                                     {% if row.versions %}
                                         <span class="badge">v{{ row.latest_version }}</span>
                                         <span class="muted-text">({{ row.versions }})</span>
@@ -153,15 +153,15 @@
                                         <span class="badge">база</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="table-action-col-lg">
                                     {% if can_edit_payment_facts %}
                                         <form method="post" class="inline-form-row">
                                             {% csrf_token %}
                                             <input type="hidden" name="action" value="adjust">
                                             <input type="hidden" name="fact_id" value="{{ row.fact.id }}">
                                             <input class="field-control inline-input-120" name="new_amount" value="{{ row.fact.amount }}">
-                                            <input class="field-control inline-input-180" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий">
-                                            <input class="field-control inline-input-210" name="reason" value="" placeholder="Причина">
+                                            <input class="field-control inline-input-132" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий">
+                                            <input class="field-control inline-input-132" name="reason" value="" placeholder="Причина">
                                             <button class="command-button-primary" type="submit">Записать</button>
                                         </form>
                                     {% else %}

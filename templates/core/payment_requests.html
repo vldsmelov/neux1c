@@ -188,28 +188,28 @@
                 >
             </div>
             <div class="data-table-wrap desktop-scroll">
-                <table id="payment-requests-table" class="data-table">
+                <table id="payment-requests-table" class="data-table payment-requests-table">
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Номер</th>
-                            <th>Тип</th>
-                            <th>Контрагент</th>
-                            <th>Договор / счет</th>
-                            <th>Сумма</th>
-                            <th>Лимит до/после (руб.)</th>
-                            <th>Статус</th>
-                            <th class="table-action-col">Действие</th>
+                            <th class="table-col-doc">Номер</th>
+                            <th class="table-col-short">Тип</th>
+                            <th class="table-col-counterparty">Контрагент</th>
+                            <th class="table-col-doc">Договор / счет</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-limit">Лимит до/после (руб.)</th>
+                            <th class="table-col-status">Статус</th>
+                            <th class="table-action-col-lg">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for request_row in requests %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td>{{ request_row.number }}</td>
-                                <td>{{ request_row.get_request_kind_display }}</td>
-                                <td>{{ request_row.counterparty.name }}</td>
-                                <td>
+                                <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
+                                <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
+                                <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
+                                <td class="table-col-doc">
                                     {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
                                     {% if request_row.additional_agreement %}
                                         {% if request_row.contract %} · {% endif %}
@@ -223,19 +223,19 @@
                                         · {{ request_row.invoice_date|date:"d.m.Y" }}
                                     {% endif %}
                                 </td>
-                                <td>{{ request_row.amount }} {{ request_row.currency.code }}</td>
-                                <td>
+                                <td class="table-col-number">{{ request_row.amount }} {{ request_row.currency.code }}</td>
+                                <td class="table-col-limit table-cell-nowrap">
                                     {{ request_row.limit_remaining_before_rub }} → {{ request_row.limit_remaining_after_rub }}
                                     {% if request_row.limit_exceeded %}
                                         <span class="badge badge-danger">превышение</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="table-col-status">
                                     <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
                                         {{ request_row.get_status_display }}
                                     </span>
                                 </td>
-                                <td class="table-action-col">
+                                <td class="table-action-col-lg">
                                     {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
                                         <form method="post">
                                             {% csrf_token %}

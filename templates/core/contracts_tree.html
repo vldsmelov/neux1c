@@ -60,7 +60,7 @@
                 </div>
             </details>
 
-            <details class="form-section" open>
+            <details class="form-section">
                 <summary>Сводка дерева</summary>
                 <div class="form-section-content">
                     <div class="form-stack">
@@ -109,34 +109,34 @@
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Вид</th>
-                            <th>Иерархия</th>
-                            <th>Дата</th>
-                            <th>Контрагент</th>
-                            <th>Вал.</th>
-                            <th>Сумма (вал.)</th>
-                            <th>Оплачено (вал.)</th>
-                            <th>Остаток (вал.)</th>
-                            <th>Резерв, руб.</th>
-                            <th>Оплачено, руб.</th>
-                            <th>Остаток, руб.</th>
+                            <th class="table-col-short">Вид</th>
+                            <th class="table-col-article">Иерархия</th>
+                            <th class="table-col-date">Дата</th>
+                            <th class="table-col-counterparty">Контрагент</th>
+                            <th class="table-col-short">Вал.</th>
+                            <th class="table-col-number">Сумма (вал.)</th>
+                            <th class="table-col-number">Оплачено (вал.)</th>
+                            <th class="table-col-number">Остаток (вал.)</th>
+                            <th class="table-col-number">Резерв, руб.</th>
+                            <th class="table-col-number">Оплачено, руб.</th>
+                            <th class="table-col-number">Остаток, руб.</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in rows %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td><span class="badge">{{ row.kind_label }}</span></td>
-                                <td><span class="tree-indent" style="--indent: {{ row.indent_px }}px;">{{ row.display_name }}</span></td>
-                                <td>{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
-                                <td>{{ row.counterparty_name }}</td>
-                                <td>{{ row.currency_code }}</td>
-                                <td>{% if row.reserved_native is not None %}{{ row.reserved_native }}{% else %}—{% endif %}</td>
-                                <td>{% if row.paid_native is not None %}{{ row.paid_native }}{% else %}—{% endif %}</td>
-                                <td>{% if row.remaining_native is not None %}{{ row.remaining_native }}{% else %}—{% endif %}</td>
-                                <td>{{ row.reserved_rub }}</td>
-                                <td>{{ row.paid_rub }}</td>
-                                <td>{{ row.remaining_rub }}</td>
+                                <td class="table-col-short"><span class="badge">{{ row.kind_label }}</span></td>
+                                <td class="table-col-article"><span class="tree-indent" style="--indent: {{ row.indent_px }}px;">{{ row.display_name }}</span></td>
+                                <td class="table-col-date">{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                                <td class="table-col-counterparty">{{ row.counterparty_name }}</td>
+                                <td class="table-col-short">{{ row.currency_code }}</td>
+                                <td class="table-col-number">{% if row.reserved_native is not None %}{{ row.reserved_native }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{% if row.paid_native is not None %}{{ row.paid_native }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{% if row.remaining_native is not None %}{{ row.remaining_native }}{% else %}—{% endif %}</td>
+                                <td class="table-col-number">{{ row.reserved_rub }}</td>
+                                <td class="table-col-number">{{ row.paid_rub }}</td>
+                                <td class="table-col-number">{{ row.remaining_rub }}</td>
                             </tr>
                         {% empty %}
                             <tr><td colspan="12">Нет данных для выбранных фильтров.</td></tr>

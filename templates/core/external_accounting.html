@@ -66,11 +66,11 @@
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Договор</th>
-                            <th>Контрагент</th>
-                            <th>К оплате</th>
-                            <th>Оплачено</th>
-                            <th>Остаток</th>
+                            <th class="table-col-doc">Договор</th>
+                            <th class="table-col-counterparty">Контрагент</th>
+                            <th class="table-col-number">К оплате</th>
+                            <th class="table-col-number">Оплачено</th>
+                            <th class="table-col-number">Остаток</th>
                             <th class="table-action-col">Действие</th>
                         </tr>
                     </thead>
@@ -78,11 +78,11 @@
                         {% for row in rows %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td>{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
-                                <td>{{ row.contract.counterparty.name }}</td>
-                                <td>{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
-                                <td>{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
-                                <td>{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                                <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
+                                <td class="table-col-number">{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
                                 <td class="table-action-col">
                                     {% if row.remaining_amount > 0 %}
                                         <form method="post" class="inline-form-row">

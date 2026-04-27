@@ -71,40 +71,40 @@
                     <thead>
                         <tr>
                             <th class="checkbox-cell"></th>
-                            <th>Договор</th>
-                            <th>Контрагент</th>
-                            <th>Статья ДДС</th>
-                            <th>Резерв</th>
-                            <th>Оплачено</th>
-                            <th>К оплате</th>
-                            <th>Лимит (утв.)</th>
-                            <th>Лимит после резерва</th>
+                            <th class="table-col-doc">Договор</th>
+                            <th class="table-col-counterparty">Контрагент</th>
+                            <th class="table-col-article">Статья ДДС</th>
+                            <th class="table-col-number">Резерв</th>
+                            <th class="table-col-number">Оплачено</th>
+                            <th class="table-col-number">К оплате</th>
+                            <th class="table-col-number">Лимит (утв.)</th>
+                            <th class="table-col-number">Лимит после резерва</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for row in rows %}
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
-                                <td>{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
-                                <td>{{ row.contract.counterparty.name }}</td>
-                                <td>
+                                <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                                <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
+                                <td class="table-col-article">
                                     {% if row.article %}
                                         {{ row.article.code }} · {{ row.article.name }}
                                     {% else %}
                                         <span class="badge">Не определена</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
-                                <td>{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
-                                <td>{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
-                                <td>
+                                <td class="table-col-number">{{ row.reserved_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.paid_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.remaining_amount }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">
                                     {% if row.approved_limit is not None %}
                                         {{ row.approved_limit }} {{ row.contract.currency.code }}
                                     {% else %}
                                         <span class="badge badge-danger">Нет лимита</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td class="table-col-number">
                                     {% if row.available_limit_after_reserve is not None %}
                                         {{ row.available_limit_after_reserve }} {{ row.contract.currency.code }}
                                     {% else %}

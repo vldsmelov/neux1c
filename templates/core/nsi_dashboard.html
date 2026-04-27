@@ -50,7 +50,7 @@
                 </div>
             </details>
 
-            <details class="form-section" open>
+            <details class="form-section">
                 <summary>Сводка справочников</summary>
                 <div class="form-section-content">
                     <div>
@@ -107,18 +107,18 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
-                                <th>Код</th>
-                                <th>Наименование</th>
-                                <th>Признаки</th>
+                                <th class="table-col-short">Код</th>
+                                <th class="table-col-article">Наименование</th>
+                                <th class="table-col-status">Признаки</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for article in articles %}
                                 <tr>
                                     <td><span class="fake-checkbox"></span></td>
-                                    <td>{{ article.code }}</td>
-                                    <td>{{ article.name }}</td>
-                                    <td>
+                                    <td class="table-col-short table-cell-nowrap">{{ article.code }}</td>
+                                    <td class="table-col-article">{{ article.name }}</td>
+                                    <td class="table-col-status">
                                         {% if not article.exists_in_one_c %}
                                             <span class="badge badge-danger">нет в 1С</span>
                                         {% endif %}
@@ -156,20 +156,20 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
-                                <th>Договор</th>
-                                <th>Контрагент</th>
-                                <th>Сумма договора</th>
-                                <th>Резерв с ДС</th>
+                                <th class="table-col-doc">Договор</th>
+                                <th class="table-col-counterparty">Контрагент</th>
+                                <th class="table-col-number">Сумма договора</th>
+                                <th class="table-col-number">Резерв с ДС</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for contract in supplier_contracts %}
                                 <tr>
                                     <td><span class="fake-checkbox"></span></td>
-                                    <td>{{ contract.number }} от {{ contract.date|date:"d.m.Y" }}</td>
-                                    <td>{{ contract.counterparty.name }}</td>
-                                    <td>{{ contract.amount }} {{ contract.currency.code }}</td>
-                                    <td>{{ contract.reserved_amount }} {{ contract.currency.code }}</td>
+                                    <td class="table-col-doc">{{ contract.number }} от {{ contract.date|date:"d.m.Y" }}</td>
+                                    <td class="table-col-counterparty">{{ contract.counterparty.name }}</td>
+                                    <td class="table-col-number">{{ contract.amount }} {{ contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ contract.reserved_amount }} {{ contract.currency.code }}</td>
                                 </tr>
                             {% empty %}
                                 <tr><td colspan="5">Нет данных</td></tr>
@@ -197,27 +197,27 @@
                         <thead>
                             <tr>
                                 <th class="checkbox-cell"></th>
-                                <th>Дата</th>
-                                <th>Счет</th>
-                                <th>Учет</th>
-                                <th>Статья</th>
-                                <th>Контрагент</th>
-                                <th>Сумма</th>
+                                <th class="table-col-date">Дата</th>
+                                <th class="table-col-short">Счет</th>
+                                <th class="table-col-short">Учет</th>
+                                <th class="table-col-article">Статья</th>
+                                <th class="table-col-counterparty">Контрагент</th>
+                                <th class="table-col-number">Сумма</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for fact in payment_facts %}
                                 <tr>
                                     <td><span class="fake-checkbox"></span></td>
-                                    <td>{{ fact.date|date:"d.m.Y" }}</td>
-                                    <td>{{ fact.account }}</td>
-                                    <td>{{ fact.get_accounting_kind_display }}</td>
-                                    <td>
+                                    <td class="table-col-date">{{ fact.date|date:"d.m.Y" }}</td>
+                                    <td class="table-col-short">{{ fact.account }}</td>
+                                    <td class="table-col-short">{{ fact.get_accounting_kind_display }}</td>
+                                    <td class="table-col-article">
                                         {{ fact.article.name }}
                                         {% if fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                     </td>
-                                    <td>{{ fact.counterparty.name }}</td>
-                                    <td>{{ fact.amount }} {{ fact.currency.code }}</td>
+                                    <td class="table-col-counterparty">{{ fact.counterparty.name }}</td>
+                                    <td class="table-col-number">{{ fact.amount }} {{ fact.currency.code }}</td>
                                 </tr>
                             {% empty %}
                                 <tr><td colspan="7">Нет данных</td></tr>
