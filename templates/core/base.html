@@ -257,7 +257,9 @@
             gap: 18px;
             align-items: flex-end;
             flex-wrap: wrap;
-            margin-bottom: 18px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--app-border);
         }
 
         .app-page-head > div {
@@ -266,14 +268,15 @@
 
         .app-title {
             margin: 0;
-            font-size: 26px;
-            line-height: 1.2;
+            font-size: 28px;
+            line-height: 1.15;
             font-weight: 700;
         }
 
         .app-subtitle {
             color: var(--app-muted);
             margin: 6px 0 0;
+            font-size: 14px;
             line-height: 1.45;
             max-width: 92ch;
             overflow-wrap: anywhere;
@@ -568,13 +571,28 @@
         }
 
         .section-title {
-            font-size: 18px;
-            margin: 0 0 12px;
+            font-size: 19px;
+            line-height: 1.25;
+            margin: 0 0 4px;
+        }
+
+        .section-subtitle {
+            margin: 0 0 10px;
+            color: var(--app-muted);
+            font-size: 13px;
+            line-height: 1.4;
         }
 
         .stack {
             display: grid;
-            gap: 16px;
+            gap: 18px;
+        }
+
+        .stack-section {
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            background: var(--app-surface);
+            padding: 12px;
         }
 
         .data-table-wrap {
@@ -591,6 +609,10 @@
             gap: 10px;
             flex-wrap: wrap;
             margin-bottom: 8px;
+            padding: 8px 10px;
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: var(--app-toolbar);
         }
 
         .table-toolbar-note {
@@ -909,7 +931,9 @@
             justify-content: flex-end;
             gap: 24px;
             align-items: center;
-            padding-top: 14px;
+            padding-top: 12px;
+            margin-top: 2px;
+            border-top: 1px solid var(--app-border);
             color: var(--app-muted);
         }
 
@@ -1103,6 +1127,8 @@
 
             .app-page-head {
                 display: grid;
+                border-bottom: 0;
+                padding-bottom: 0;
             }
 
             .app-page-head .command-bar {
@@ -1122,6 +1148,10 @@
 
             .app-title {
                 font-size: 22px;
+            }
+
+            .stack-section {
+                padding: 10px;
             }
 
             .metric-strip {

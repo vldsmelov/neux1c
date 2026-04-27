@@ -48,8 +48,9 @@
     </div>
 
     <div class="stack">
-        <div>
+        <div class="stack-section">
             <h2 class="section-title">Остатки лимитов по статьям (БУ)</h2>
+            <p class="section-subtitle">Контроль ключевых статей с учетом планов, резервов и фактических оплат.</p>
             <div class="table-toolbar">
                 <span class="table-toolbar-note">Строк в разделе: <strong id="manager-limits-table-count">{{ limit_residuals|length }}</strong></span>
                 <input
@@ -101,8 +102,9 @@
             </div>
         </div>
 
-        <div>
+        <div class="stack-section">
             <h2 class="section-title">Топ превышений лимита</h2>
+            <p class="section-subtitle">Самые рискованные позиции в приоритетном порядке для быстрого реагирования.</p>
             <div class="table-toolbar">
                 <span class="table-toolbar-note">Строк в разделе: <strong id="manager-overruns-table-count">{{ top_overruns|length }}</strong></span>
                 <input
@@ -141,8 +143,9 @@
             </div>
         </div>
 
-        <div>
+        <div class="stack-section">
             <h2 class="section-title">Статусы заявок на оплату</h2>
+            <p class="section-subtitle">Текущая стадия заявок для контроля SLA согласования.</p>
             <div class="table-toolbar">
                 <span class="table-toolbar-note">Статусов в разделе: <strong id="manager-statuses-table-count">{{ status_rows|length }}</strong></span>
                 <input

@@ -80,8 +80,9 @@
                 </div>
             </div>
 
-            <div>
+            <div class="stack-section">
                 <h2 class="section-title">Статьи ДДС</h2>
+                <p class="section-subtitle">Проверка актуальности статей и признаков "нет в 1С" / "ВГО".</p>
                 <div class="table-toolbar">
                     <span class="table-toolbar-note">Статей ДДС: <strong id="nsi-articles-table-count">{{ articles|length }}</strong></span>
                     <input
@@ -128,8 +129,9 @@
                 </div>
             </div>
 
-            <div>
+            <div class="stack-section">
                 <h2 class="section-title">Договоры с единственным поставщиком</h2>
+                <p class="section-subtitle">Сверка договорных сумм и резерва с учетом допсоглашений.</p>
                 <div class="table-toolbar">
                     <span class="table-toolbar-note">Договоров: <strong id="nsi-contracts-table-count">{{ supplier_contracts|length }}</strong></span>
                     <input
@@ -168,8 +170,9 @@
                 </div>
             </div>
 
-            <div>
+            <div class="stack-section">
                 <h2 class="section-title">Факт оплат из 1С:БП</h2>
+                <p class="section-subtitle">Оперативный контроль загруженных проводок БУ/НУ в разрезе статей.</p>
                 <div class="table-toolbar">
                     <span class="table-toolbar-note">Строк факта: <strong id="nsi-facts-table-count">{{ payment_facts|length }}</strong></span>
                     <input
