@@ -191,6 +191,36 @@
             color: var(--app-primary);
         }
 
+        .density-switch {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            background: var(--app-toolbar);
+            padding: 2px;
+        }
+
+        .density-button {
+            width: 28px;
+            height: 26px;
+            border: 1px solid transparent;
+            border-radius: 6px;
+            background: transparent;
+            color: var(--app-muted);
+            cursor: pointer;
+            display: grid;
+            place-items: center;
+            padding: 0;
+            transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+        }
+
+        .density-button.is-active {
+            background: var(--app-control);
+            border-color: var(--app-border);
+            color: var(--app-primary);
+        }
+
         .logout-button {
             border: 0;
             background: transparent;
@@ -615,6 +645,20 @@
             width: 220px;
         }
 
+        body.table-density-compact .data-table {
+            font-size: 13px;
+        }
+
+        body.table-density-compact .data-table th,
+        body.table-density-compact .data-table td {
+            padding: 6px 8px;
+        }
+
+        body.table-density-compact .badge {
+            padding: 3px 7px;
+            font-size: 11px;
+        }
+
         .guide-content {
             display: grid;
             gap: 14px;
@@ -945,6 +989,10 @@
                 display: none;
             }
 
+            .density-switch {
+                display: none;
+            }
+
             .mobile-nav {
                 display: flex;
                 gap: 8px;
@@ -1171,6 +1219,10 @@
                             <button class="theme-button {% if ui_theme_mode == 'light' %}is-active{% endif %}" type="submit" name="theme_mode" value="light" title="Светлая тема">☀</button>
                             <button class="theme-button {% if ui_theme_mode == 'dark' %}is-active{% endif %}" type="submit" name="theme_mode" value="dark" title="Темная тема">◐</button>
                         </form>
+                        <div class="density-switch" aria-label="Плотность таблиц">
+                            <button class="density-button" type="button" data-table-density="normal" title="Стандартная плотность таблиц">☰</button>
+                            <button class="density-button" type="button" data-table-density="compact" title="Компактная плотность таблиц">≣</button>
+                        </div>
                         <span>{{ request.user.username }}</span>
                         <form class="logout-form" method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
@@ -1201,7 +1253,22 @@
     </div>
     <script>
         (() => {
+            const DENSITY_STORAGE_KEY = "ui.tableDensity";
             const normalize = (value) => (value || "").toString().toLowerCase().trim();
+            const allowedDensities = new Set(["normal", "compact"]);
+
+            const applyTableDensity = (density) => {
+                const normalizedDensity = allowedDensities.has(density) ? density : "normal";
+                document.body.classList.toggle("table-density-compact", normalizedDensity === "compact");
+                document.querySelectorAll("[data-table-density]").forEach((button) => {
+                    button.classList.toggle("is-active", button.dataset.tableDensity === normalizedDensity);
+                });
+                try {
+                    localStorage.setItem(DENSITY_STORAGE_KEY, normalizedDensity);
+                } catch (error) {
+                    // Browser may block localStorage in strict mode.
+                }
+            };
 
             const bindTableSearch = (input) => {
                 const selector = input.dataset.tableSearch;
@@ -1235,6 +1302,14 @@
             };
 
             document.querySelectorAll("[data-table-search]").forEach(bindTableSearch);
+            document.querySelectorAll("[data-table-density]").forEach((button) => {
+                button.addEventListener("click", () => applyTableDensity(button.dataset.tableDensity));
+            });
+            try {
+                applyTableDensity(localStorage.getItem(DENSITY_STORAGE_KEY) || "normal");
+            } catch (error) {
+                applyTableDensity("normal");
+            }
             document.querySelectorAll("input[type='date']").forEach((input) => {
                 input.setAttribute("lang", "ru");
                 input.setAttribute("placeholder", "дд.мм.гггг");

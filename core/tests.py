@@ -345,6 +345,100 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 403)
 
+    def test_role_screen_access_matrix_matches_expected_status_and_logs(self):
+        sync_one_c_dataset(MockOneCProvider())
+        route_paths = {
+            "workspace": reverse("workspace"),
+            "planning_limits": reverse("planning_limits"),
+            "payment_requests": reverse("payment_requests"),
+            "payment_facts": reverse("payment_facts"),
+            "manager_dashboard": reverse("manager_dashboard"),
+            "plan_fact_report": reverse("plan_fact_report"),
+            "contracts_reservations": reverse("contracts_reservations"),
+            "contracts_tree": reverse("contracts_tree"),
+            "nsi_dashboard": reverse("nsi_dashboard"),
+            "integration_requests": reverse("integration_requests"),
+            "instruction": reverse("instruction"),
+            "external_accounting": reverse("external_accounting"),
+        }
+        role_matrix = {
+            "admin": {
+                "workspace": 200,
+                "planning_limits": 200,
+                "payment_requests": 200,
+                "payment_facts": 200,
+                "manager_dashboard": 200,
+                "plan_fact_report": 200,
+                "contracts_reservations": 200,
+                "contracts_tree": 200,
+                "nsi_dashboard": 200,
+                "integration_requests": 200,
+                "instruction": 200,
+                "external_accounting": 200,
+            },
+            "economist": {
+                "workspace": 200,
+                "planning_limits": 200,
+                "payment_requests": 200,
+                "payment_facts": 200,
+                "manager_dashboard": 200,
+                "plan_fact_report": 200,
+                "contracts_reservations": 200,
+                "contracts_tree": 200,
+                "nsi_dashboard": 200,
+                "integration_requests": 200,
+                "instruction": 200,
+                "external_accounting": 403,
+            },
+            "manager": {
+                "workspace": 200,
+                "planning_limits": 200,
+                "payment_requests": 200,
+                "payment_facts": 200,
+                "manager_dashboard": 200,
+                "plan_fact_report": 200,
+                "contracts_reservations": 200,
+                "contracts_tree": 200,
+                "nsi_dashboard": 403,
+                "integration_requests": 200,
+                "instruction": 200,
+                "external_accounting": 403,
+            },
+            "accountant": {
+                "workspace": 403,
+                "planning_limits": 403,
+                "payment_requests": 403,
+                "payment_facts": 403,
+                "manager_dashboard": 403,
+                "plan_fact_report": 403,
+                "contracts_reservations": 403,
+                "contracts_tree": 403,
+                "nsi_dashboard": 403,
+                "integration_requests": 403,
+                "instruction": 200,
+                "external_accounting": 200,
+            },
+        }
+
+        for username, expected_routes in role_matrix.items():
+            self.client.logout()
+            self.client.login(username=username, password="demo12345")
+            for route_name, expected_status in expected_routes.items():
+                with self.subTest(role=username, route=route_name):
+                    path = route_paths[route_name]
+                    response = self.client.get(path)
+                    self.assertEqual(response.status_code, expected_status)
+
+                    expected_action = AuditAction.VIEW if expected_status == 200 else AuditAction.DENIED
+                    self.assertTrue(
+                        AuditLog.objects.filter(
+                            user__username=username,
+                            action=expected_action,
+                            path=path,
+                            status_code=expected_status,
+                        ).exists()
+                    )
+
     def test_instruction_page_is_available_for_internal_roles(self):
         self.client.login(username="economist", password="demo12345")
 
