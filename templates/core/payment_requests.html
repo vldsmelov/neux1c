@@ -25,127 +25,135 @@
     <div class="document-grid document-grid-priority-data">
         <aside class="form-panel">
             {% if can_create_payment_requests %}
-                <h2 class="section-title">Создание заявки</h2>
-                <form id="create-request-form" method="post" enctype="multipart/form-data" class="form-stack form-grid form-grid-2">
-                    {% csrf_token %}
-                    <input type="hidden" name="action" value="create">
-                    <div class="form-grid-span-full">
-                        <label class="field-label" for="request_kind">Тип заявки</label>
-                        <select class="field-control-select" id="request_kind" name="request_kind">
-                            <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
-                            <option value="{{ request_kind.BY_INVOICE }}">По счету</option>
-                            <option value="{{ request_kind.WITHOUT_CONTRACT }}">Без договора</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="organization_id">Организация</label>
-                        <select class="field-control-select" id="organization_id" name="organization_id">
-                            {% for organization in organizations %}
-                                <option value="{{ organization.id }}">{{ organization.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="article_id">Статья ДДС</label>
-                        <select class="field-control-select" id="article_id" name="article_id">
-                            {% for article in articles %}
-                                <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="counterparty_id">Контрагент</label>
-                        <select class="field-control-select" id="counterparty_id" name="counterparty_id">
-                            {% for counterparty in counterparties %}
-                                <option value="{{ counterparty.id }}">{{ counterparty.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="contract_id">Договор поставщика</label>
-                        <select class="field-control-select" id="contract_id" name="contract_id">
-                            <option value="">—</option>
-                            {% for contract in contracts %}
-                                <option value="{{ contract.id }}">{{ contract.number }} · {{ contract.counterparty.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="additional_agreement_id">Допсоглашение</label>
-                        <select class="field-control-select" id="additional_agreement_id" name="additional_agreement_id">
-                            <option value="">—</option>
-                            {% for agreement in agreements %}
-                                <option value="{{ agreement.id }}" data-contract-id="{{ agreement.contract_id }}">
-                                    {{ agreement.number }} · {{ agreement.contract.number }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="currency_id">Валюта</label>
-                        <select class="field-control-select" id="currency_id" name="currency_id">
-                            {% for currency in currencies %}
-                                <option value="{{ currency.id }}">{{ currency.code }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <div>
-                        <label class="field-label" for="amount">Сумма</label>
-                        <input class="field-control is-focused" id="amount" name="amount" value="100000.00">
-                    </div>
-                    <div>
-                        <label class="field-label" for="approver_id">Согласующий</label>
-                        <select class="field-control-select" id="approver_id" name="approver_id">
-                            {% for approver in approvers %}
-                                <option value="{{ approver.id }}">{{ approver.username }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                    <details class="form-section form-grid-span-full">
-                        <summary>Расширенные реквизиты</summary>
-                        <div class="form-section-content form-grid form-grid-2">
+                <details class="form-section" open>
+                    <summary>Создание заявки</summary>
+                    <div class="form-section-content">
+                        <p class="section-subtitle">Основные реквизиты для быстрого создания. Детальные поля доступны в расширенном блоке.</p>
+                        <form id="create-request-form" method="post" enctype="multipart/form-data" class="form-stack form-grid form-grid-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="create">
                             <div>
-                                <label class="field-label" for="invoice_number">Номер счета</label>
-                                <input class="field-control" id="invoice_number" name="invoice_number" value="">
+                                <label class="field-label" for="request_kind">Тип заявки</label>
+                                <select class="field-control-select" id="request_kind" name="request_kind">
+                                    <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
+                                    <option value="{{ request_kind.BY_INVOICE }}">По счету</option>
+                                    <option value="{{ request_kind.WITHOUT_CONTRACT }}">Без договора</option>
+                                </select>
                             </div>
                             <div>
-                                <label class="field-label" for="invoice_date">Дата счета</label>
-                                <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="" placeholder="дд.мм.гггг">
-                            </div>
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="payment_purpose">Назначение платежа</label>
-                                <input class="field-control" id="payment_purpose" name="payment_purpose" value="">
+                                <label class="field-label" for="organization_id">Организация</label>
+                                <select class="field-control-select" id="organization_id" name="organization_id">
+                                    {% for organization in organizations %}
+                                        <option value="{{ organization.id }}">{{ organization.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
                             <div>
-                                <label class="field-label" for="manual_exchange_rate">Курс к руб.</label>
-                                <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
+                                <label class="field-label" for="article_id">Статья ДДС</label>
+                                <select class="field-control-select" id="article_id" name="article_id">
+                                    {% for article in articles %}
+                                        <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="justification_text">Обоснование (для заявки без договора)</label>
-                                <textarea class="field-control" id="justification_text" name="justification_text"></textarea>
+                            <div>
+                                <label class="field-label" for="counterparty_id">Контрагент</label>
+                                <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                                    {% for counterparty in counterparties %}
+                                        <option value="{{ counterparty.id }}">{{ counterparty.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="justification_file">Файл обоснования</label>
-                                <input class="field-control" id="justification_file" name="justification_file" type="file">
+                            <div>
+                                <label class="field-label" for="contract_id">Договор поставщика</label>
+                                <select class="field-control-select" id="contract_id" name="contract_id">
+                                    <option value="">—</option>
+                                    {% for contract in contracts %}
+                                        <option value="{{ contract.id }}">{{ contract.number }} · {{ contract.counterparty.name }}</option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="comment">Комментарий инициатора</label>
-                                <input class="field-control" id="comment" name="comment" value="">
+                            <div>
+                                <label class="field-label" for="additional_agreement_id">Допсоглашение</label>
+                                <select class="field-control-select" id="additional_agreement_id" name="additional_agreement_id">
+                                    <option value="">—</option>
+                                    {% for agreement in agreements %}
+                                        <option value="{{ agreement.id }}" data-contract-id="{{ agreement.contract_id }}">
+                                            {{ agreement.number }} · {{ agreement.contract.number }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
                             </div>
-                        </div>
-                    </details>
-                </form>
+                            <div>
+                                <label class="field-label" for="currency_id">Валюта</label>
+                                <select class="field-control-select" id="currency_id" name="currency_id">
+                                    {% for currency in currencies %}
+                                        <option value="{{ currency.id }}">{{ currency.code }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div>
+                                <label class="field-label" for="amount">Сумма</label>
+                                <input class="field-control is-focused" id="amount" name="amount" value="100000.00">
+                            </div>
+                            <div>
+                                <label class="field-label" for="approver_id">Согласующий</label>
+                                <select class="field-control-select" id="approver_id" name="approver_id">
+                                    {% for approver in approvers %}
+                                        <option value="{{ approver.id }}">{{ approver.username }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <details class="form-section form-grid-span-full">
+                                <summary>Расширенные реквизиты</summary>
+                                <div class="form-section-content form-grid form-grid-2">
+                                    <div>
+                                        <label class="field-label" for="invoice_number">Номер счета</label>
+                                        <input class="field-control" id="invoice_number" name="invoice_number" value="">
+                                    </div>
+                                    <div>
+                                        <label class="field-label" for="invoice_date">Дата счета</label>
+                                        <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="" placeholder="дд.мм.гггг">
+                                    </div>
+                                    <div class="form-grid-span-full">
+                                        <label class="field-label" for="payment_purpose">Назначение платежа</label>
+                                        <input class="field-control" id="payment_purpose" name="payment_purpose" value="">
+                                    </div>
+                                    <div>
+                                        <label class="field-label" for="manual_exchange_rate">Курс к руб.</label>
+                                        <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
+                                    </div>
+                                    <div class="form-grid-span-full">
+                                        <label class="field-label" for="justification_text">Обоснование (для заявки без договора)</label>
+                                        <textarea class="field-control" id="justification_text" name="justification_text"></textarea>
+                                    </div>
+                                    <div class="form-grid-span-full">
+                                        <label class="field-label" for="justification_file">Файл обоснования</label>
+                                        <input class="field-control" id="justification_file" name="justification_file" type="file">
+                                    </div>
+                                    <div class="form-grid-span-full">
+                                        <label class="field-label" for="comment">Комментарий инициатора</label>
+                                        <input class="field-control" id="comment" name="comment" value="">
+                                    </div>
+                                </div>
+                            </details>
+                        </form>
+                    </div>
+                </details>
             {% else %}
-                <div class="form-stack">
-                    <div>
-                        <div class="field-label">Роль</div>
-                        <div class="field-control is-focused">Руководитель</div>
+                <details class="form-section" open>
+                    <summary>Режим согласования</summary>
+                    <div class="form-section-content">
+                        <div>
+                            <div class="field-label">Роль</div>
+                            <div class="field-control is-focused">Руководитель</div>
+                        </div>
+                        <div>
+                            <div class="field-label">Доступное действие</div>
+                            <div class="field-control"><span><span class="status-dot"></span>Согласование заявок</span></div>
+                        </div>
                     </div>
-                    <div>
-                        <div class="field-label">Доступное действие</div>
-                        <div class="field-control"><span><span class="status-dot"></span>Согласование заявок</span></div>
-                    </div>
-                </div>
+                </details>
             {% endif %}
         </aside>
 
