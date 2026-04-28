@@ -368,6 +368,10 @@
             gap: 12px;
         }
 
+        .form-grid-3 {
+            grid-template-columns: 1fr;
+        }
+
         .form-grid-span-full {
             grid-column: 1 / -1;
         }
@@ -511,6 +515,14 @@
         .form-stack-compact {
             display: grid;
             gap: 6px;
+        }
+
+        .workspace-quick-grid {
+            gap: 8px;
+        }
+
+        .workspace-quick-item .field-label {
+            margin-bottom: 3px;
         }
 
         .login-form {
@@ -1228,6 +1240,10 @@
         @media (min-width: 1041px) {
             .form-grid-2 {
                 grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .form-grid-3 {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
             }
 
             .report-filter-grid-compact {
