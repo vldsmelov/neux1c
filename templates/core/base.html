@@ -57,6 +57,14 @@
             display: flex;
             flex-direction: column;
             gap: 18px;
+            grid-column: 1;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 232px;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .app-sidebar-primary {
@@ -135,6 +143,7 @@
         }
 
         .app-main {
+            grid-column: 2;
             min-width: 0;
             padding: 14px 0 18px;
         }
@@ -1180,6 +1189,7 @@
         }
 
         .app-rail {
+            grid-column: 3;
             background: var(--app-bg);
             border-left: 1px solid var(--app-border);
             padding-top: 66px;
@@ -1231,6 +1241,7 @@
             }
 
             .app-main {
+                grid-column: 1;
                 padding-top: 12px;
             }
 
