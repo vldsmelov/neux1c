@@ -1,4 +1,5 @@
 {% extends "core/base.html" %}
+{% load ui_format %}
 
 {% block title %}Дашборд руководителя · NE UX{% endblock %}
 
@@ -30,7 +31,7 @@
 
     <div class="metric-strip">
         <div class="metric-cell">
-            <div class="metric-value">{{ summary.total_balance_bu }}</div>
+            <div class="metric-value">{{ summary.total_balance_bu|ru_number }}</div>
             <div class="metric-label">Остаток лимитов (БУ), руб.</div>
         </div>
         <div class="metric-cell">
@@ -42,7 +43,7 @@
             <div class="metric-label">Заявок в периоде</div>
         </div>
         <div class="metric-cell">
-            <div class="metric-value">{{ summary.total_fact_bu }}</div>
+            <div class="metric-value">{{ summary.total_fact_bu|ru_number }}</div>
             <div class="metric-label">Факт оплат БУ, руб.</div>
         </div>
     </div>
@@ -67,12 +68,12 @@
                         <tr>
                             <th class="checkbox-cell"></th>
                             <th>Статья ДДС</th>
-                            <th>План</th>
-                            <th>Корр. лимита</th>
-                            <th>Резерв</th>
-                            <th>Заявлено</th>
-                            <th>Факт БУ</th>
-                            <th>Остаток БУ</th>
+                            <th class="table-col-number">План</th>
+                            <th class="table-col-number">Корр. лимита</th>
+                            <th class="table-col-number">Резерв</th>
+                            <th class="table-col-number">Заявлено</th>
+                            <th class="table-col-number">Факт БУ</th>
+                            <th class="table-col-number">Остаток БУ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -84,13 +85,13 @@
                                     {% if row.missing_in_one_c %}<span class="badge badge-danger">нет в 1С</span>{% endif %}
                                     {% if row.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
                                 </td>
-                                <td>{{ row.plan }}</td>
-                                <td>{{ row.adjustments }}</td>
-                                <td>{{ row.reserved }}</td>
-                                <td>{{ row.requested }}</td>
-                                <td>{{ row.fact_bu }}</td>
-                                <td>
-                                    {{ row.balance_bu }}
+                                <td class="table-col-number">{{ row.plan|ru_number }}</td>
+                                <td class="table-col-number">{{ row.adjustments|ru_number }}</td>
+                                <td class="table-col-number">{{ row.reserved|ru_number }}</td>
+                                <td class="table-col-number">{{ row.requested|ru_number }}</td>
+                                <td class="table-col-number">{{ row.fact_bu|ru_number }}</td>
+                                <td class="table-col-number">
+                                    {{ row.balance_bu|ru_number }}
                                     {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
                             </tr>
@@ -121,9 +122,9 @@
                         <tr>
                             <th class="checkbox-cell"></th>
                             <th>Статья ДДС</th>
-                            <th>Остаток БУ</th>
-                            <th>Факт БУ</th>
-                            <th>Заявлено</th>
+                            <th class="table-col-number">Остаток БУ</th>
+                            <th class="table-col-number">Факт БУ</th>
+                            <th class="table-col-number">Заявлено</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -131,9 +132,9 @@
                             <tr>
                                 <td><span class="fake-checkbox"></span></td>
                                 <td>{{ row.article.code }} · {{ row.article.name }}</td>
-                                <td><span class="badge badge-danger">{{ row.balance_bu }}</span></td>
-                                <td>{{ row.fact_bu }}</td>
-                                <td>{{ row.requested }}</td>
+                                <td class="table-col-number"><span class="badge badge-danger">{{ row.balance_bu|ru_number }}</span></td>
+                                <td class="table-col-number">{{ row.fact_bu|ru_number }}</td>
+                                <td class="table-col-number">{{ row.requested|ru_number }}</td>
                             </tr>
                         {% empty %}
                             <tr><td colspan="5">Превышений нет.</td></tr>
