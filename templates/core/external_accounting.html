@@ -5,109 +5,69 @@
 
 {% block tabs %}
     <a class="app-tab is-active" href="/external/accounting/">Внешняя 1С:БП</a>
+    <a class="app-tab" href="/external/accounting/payment-wizard/">Платеж</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
             <h1 class="app-title">Оплата договоров</h1>
-            <p class="app-subtitle">Имитируем внешний контур бухгалтера: проведение оплаты создает факт БУ/НУ для основной системы.</p>
+            <p class="app-subtitle">Журнал договоров внешнего контура. Проведение платежа вынесено в короткий wizard.</p>
         </div>
         <div class="command-bar">
-            <button class="command-button-primary" type="button">Платежное поручение</button>
-            <button class="command-button" type="button">Выписка банка</button>
+            <a class="command-button-primary" href="/external/accounting/payment-wizard/">+ Платежное поручение</a>
             <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            <button class="icon-button" type="button" aria-label="Поиск" title="Поиск">⌕</button>
         </div>
     </div>
 
-    <div class="document-grid">
-        <aside class="form-panel">
-            <div class="form-stack">
-                <div>
-                    <div class="field-label">Система</div>
-                    <div class="field-control is-focused">1С:Бухгалтерия предприятия</div>
-                </div>
-                <div>
-                    <div class="field-label">Пользователь</div>
-                    <div class="field-control">{{ request.user.username }}</div>
-                </div>
-                <div>
-                    <div class="field-label">Доступ</div>
-                    <div class="field-control"><span><span class="status-dot"></span>Только оплата договоров</span></div>
-                </div>
-                <div>
-                    <div class="field-label">Всего оплачено</div>
-                    <div class="field-control">{{ payments_total|ru_number }} руб.</div>
-                </div>
-            </div>
-        </aside>
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell"><div class="metric-value">{{ rows|length }}</div><div class="metric-label">Договоров</div></div>
+            <div class="metric-cell"><div class="metric-value">{{ payments_total|ru_number }}</div><div class="metric-label">Оплачено</div></div>
+            <div class="metric-cell"><div class="metric-value">Wizard</div><div class="metric-label">Платеж</div></div>
+            <div class="metric-cell"><div class="metric-value">Mock</div><div class="metric-label">Контур</div></div>
+        </div>
 
-        <section class="data-panel stack">
-            <div class="command-bar">
-                <button class="command-button" type="button">+ Добавить</button>
-                <button class="command-button" type="button">Подбор</button>
-                <span class="command-spacer"></span>
-                <button class="command-button" type="button">Поиск</button>
-            </div>
-
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Договоров к оплате: <strong id="external-payments-table-count">{{ rows|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по договору или контрагенту"
-                    data-table-search="#external-payments-table"
-                    data-table-count="#external-payments-table-count"
-                >
-            </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="external-payments-table" class="data-table">
-                    <thead>
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Договоров к оплате: <strong id="external-payments-table-count">{{ rows|length }}</strong></span>
+            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по договору или контрагенту" data-table-search="#external-payments-table" data-table-count="#external-payments-table-count">
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="external-payments-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col" class="table-col-doc">Договор</th>
+                        <th scope="col" class="table-col-counterparty">Контрагент</th>
+                        <th scope="col" class="table-col-number">К оплате</th>
+                        <th scope="col" class="table-col-number">Оплачено</th>
+                        <th scope="col" class="table-col-number">Остаток</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th class="table-col-doc">Договор</th>
-                            <th class="table-col-counterparty">Контрагент</th>
-                            <th class="table-col-number">К оплате</th>
-                            <th class="table-col-number">Оплачено</th>
-                            <th class="table-col-number">Остаток</th>
-                            <th class="table-action-col">Действие</th>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                            <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
+                            <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                            <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                            <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                            <td class="table-action-col">
+                                {% if row.remaining_amount > 0 %}
+                                    <a class="command-button" href="/external/accounting/payment-wizard/">Оплатить</a>
+                                {% else %}
+                                    <span class="badge">Оплачено</span>
+                                {% endif %}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
-                            <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
-                                <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
-                                <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-action-col">
-                                    {% if row.remaining_amount > 0 %}
-                                        <form method="post" class="inline-form-row">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="contract_id" value="{{ row.contract.id }}">
-                                            <input class="field-control inline-input-132" name="amount" value="{{ row.remaining_amount|ru_number }}">
-                                            <button class="command-button-primary" type="submit">Оплатить</button>
-                                        </form>
-                                    {% else %}
-                                        <span class="badge">Оплачено</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1С.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="summary-line">
-                <span>Источник факта</span>
-                <span class="summary-value">1С:БП mock</span>
-            </div>
-        </section>
-    </div>
+                    {% empty %}
+                        <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1С.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

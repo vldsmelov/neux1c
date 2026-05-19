@@ -1,0 +1,139 @@
+{% extends "core/base.html" %}
+
+{% block title %}Ведение интеграции · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/wizard/">Новая заявка</a>
+    <a class="app-tab is-active" href="/settings/integration-requests/">Журнал интеграций</a>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .wizard-shell { padding: 0; overflow: hidden; }
+        .wizard-stepper { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--app-border); border-bottom: 1px solid var(--app-border); }
+        .wizard-step-button { border: 0; background: var(--app-surface); color: var(--app-muted); cursor: pointer; font: inherit; min-height: 56px; padding: 10px 12px; text-align: left; }
+        .wizard-step-button.is-active { background: var(--app-toolbar); color: var(--app-text); box-shadow: inset 0 -2px 0 var(--app-primary); }
+        .wizard-step-number { display: block; font-size: 11px; text-transform: uppercase; }
+        .wizard-step { display: none; padding: 20px; }
+        .wizard-step.is-active { display: block; }
+        .wizard-actions { align-items: center; border-top: 1px solid var(--app-border); display: flex; gap: 8px; justify-content: flex-end; padding: 14px 20px; }
+        .wizard-review-grid { display: grid; gap: 12px; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .wizard-review-cell { border: 1px solid var(--app-border); border-radius: 8px; padding: 12px; }
+        .wizard-review-label { color: var(--app-muted); font-size: 12px; margin-bottom: 6px; }
+        .wizard-review-value { font-size: 18px; font-weight: 700; }
+        @media (max-width: 900px) { .wizard-stepper, .wizard-review-grid { grid-template-columns: 1fr; } }
+    </style>
+
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Ведение заявки {{ item.number }}</h1>
+            <p class="app-subtitle">Статус интеграции меняется через короткий wizard: сначала контекст заявки, затем новый статус и контрольный комментарий.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/settings/integration-requests/">Журнал интеграций</a>
+        </div>
+    </div>
+
+    {% if can_manage_integration_requests %}
+        <form method="post" data-status-wizard>
+            {% csrf_token %}
+            <section class="data-panel wizard-shell">
+                <div class="wizard-stepper">
+                    <button class="wizard-step-button is-active" type="button" data-wizard-target="0" aria-current="step"><span class="wizard-step-number">Шаг 1</span>Заявка</button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="1"><span class="wizard-step-number">Шаг 2</span>Статус</button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="2"><span class="wizard-step-number">Шаг 3</span>Проверка</button>
+                </div>
+
+                <section class="wizard-step is-active" data-wizard-step>
+                    <div class="data-table-wrap">
+                        <table class="data-table table-narrow">
+                            <tbody>
+                                <tr><td>Инициатор</td><td>{{ item.requested_by.username }}</td></tr>
+                                <tr><td>Интеграция</td><td>{{ item.integration_name }}</td></tr>
+                                <tr><td>Целевая система</td><td>{{ item.target_system }}</td></tr>
+                                <tr><td>Текущий статус</td><td><span class="badge">{{ item.get_status_display }}</span></td></tr>
+                                <tr><td>Описание</td><td>{{ item.description }}</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack form-grid form-grid-2">
+                        <div>
+                            <label class="field-label" for="status">Новый статус</label>
+                            <select class="field-control-select is-focused" id="status" name="status">
+                                {% for value, label in status_choices %}
+                                    <option value="{{ value }}" {% if value == item.status %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="admin_comment">Комментарий администратора</label>
+                            <textarea class="field-control" id="admin_comment" name="admin_comment" rows="5">{{ item.admin_comment }}</textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="wizard-review-grid">
+                        <div class="wizard-review-cell"><div class="wizard-review-label">Заявка</div><div class="wizard-review-value">{{ item.number }}</div></div>
+                        <div class="wizard-review-cell"><div class="wizard-review-label">Статус</div><div class="wizard-review-value" data-summary-status></div></div>
+                        <div class="wizard-review-cell"><div class="wizard-review-label">Комментарий</div><div class="wizard-review-value" data-summary-comment></div></div>
+                    </div>
+                </section>
+
+                <div class="wizard-actions">
+                    <button class="command-button" type="button" data-wizard-prev disabled>Назад</button>
+                    <button class="command-button-primary" type="button" data-wizard-next>Далее</button>
+                    <button class="command-button-primary" type="submit" data-wizard-submit hidden>Сохранить статус</button>
+                </div>
+            </section>
+        </form>
+        <script>
+            (() => {
+                const form = document.querySelector("[data-status-wizard]");
+                const steps = Array.from(form.querySelectorAll("[data-wizard-step]"));
+                const buttons = Array.from(form.querySelectorAll("[data-wizard-target]"));
+                const prev = form.querySelector("[data-wizard-prev]");
+                const next = form.querySelector("[data-wizard-next]");
+                const submit = form.querySelector("[data-wizard-submit]");
+                let active = 0;
+                const setText = (selector, value) => { const node = form.querySelector(selector); if (node) node.textContent = value; };
+                const update = () => {
+                    const status = form.querySelector("#status");
+                    const comment = form.querySelector("#admin_comment").value.trim();
+                    setText("[data-summary-status]", status.selectedOptions[0]?.textContent?.trim() || "");
+                    setText("[data-summary-comment]", comment || "Без комментария");
+                };
+                const setStep = (index) => {
+                    active = Math.max(0, Math.min(steps.length - 1, index));
+                    steps.forEach((step, i) => step.classList.toggle("is-active", i === active));
+                    buttons.forEach((button, i) => {
+                        button.classList.toggle("is-active", i === active);
+                        i === active ? button.setAttribute("aria-current", "step") : button.removeAttribute("aria-current");
+                    });
+                    prev.disabled = active === 0;
+                    next.hidden = active === steps.length - 1;
+                    submit.hidden = active !== steps.length - 1;
+                    update();
+                };
+                buttons.forEach((button) => button.addEventListener("click", () => setStep(Number(button.dataset.wizardTarget))));
+                prev.addEventListener("click", () => setStep(active - 1));
+                next.addEventListener("click", () => setStep(active + 1));
+                form.querySelectorAll("select, textarea").forEach((control) => {
+                    control.addEventListener("input", update);
+                    control.addEventListener("change", update);
+                });
+                setStep(0);
+            })();
+        </script>
+    {% else %}
+        <section class="data-panel">
+            <div class="empty-state">
+                <h2>Нет прав на ведение интеграции</h2>
+                <p>Изменять статус интеграционной заявки может только администратор.</p>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

@@ -18,8 +18,8 @@
             <button class="command-button" type="button">Синхронизировать</button>
             <button class="command-button" type="button">Выгрузить</button>
             <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            <button class="icon-button" type="button" aria-label="Поиск" title="Поиск">⌕</button>
+            <button class="icon-button" type="button" aria-label="Дополнительные действия" title="Дополнительные действия">⋮</button>
         </div>
     </div>
 
@@ -107,10 +107,10 @@
                     <table id="nsi-articles-table" class="data-table">
                         <thead>
                             <tr>
-                                <th class="checkbox-cell"></th>
-                                <th class="table-col-short">Код</th>
-                                <th class="table-col-article">Наименование</th>
-                                <th class="table-col-status">Признаки</th>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-short">Код</th>
+                                <th scope="col" class="table-col-article">Наименование</th>
+                                <th scope="col" class="table-col-status">Признаки</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -156,11 +156,11 @@
                     <table id="nsi-contracts-table" class="data-table">
                         <thead>
                             <tr>
-                                <th class="checkbox-cell"></th>
-                                <th class="table-col-doc">Договор</th>
-                                <th class="table-col-counterparty">Контрагент</th>
-                                <th class="table-col-number">Сумма договора</th>
-                                <th class="table-col-number">Резерв с ДС</th>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-doc">Договор</th>
+                                <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                <th scope="col" class="table-col-number">Сумма договора</th>
+                                <th scope="col" class="table-col-number">Резерв с ДС</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -197,13 +197,13 @@
                     <table id="nsi-facts-table" class="data-table">
                         <thead>
                             <tr>
-                                <th class="checkbox-cell"></th>
-                                <th class="table-col-date">Дата</th>
-                                <th class="table-col-short">Счет</th>
-                                <th class="table-col-short">Учет</th>
-                                <th class="table-col-article">Статья</th>
-                                <th class="table-col-counterparty">Контрагент</th>
-                                <th class="table-col-number">Сумма</th>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-date">Дата</th>
+                                <th scope="col" class="table-col-short">Счет</th>
+                                <th scope="col" class="table-col-short">Учет</th>
+                                <th scope="col" class="table-col-article">Статья</th>
+                                <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                <th scope="col" class="table-col-number">Сумма</th>
                             </tr>
                         </thead>
                         <tbody>

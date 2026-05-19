@@ -11,7 +11,10 @@ from core.models import (
     BudgetLimitMonth,
     BudgetLimitPlan,
     BudgetPlanStatus,
+    Organization,
 )
+from core.services.budgets import validate_limit_within_budget
+from core.services.document_numbers import next_document_number
 
 
 MONTH_NUMBERS = list(range(1, 13))
@@ -21,6 +24,8 @@ MONTH_NUMBERS = list(range(1, 13))
 def create_budget_plan(
     *,
     author,
+    budget=None,
+    organization=None,
     department,
     article,
     currency,
@@ -31,15 +36,19 @@ def create_budget_plan(
     monthly_amounts: dict[int, Decimal] | None = None,
     comment: str = "",
 ) -> BudgetLimitPlan:
+    organization = budget.organization if budget is not None else (organization or _default_organization())
     if planning_horizon not in (1, 2, 3):
         raise ValueError("Горизонт планирования должен быть 1, 2 или 3 года")
 
     monthly_amounts = monthly_amounts or split_amount_by_months(annual_amount)
     validate_monthly_amounts(annual_amount, monthly_amounts)
+    validate_limit_within_budget(budget=budget, department=department, annual_amount=annual_amount)
 
     plan = BudgetLimitPlan.objects.create(
         number=next_budget_plan_number(),
         document_date=timezone.localdate(),
+        organization=organization,
+        budget=budget,
         planning_year=planning_year,
         planning_horizon=planning_horizon,
         department=department,
@@ -121,7 +130,7 @@ def approve_budget_plan(plan: BudgetLimitPlan, user) -> BudgetLimitPlan:
 
 
 def next_budget_plan_number() -> str:
-    return f"PL-{timezone.localdate():%Y}-{BudgetLimitPlan.objects.count() + 1:06d}"
+    return next_document_number("PL")
 
 
 @transaction.atomic
@@ -132,20 +141,48 @@ def create_limit_adjustment(
     new_annual_amount: Decimal,
     reason: str,
     monthly_amounts: dict[int, Decimal] | None = None,
+    target_plan: BudgetLimitPlan | None = None,
 ) -> BudgetLimitAdjustment:
     if base_plan.status != BudgetPlanStatus.APPROVED:
         raise ValueError("Корректировать можно только утвержденный план")
     if not reason.strip():
         raise ValueError("Причина корректировки обязательна")
 
-    monthly_amounts = monthly_amounts or {month.month: month.amount for month in base_plan.months.all()}
+    monthly_amounts = monthly_amounts or split_amount_by_months(new_annual_amount)
     validate_monthly_amounts(new_annual_amount, monthly_amounts)
+    transfer_amount = Decimal("0")
+    if target_plan is not None:
+        if target_plan.status != BudgetPlanStatus.APPROVED:
+            raise ValueError("Целевой лимит для переноса должен быть утвержден")
+        if target_plan.id == base_plan.id:
+            raise ValueError("Для межкомпанийного переноса выберите другой целевой лимит")
+        if target_plan.organization_id == base_plan.organization_id:
+            raise ValueError("Межкомпанийный перенос требует лимит другой компании")
+        if target_plan.article_id != base_plan.article_id:
+            raise ValueError("Перенос между компаниями возможен только по той же статье ДДС")
+        transfer_amount = base_plan.annual_amount - new_annual_amount
+        if transfer_amount <= 0:
+            raise ValueError("Для переноса в другую компанию новая сумма базового лимита должна быть меньше текущей")
+        validate_limit_within_budget(
+            budget=target_plan.budget,
+            department=target_plan.department,
+            annual_amount=target_plan.annual_amount + transfer_amount,
+            exclude_plan_id=target_plan.id,
+        )
+    validate_limit_within_budget(
+        budget=base_plan.budget,
+        department=base_plan.department,
+        annual_amount=new_annual_amount,
+        exclude_plan_id=base_plan.id,
+    )
 
     adjustment = BudgetLimitAdjustment.objects.create(
         number=next_adjustment_number(),
         document_date=timezone.localdate(),
         base_plan=base_plan,
         article=base_plan.article,
+        target_plan=target_plan,
+        target_organization=target_plan.organization if target_plan else None,
         new_annual_amount=new_annual_amount,
         reason=reason,
         version=base_plan.version + 1,
@@ -167,6 +204,27 @@ def create_limit_adjustment(
         message=f"Создана корректировка {adjustment.number}",
     )
     return adjustment
+
+
+@transaction.atomic
+def create_limit_adjustment_request(
+    *,
+    author,
+    base_plan: BudgetLimitPlan,
+    new_annual_amount: Decimal,
+    reason: str,
+    monthly_amounts: dict[int, Decimal] | None = None,
+    target_plan: BudgetLimitPlan | None = None,
+) -> BudgetLimitAdjustment:
+    adjustment = create_limit_adjustment(
+        author=author,
+        base_plan=base_plan,
+        new_annual_amount=new_annual_amount,
+        reason=reason,
+        monthly_amounts=monthly_amounts,
+        target_plan=target_plan,
+    )
+    return submit_limit_adjustment(adjustment, author)
 
 
 @transaction.atomic
@@ -196,11 +254,19 @@ def approve_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetL
     if adjustment.approver_id != user.id and not user.is_superuser:
         raise ValueError("Корректировку может утвердить только назначенный руководитель")
 
+    validate_limit_within_budget(
+        budget=adjustment.base_plan.budget,
+        department=adjustment.base_plan.department,
+        annual_amount=adjustment.new_annual_amount,
+        exclude_plan_id=adjustment.base_plan_id,
+    )
+
     adjustment.status = BudgetPlanStatus.APPROVED
     adjustment.approved_at = timezone.now()
     adjustment.save(update_fields=["status", "approved_at", "updated_at"])
 
     base_plan = adjustment.base_plan
+    previous_base_amount = base_plan.annual_amount
     base_plan.annual_amount = adjustment.new_annual_amount
     base_plan.version = adjustment.version
     base_plan.correction_reason = adjustment.reason[:255]
@@ -212,6 +278,31 @@ def approve_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetL
         ]
     )
     base_plan.save(update_fields=["annual_amount", "version", "correction_reason", "updated_at"])
+
+    if adjustment.target_plan_id:
+        target_plan = adjustment.target_plan
+        transfer_amount = previous_base_amount - adjustment.new_annual_amount
+        if transfer_amount <= 0:
+            raise ValueError("Сумма межкомпанийного переноса должна быть больше нуля")
+        validate_limit_within_budget(
+            budget=target_plan.budget,
+            department=target_plan.department,
+            annual_amount=target_plan.annual_amount + transfer_amount,
+            exclude_plan_id=target_plan.id,
+        )
+        target_plan.annual_amount += transfer_amount
+        target_plan.version += 1
+        target_plan.correction_reason = f"Межкомпанийный перенос из {base_plan.number}"[:255]
+        additions = split_amount_by_months(transfer_amount)
+        existing_months = {row.month: row for row in target_plan.months.all()}
+        for month, amount in additions.items():
+            if month in existing_months:
+                row = existing_months[month]
+                row.amount += amount
+                row.save(update_fields=["amount"])
+            else:
+                BudgetLimitMonth.objects.create(plan=target_plan, month=month, amount=amount)
+        target_plan.save(update_fields=["annual_amount", "version", "correction_reason", "updated_at"])
 
     AuditLog.objects.create(
         user=user,
@@ -225,4 +316,11 @@ def approve_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetL
 
 
 def next_adjustment_number() -> str:
-    return f"ADJ-{timezone.localdate():%Y}-{BudgetLimitAdjustment.objects.count() + 1:06d}"
+    return next_document_number("ADJ")
+
+
+def _default_organization():
+    organization = Organization.objects.order_by("id").first()
+    if organization is None:
+        raise ValueError("Создайте минимум одну компанию")
+    return organization

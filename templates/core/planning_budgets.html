@@ -1,0 +1,97 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Бюджеты · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab is-active" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab" href="/planning/adjustments/wizard/">Корректировка</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Журнал бюджетов</h1>
+            <p class="app-subtitle">Рабочая компания: {{ working_organization.name }}. Бюджет создается вместе с лимитами через первичный wizard, журнал показывает объем, назначенные лимиты и резерв.</p>
+        </div>
+        <div class="command-bar">
+            {% if can_create_budgets %}
+                <a class="command-button-primary" href="/planning/wizard/">+ Первичный ввод</a>
+            {% endif %}
+            <a class="command-button" href="/planning/limits/">Лимиты</a>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell"><div class="metric-value">{{ summary.budgets }}</div><div class="metric-label">Бюджетов</div></div>
+            <div class="metric-cell"><div class="metric-value">{{ summary.total_budget|ru_number }}</div><div class="metric-label">Объем бюджета</div></div>
+            <div class="metric-cell"><div class="metric-value">{{ summary.total_limits|ru_number }}</div><div class="metric-label">Назначено лимитов</div></div>
+            <div class="metric-cell"><div class="metric-value">{{ summary.total_reserve|ru_number }}</div><div class="metric-label">Резерв</div></div>
+        </div>
+
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Бюджетов в списке: <strong id="budgets-table-count">{{ rows|length }}</strong></span>
+            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по бюджетам" data-table-search="#budgets-table" data-table-count="#budgets-table-count">
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="budgets-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col" class="table-col-doc">Номер</th>
+                        <th scope="col" class="table-col-short">Год</th>
+                        <th scope="col">Компания</th>
+                        <th scope="col" class="table-col-status">Вид</th>
+                        <th scope="col" class="table-col-number">Бюджет</th>
+                        <th scope="col" class="table-col-number">Лимиты</th>
+                        <th scope="col" class="table-col-number">Резерв</th>
+                        <th scope="col" class="table-col-status">Статус</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td class="table-col-doc table-cell-nowrap">{{ row.budget.number }}</td>
+                            <td class="table-col-short">{{ row.budget.budget_year }}</td>
+                            <td>{{ row.budget.organization.name }}</td>
+                            <td class="table-col-status">{{ row.budget.get_scope_display }}</td>
+                            <td class="table-col-number">{{ row.budget.total_amount|ru_number }} {{ row.budget.currency.code }}</td>
+                            <td class="table-col-number">{{ row.used_total|ru_number }}</td>
+                            <td class="table-col-number">{{ row.reserve_total|ru_number }}</td>
+                            <td class="table-col-status"><span class="badge {% if row.budget.status == status.APPROVED %}badge-mark{% endif %}">{{ row.budget.get_status_display }}</span></td>
+                            <td class="table-action-col">
+                                {% if row.budget.status == status.DRAFT and can_create_budgets %}
+                                    <a class="command-button" href="{% url 'document_action_wizard' 'budget' row.budget.id 'submit' %}">На утверждение</a>
+                                {% elif row.budget.status == status.PENDING_APPROVAL and can_approve_budgets %}
+                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'budget' row.budget.id 'approve' %}">Утвердить</a>
+                                {% else %}
+                                    <span class="badge">Открыть</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% for department_row in row.department_rows %}
+                            <tr>
+                                <td></td>
+                                <td class="table-col-doc table-cell-nowrap">↳ {{ department_row.allocation.department.code }}</td>
+                                <td class="table-col-short">{{ row.budget.budget_year }}</td>
+                                <td>{{ row.budget.organization.name }}</td>
+                                <td class="table-col-status">ЦФО</td>
+                                <td class="table-col-number">{{ department_row.allocation.amount|ru_number }}</td>
+                                <td class="table-col-number">{{ department_row.used|ru_number }}</td>
+                                <td class="table-col-number">{{ department_row.reserve|ru_number }}</td>
+                                <td colspan="2">{{ department_row.allocation.department.name }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% empty %}
+                        <tr><td colspan="10">Бюджетов пока нет. Запустите первичный ввод через wizard.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

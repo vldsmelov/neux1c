@@ -5,63 +5,209 @@
 {% block content %}
     <div class="app-page-head">
         <div>
-            <h1 class="app-title">Рабочее место экономиста</h1>
-            <p class="app-subtitle">ООО "Гладиолус" · 2026 · бюджетный контроль</p>
+            <h1 class="app-title">Рабочее место</h1>
+            <p class="app-subtitle">Сценарии построены вокруг wizard’ов: пользователь заполняет документ по шагам, а журнал остается компактным местом контроля и утверждения.</p>
         </div>
         <div class="command-bar">
-            <a class="command-button-primary" href="/planning/limits/">+ Создать план</a>
-            <a class="command-button" href="/payments/requests/">Новая заявка</a>
-            <a class="command-button" href="/contracts/reservations/">Реестр договоров</a>
-            <a class="command-button" href="/contracts/tree/">Дерево договоров</a>
-            <button class="command-button" type="button">Загрузить из 1С</button>
-            <a class="command-button" href="/reports/manager/">Дашборд руководителя</a>
-            <a class="command-button" href="/reports/plan-fact/">План-факт БДДС</a>
-            <a class="command-button" href="/instruction/">Инструкция</a>
-            <a class="command-button" href="/settings/integration-requests/">Заявка на интеграцию</a>
-            <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            <a class="command-button-primary" href="/planning/wizard/">+ Бюджет и лимиты</a>
+            <a class="command-button" href="/payments/requests/wizard/">+ Заявка на оплату</a>
+            <a class="command-button" href="/planning/adjustments/wizard/">Корректировка лимита</a>
+            <a class="command-button" href="/payments/facts/wizard/">Корректировка факта</a>
         </div>
     </div>
 
-    <div class="document-grid">
-        <aside class="form-panel">
-            <div class="form-grid form-grid-3 workspace-quick-grid">
-                <div class="workspace-quick-item">
-                    <div class="field-label">Организация</div>
-                    <div class="field-control field-control-sm is-focused">ООО "Гладиолус"</div>
+    <section class="stack">
+        <section class="data-panel stack-section">
+            <div class="app-page-head">
+                <div>
+                    <h2 class="section-title">Мой рабочий день</h2>
+                    <p class="section-subtitle">{{ workday.role_label }} · {{ workday.headline }}</p>
                 </div>
-                <div class="workspace-quick-item">
-                    <div class="field-label">Период</div>
-                    <div class="field-control-select field-control-select-sm">2026 <span>⌄</span></div>
-                </div>
-                <div class="workspace-quick-item">
-                    <div class="field-label">Рабочая роль</div>
-                    <div class="field-control-select field-control-select-sm">Экономист <span>⌄</span></div>
-                </div>
-                <div class="workspace-quick-item">
-                    <div class="field-label">Интеграция</div>
-                    <div class="field-control-select field-control-select-sm">Mock-1С <span>⌄</span></div>
-                </div>
-                <div class="workspace-quick-item">
-                    <div class="field-label">Состояние</div>
-                    <div class="field-control field-control-sm"><span><span class="status-dot"></span>В работе</span></div>
+                <div class="command-bar">
+                    <a class="command-button-primary" href="{{ workday.primary_action.url }}">{{ workday.primary_action.label }}</a>
                 </div>
             </div>
-        </aside>
 
-        <section class="data-panel">
             <div class="metric-strip">
                 <div class="metric-cell">
-                    <div class="metric-value">{{ counts.articles|default:"5" }}</div>
+                    <div class="metric-value">{{ workday.task_count }}</div>
+                    <div class="metric-label">Активных задач</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ workday.high_count }}</div>
+                    <div class="metric-label">Срочно</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">Wizard</div>
+                    <div class="metric-label">Формат работы</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">Журнал</div>
+                    <div class="metric-label">Контроль</div>
+                </div>
+            </div>
+
+            <div class="process-flow">
+                {% for step in workday.rhythm %}
+                    <div class="process-step">
+                        <div class="process-step-kicker">{{ step.time }}</div>
+                        <div class="process-step-title">{{ step.title }}</div>
+                        <div class="process-step-text">{{ step.text }}</div>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Задачи сформированы по роли и статусам документов</span>
+                <a class="command-button" href="/payments/requests/">Журнал заявок</a>
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col">Приоритет</th>
+                            <th scope="col">Задача</th>
+                            <th scope="col">Раздел</th>
+                            <th scope="col">Контекст</th>
+                            <th scope="col" class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for task in workday.tasks %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td>
+                                    <span class="badge {% if task.priority == 'high' %}badge-danger{% elif task.priority == 'medium' %}badge-mark{% endif %}">
+                                        {% if task.priority == 'high' %}Срочно{% elif task.priority == 'medium' %}Сегодня{% else %}План{% endif %}
+                                    </span>
+                                </td>
+                                <td>{{ task.title }}</td>
+                                <td>{{ task.area }}</td>
+                                <td>{{ task.text }}</td>
+                                <td class="table-action-col"><a class="command-button" href="{{ task.url }}">{{ task.action_label }}</a></td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="6">На сегодня нет задач.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <div class="action-hub">
+            <article class="action-card action-card-primary">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Первичный бюджет</h2>
+                    <span class="badge">Wizard</span>
+                </div>
+                <p class="action-card-text">Создайте годовой бюджет, распределение по ЦФО и лимиты одним пакетом на утверждение.</p>
+                <div class="action-card-footer">
+                    <span class="table-toolbar-note">Бюджет → лимиты → утверждение</span>
+                    <a class="command-button-primary" href="/planning/wizard/">Открыть</a>
+                </div>
+            </article>
+
+            <article class="action-card">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Заявка на оплату</h2>
+                    <span class="badge">Wizard</span>
+                </div>
+                <p class="action-card-text">Заполните основание, сумму, счет и согласующего без длинной формы в журнале.</p>
+                <div class="action-card-footer">
+                    <span class="table-toolbar-note">Лимит проверяется автоматически</span>
+                    <a class="command-button" href="/payments/requests/wizard/">Открыть</a>
+                </div>
+            </article>
+
+            <article class="action-card">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Корректировки</h2>
+                    <span class="badge">Заявки</span>
+                </div>
+                <p class="action-card-text">Изменяйте утвержденные лимиты или факт оплат через отдельные заявки с причиной и версией.</p>
+                <div class="action-card-footer">
+                    <a class="command-button" href="/planning/adjustments/wizard/">Лимит</a>
+                    <a class="command-button" href="/payments/facts/wizard/">Факт</a>
+                </div>
+            </article>
+
+            <article class="action-card">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Журналы</h2>
+                    <span class="badge">Контроль</span>
+                </div>
+                <p class="action-card-text">Проверяйте статусы, резервы, превышения и передавайте согласованные документы дальше.</p>
+                <div class="action-card-footer">
+                    <a class="command-button" href="/planning/budgets/">Бюджеты</a>
+                    <a class="command-button" href="/payments/requests/">Заявки</a>
+                </div>
+            </article>
+
+            <article class="action-card">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Внешний контур</h2>
+                    <span class="badge">1С:БП</span>
+                </div>
+                <p class="action-card-text">Проводите оплату договора через короткий wizard, а факт попадет в основной контур.</p>
+                <div class="action-card-footer">
+                    <span class="table-toolbar-note">Для роли бухгалтера</span>
+                    <a class="command-button" href="/external/accounting/payment-wizard/">Платеж</a>
+                </div>
+            </article>
+
+            <article class="action-card">
+                <div class="action-card-head">
+                    <h2 class="action-card-title">Интеграции</h2>
+                    <span class="badge">Настройки</span>
+                </div>
+                <p class="action-card-text">Фиксируйте потребность в новой интеграции как заявку, а статус ведите в журнале.</p>
+                <div class="action-card-footer">
+                    <span class="table-toolbar-note">Инициатор → администратор</span>
+                    <a class="command-button" href="/settings/integration-requests/wizard/">Создать</a>
+                </div>
+            </article>
+        </div>
+
+        <section class="data-panel stack-section">
+            <h2 class="section-title">Логика процесса</h2>
+            <p class="section-subtitle">Ввод отделен от контроля: wizard помогает заполнить документ, журнал помогает управлять статусом.</p>
+            <div class="process-flow">
+                <div class="process-step">
+                    <div class="process-step-kicker">01</div>
+                    <div class="process-step-title">Заполнение</div>
+                    <div class="process-step-text">Пользователь проходит короткие шаги и видит только релевантные поля.</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-step-kicker">02</div>
+                    <div class="process-step-title">Проверка</div>
+                    <div class="process-step-text">На последнем шаге сверяются сумма, период, ЦФО, статья и согласующий.</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-step-kicker">03</div>
+                    <div class="process-step-title">Утверждение</div>
+                    <div class="process-step-text">Документ попадает в журнал в статусе ожидания и доступен руководителю.</div>
+                </div>
+                <div class="process-step">
+                    <div class="process-step-kicker">04</div>
+                    <div class="process-step-title">Исполнение</div>
+                    <div class="process-step-text">Согласованные документы двигаются в 1С:ДО, 1С:БП или отчетность.</div>
+                </div>
+            </div>
+        </section>
+
+        <section class="data-panel stack-section">
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ counts.articles|default:"0" }}</div>
                     <div class="metric-label">Статьи ДДС</div>
                 </div>
                 <div class="metric-cell">
-                    <div class="metric-value">{{ counts.contracts|default:"4" }}</div>
+                    <div class="metric-value">{{ counts.contracts|default:"0" }}</div>
                     <div class="metric-label">Договоры</div>
                 </div>
                 <div class="metric-cell">
-                    <div class="metric-value">{{ counts.payment_facts|default:"4" }}</div>
+                    <div class="metric-value">{{ counts.payment_facts|default:"0" }}</div>
                     <div class="metric-label">Факт оплат</div>
                 </div>
                 <div class="metric-cell">
@@ -70,23 +216,15 @@
                 </div>
             </div>
 
-            <div class="command-bar">
-                <button class="command-button" type="button">+ Добавить</button>
-                <button class="command-button" type="button">Подбор</button>
-                <span class="command-spacer"></span>
-                <button class="command-button" type="button">Поиск</button>
-                <button class="icon-button" type="button">⋮</button>
-            </div>
-
             <div class="data-table-wrap table-wrap-top">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th>Раздел</th>
-                            <th>Документ</th>
-                            <th>Статус</th>
-                            <th>Проверка</th>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col">Раздел</th>
+                            <th scope="col">Документ</th>
+                            <th scope="col">Режим</th>
+                            <th scope="col">Контроль</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -102,11 +240,6 @@
                     </tbody>
                 </table>
             </div>
-
-            <div class="summary-line">
-                <span>Готовность</span>
-                <span class="summary-value">Итерация 1</span>
-            </div>
         </section>
-    </div>
+    </section>
 {% endblock %}

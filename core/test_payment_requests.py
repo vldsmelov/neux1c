@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 
@@ -226,6 +227,31 @@ class PaymentRequestWorkflowTests(TestCase):
                 approver=self.manager,
                 payment_purpose="Прочие расходы",
                 justification_text="",
+            )
+
+    def test_justification_file_extension_is_validated(self):
+        from core.models import Currency, Organization
+
+        payload = SimpleUploadedFile(
+            "script.exe",
+            b"not a document",
+            content_type="application/octet-stream",
+        )
+
+        with self.assertRaisesMessage(ValueError, "Недопустимый тип файла обоснования"):
+            create_payment_request(
+                author=self.economist,
+                request_kind=PaymentRequestKind.BY_CONTRACT,
+                organization=Organization.objects.first(),
+                article=self.article,
+                counterparty=self.contract.counterparty,
+                contract=self.contract,
+                currency=Currency.objects.get(code="RUB"),
+                amount=Decimal("100000.00"),
+                manual_exchange_rate=Decimal("1.0000"),
+                approver=self.manager,
+                payment_purpose="Оплата поставки",
+                justification_file=payload,
             )
 
     def test_manager_can_reject_with_comment(self):

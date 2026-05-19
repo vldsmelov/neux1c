@@ -1,12 +1,11 @@
 from django.db import transaction
-from django.utils import timezone
-
 from core.models import (
     AuditAction,
     AuditLog,
     IntegrationRequest,
     IntegrationRequestStatus,
 )
+from core.services.document_numbers import next_document_number
 
 
 WORKFLOW_PATH = "/settings/integration-requests/"
@@ -75,5 +74,4 @@ def update_integration_request_status(
 
 
 def next_integration_request_number() -> str:
-    current = IntegrationRequest.objects.count() + 1
-    return f"INT-{timezone.localdate():%Y}-{current:06d}"
+    return next_document_number("INT")

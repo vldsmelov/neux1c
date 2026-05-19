@@ -16,6 +16,7 @@ from core.models import (
     PaymentFact,
     SourceSystem,
 )
+from core.services.document_numbers import next_document_number
 
 
 DEFAULT_PAYMENT_ACCOUNT = "51"
@@ -71,7 +72,7 @@ def remaining_contract_amount(contract: Contract) -> Decimal:
 
 
 def next_payment_number() -> str:
-    return f"BP-{timezone.localdate():%Y}-{ExternalPaymentDocument.objects.count() + 1:06d}"
+    return next_document_number("BP")
 
 
 def _create_payment_fact(payment: ExternalPaymentDocument, accounting_kind: str) -> PaymentFact:

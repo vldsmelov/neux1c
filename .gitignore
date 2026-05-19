@@ -9,6 +9,7 @@ venv/
 # Django
 staticfiles/
 media/
+payment_requests/
 *.sqlite3
 
 # Tooling
@@ -26,3 +27,4 @@ Thumbs.db
 
 # Docker volumes / local data
 db_data/
+docs/user-guide/images/raw/ui_audit_*/

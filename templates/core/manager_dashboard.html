@@ -24,8 +24,8 @@
             <button class="command-button-primary" type="submit">Обновить</button>
             <a class="command-button" href="/reports/plan-fact/?year={{ selected_year }}">Открыть план-факт</a>
             <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            <button class="icon-button" type="button" aria-label="Поиск" title="Поиск">⌕</button>
+            <button class="icon-button" type="button" aria-label="Дополнительные действия" title="Дополнительные действия">⋮</button>
         </form>
     </div>
 
@@ -66,14 +66,14 @@
                 <table id="manager-limits-table" class="data-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th>Статья ДДС</th>
-                            <th class="table-col-number">План</th>
-                            <th class="table-col-number">Корр. лимита</th>
-                            <th class="table-col-number">Резерв</th>
-                            <th class="table-col-number">Заявлено</th>
-                            <th class="table-col-number">Факт БУ</th>
-                            <th class="table-col-number">Остаток БУ</th>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col">Статья ДДС</th>
+                            <th scope="col" class="table-col-number">План</th>
+                            <th scope="col" class="table-col-number">Корр. лимита</th>
+                            <th scope="col" class="table-col-number">Резерв</th>
+                            <th scope="col" class="table-col-number">Заявлено</th>
+                            <th scope="col" class="table-col-number">Факт БУ</th>
+                            <th scope="col" class="table-col-number">Остаток БУ</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -120,11 +120,11 @@
                 <table id="manager-overruns-table" class="data-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th>Статья ДДС</th>
-                            <th class="table-col-number">Остаток БУ</th>
-                            <th class="table-col-number">Факт БУ</th>
-                            <th class="table-col-number">Заявлено</th>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col">Статья ДДС</th>
+                            <th scope="col" class="table-col-number">Остаток БУ</th>
+                            <th scope="col" class="table-col-number">Факт БУ</th>
+                            <th scope="col" class="table-col-number">Заявлено</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -161,9 +161,9 @@
                 <table id="manager-statuses-table" class="data-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th>Статус</th>
-                            <th>Количество</th>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col">Статус</th>
+                            <th scope="col">Количество</th>
                         </tr>
                     </thead>
                     <tbody>

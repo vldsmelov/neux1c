@@ -1,0 +1,125 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ action_label }} · NE UX{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">{{ action_label }}</h1>
+            <p class="app-subtitle">{{ action_text }}</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="{{ return_url }}">Вернуться в журнал</a>
+        </div>
+    </div>
+
+    {% if can_execute %}
+        <form method="post" data-document-action-wizard>
+            {% csrf_token %}
+            <section class="data-panel wizard-shell" style="--wizard-steps: 3;">
+                <div class="wizard-stepper" aria-label="Шаги операции с документом">
+                    <button class="wizard-step-button is-active" type="button" data-wizard-target="0" aria-current="step"><span class="wizard-step-number">Шаг 1</span>Документ</button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="1"><span class="wizard-step-number">Шаг 2</span>Решение</button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="2"><span class="wizard-step-number">Шаг 3</span>Проверка</button>
+                </div>
+
+                <section class="wizard-step is-active" data-wizard-step>
+                    <div class="data-table-wrap">
+                        <table class="data-table table-narrow">
+                            <tbody>
+                                <tr><td>Документ</td><td>{{ document_kind }} {{ document.number }}</td></tr>
+                                {% for row in details %}
+                                    <tr><td>{{ row.label }}</td><td>{{ row.value }}</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div class="summary-line">
+                            <span>{{ document_kind }}</span>
+                            <span class="summary-value">{{ document.number }}</span>
+                        </div>
+                        <div class="summary-line">
+                            <span>Операция</span>
+                            <span class="summary-value">{{ action_label }}</span>
+                        </div>
+                        <div>
+                            <label class="field-label" for="comment">{{ comment_label }}</label>
+                            <textarea class="field-control" id="comment" name="comment" rows="4" placeholder="{{ comment_placeholder }}" {% if comment_required %}required{% endif %}></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="wizard-review-grid">
+                        <div class="wizard-review-cell">
+                            <div class="wizard-review-label">Документ</div>
+                            <div class="wizard-review-value">{{ document.number }}</div>
+                        </div>
+                        <div class="wizard-review-cell">
+                            <div class="wizard-review-label">Тип</div>
+                            <div class="wizard-review-value">{{ document_kind }}</div>
+                        </div>
+                        <div class="wizard-review-cell">
+                            <div class="wizard-review-label">Операция</div>
+                            <div class="wizard-review-value">{{ action_label }}</div>
+                        </div>
+                        <div class="wizard-review-cell">
+                            <div class="wizard-review-label">Комментарий</div>
+                            <div class="wizard-review-value" data-summary-comment>Без комментария</div>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="wizard-actions">
+                    <button class="command-button" type="button" data-wizard-prev disabled>Назад</button>
+                    <button class="command-button-primary" type="button" data-wizard-next>Далее</button>
+                    <button class="command-button-primary" type="submit" data-wizard-submit hidden>{{ submit_label }}</button>
+                </div>
+            </section>
+        </form>
+        <script>
+            (() => {
+                const form = document.querySelector("[data-document-action-wizard]");
+                const steps = Array.from(form.querySelectorAll("[data-wizard-step]"));
+                const buttons = Array.from(form.querySelectorAll("[data-wizard-target]"));
+                const prev = form.querySelector("[data-wizard-prev]");
+                const next = form.querySelector("[data-wizard-next]");
+                const submit = form.querySelector("[data-wizard-submit]");
+                const comment = form.querySelector("#comment");
+                const commentSummary = form.querySelector("[data-summary-comment]");
+                let active = 0;
+                const update = () => {
+                    commentSummary.textContent = comment.value.trim() || "Без комментария";
+                };
+                const setStep = (index) => {
+                    active = Math.max(0, Math.min(steps.length - 1, index));
+                    steps.forEach((step, i) => step.classList.toggle("is-active", i === active));
+                    buttons.forEach((button, i) => {
+                        button.classList.toggle("is-active", i === active);
+                        i === active ? button.setAttribute("aria-current", "step") : button.removeAttribute("aria-current");
+                    });
+                    prev.disabled = active === 0;
+                    next.hidden = active === steps.length - 1;
+                    submit.hidden = active !== steps.length - 1;
+                    update();
+                };
+                buttons.forEach((button) => button.addEventListener("click", () => setStep(Number(button.dataset.wizardTarget))));
+                prev.addEventListener("click", () => setStep(active - 1));
+                next.addEventListener("click", () => setStep(active + 1));
+                comment.addEventListener("input", update);
+                setStep(0);
+            })();
+        </script>
+    {% else %}
+        <section class="data-panel">
+            <div class="empty-state">
+                <h2>Операция недоступна</h2>
+                <p>Для этого действия не хватает прав или документ находится в неподходящем статусе.</p>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

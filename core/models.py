@@ -3,6 +3,8 @@ from django.db import models
 from django.conf import settings
 from django.utils import timezone
 
+from .validators import payment_request_justification_upload_to, validate_justification_file
+
 
 hex_color_validator = RegexValidator(
     regex=r"^#[0-9A-Fa-f]{6}$",
@@ -80,6 +82,15 @@ class BudgetPlanStatus(models.TextChoices):
     CLOSED = "closed", "Закрыт"
 
 
+class BudgetPeriodicity(models.TextChoices):
+    YEAR = "year", "Год"
+
+
+class BudgetScope(models.TextChoices):
+    OVERALL = "overall", "Общий"
+    BY_DEPARTMENT = "by_department", "По ЦФО"
+
+
 class PaymentRequestKind(models.TextChoices):
     BY_CONTRACT = "by_contract", "По договору"
     BY_INVOICE = "by_invoice", "По счету"
@@ -100,10 +111,7 @@ class PaymentLimitControlMode(models.TextChoices):
 
 
 class ReportTemplateType(models.TextChoices):
-    PLAN_FACT = "plan_fact", "РџР»Р°РЅ-С„Р°РєС‚ Р‘Р”Р”РЎ"
-
-
-    # PLAN_FACT = "plan_fact", "Plan-Fact BDDS"
+    PLAN_FACT = "plan_fact", "План-факт БДДС"
 
 
 class IntegrationTrackedModel(models.Model):
@@ -415,9 +423,101 @@ class ExternalPaymentDocument(models.Model):
         return f"{self.number} · {self.contract.number}"
 
 
+class BudgetPlan(models.Model):
+    number = models.CharField("Номер бюджета", max_length=32, unique=True)
+    document_date = models.DateField("Дата документа", default=timezone.localdate)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Компания",
+        on_delete=models.PROTECT,
+        related_name="budgets",
+    )
+    budget_year = models.PositiveSmallIntegerField("Период бюджета")
+    periodicity = models.CharField(
+        "Периодичность",
+        max_length=16,
+        choices=BudgetPeriodicity.choices,
+        default=BudgetPeriodicity.YEAR,
+    )
+    scope = models.CharField(
+        "Вид бюджета",
+        max_length=32,
+        choices=BudgetScope.choices,
+        default=BudgetScope.OVERALL,
+    )
+    currency = models.ForeignKey(Currency, verbose_name="Валюта бюджета", on_delete=models.PROTECT)
+    total_amount = models.DecimalField("Сумма бюджета", max_digits=16, decimal_places=2)
+    comment = models.TextField("Комментарий", blank=True)
+    status = models.CharField(
+        "Статус",
+        max_length=32,
+        choices=BudgetPlanStatus.choices,
+        default=BudgetPlanStatus.DRAFT,
+    )
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.PROTECT,
+        related_name="budget_documents",
+    )
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-document_date", "-created_at"]
+        verbose_name = "Бюджет"
+        verbose_name_plural = "Бюджеты"
+
+    def __str__(self) -> str:
+        return f"{self.number} · {self.budget_year}"
+
+    def save(self, *args, **kwargs):
+        if self.organization_id is None:
+            organization = Organization.objects.order_by("id").first()
+            if organization is not None:
+                self.organization = organization
+        super().save(*args, **kwargs)
+
+
+class BudgetDepartmentAllocation(models.Model):
+    budget = models.ForeignKey(
+        BudgetPlan,
+        verbose_name="Бюджет",
+        on_delete=models.CASCADE,
+        related_name="department_allocations",
+    )
+    department = models.ForeignKey(Department, verbose_name="ЦФО", on_delete=models.PROTECT)
+    amount = models.DecimalField("Сумма бюджета ЦФО", max_digits=16, decimal_places=2)
+
+    class Meta:
+        ordering = ["department__code"]
+        verbose_name = "Строка бюджета по ЦФО"
+        verbose_name_plural = "Строки бюджета по ЦФО"
+        constraints = [
+            models.UniqueConstraint(fields=["budget", "department"], name="uniq_budget_department_allocation"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.budget.number} · {self.department.code}"
+
+
 class BudgetLimitPlan(models.Model):
     number = models.CharField("Номер документа", max_length=32, unique=True)
     document_date = models.DateField("Дата документа", default=timezone.localdate)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Компания",
+        on_delete=models.PROTECT,
+        related_name="budget_limits",
+    )
+    budget = models.ForeignKey(
+        BudgetPlan,
+        verbose_name="Бюджет",
+        on_delete=models.PROTECT,
+        related_name="limits",
+        null=True,
+        blank=True,
+    )
     planning_year = models.PositiveSmallIntegerField("Период планирования")
     planning_horizon = models.PositiveSmallIntegerField("Горизонт планирования", default=1)
     department = models.ForeignKey(Department, verbose_name="ЦФО", on_delete=models.PROTECT)
@@ -462,6 +562,16 @@ class BudgetLimitPlan(models.Model):
 
     def __str__(self) -> str:
         return f"{self.number} · {self.planning_year}"
+
+    def save(self, *args, **kwargs):
+        if self.organization_id is None:
+            if self.budget_id and self.budget.organization_id:
+                self.organization_id = self.budget.organization_id
+            else:
+                organization = Organization.objects.order_by("id").first()
+                if organization is not None:
+                    self.organization = organization
+        super().save(*args, **kwargs)
 
     @property
     def monthly_total(self):
@@ -508,6 +618,22 @@ class BudgetLimitAdjustment(models.Model):
         related_name="adjustments",
     )
     article = models.ForeignKey(CashFlowArticle, verbose_name="Статья ДДС", on_delete=models.PROTECT)
+    target_plan = models.ForeignKey(
+        BudgetLimitPlan,
+        verbose_name="Целевой лимит для межкомпанийного переноса",
+        on_delete=models.PROTECT,
+        related_name="incoming_adjustments",
+        null=True,
+        blank=True,
+    )
+    target_organization = models.ForeignKey(
+        Organization,
+        verbose_name="Компания-получатель",
+        on_delete=models.PROTECT,
+        related_name="incoming_limit_adjustments",
+        null=True,
+        blank=True,
+    )
     new_annual_amount = models.DecimalField("Новая сумма", max_digits=16, decimal_places=2)
     reason = models.TextField("Причина корректировки")
     version = models.PositiveIntegerField("Версия", default=1)
@@ -659,7 +785,12 @@ class PaymentRequest(models.Model):
         related_name="payment_requests",
     )
     justification_text = models.TextField("Обоснование оплаты", blank=True)
-    justification_file = models.FileField("Файл обоснования", upload_to="payment_requests/justifications/", blank=True)
+    justification_file = models.FileField(
+        "Файл обоснования",
+        upload_to=payment_request_justification_upload_to,
+        validators=[validate_justification_file],
+        blank=True,
+    )
     comment = models.CharField("Комментарий", max_length=255, blank=True)
     created_at = models.DateTimeField("Создано", auto_now_add=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)
@@ -721,6 +852,24 @@ class SyncRun(models.Model):
 
     def __str__(self) -> str:
         return f"{self.provider} {self.started_at:%d.%m.%Y %H:%M}"
+
+
+class DocumentSequence(models.Model):
+    prefix = models.CharField("Префикс", max_length=16)
+    year = models.PositiveSmallIntegerField("Год")
+    current_value = models.PositiveIntegerField("Текущее значение", default=0)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["prefix", "year"]
+        verbose_name = "Счетчик документов"
+        verbose_name_plural = "Счетчики документов"
+        constraints = [
+            models.UniqueConstraint(fields=["prefix", "year"], name="uniq_document_sequence_prefix_year"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.prefix}-{self.year}: {self.current_value}"
 
 
 class UiThemeSettings(models.Model):

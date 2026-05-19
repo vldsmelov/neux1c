@@ -3,136 +3,98 @@
 {% block title %}Заявки на интеграцию · NE UX{% endblock %}
 
 {% block tabs %}
-    <a class="app-tab is-active" href="/settings/integration-requests/">Заявки на интеграцию</a>
+    <a class="app-tab" href="/settings/integration-requests/wizard/">Новая заявка</a>
+    <a class="app-tab is-active" href="/settings/integration-requests/">Журнал интеграций</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
-            <h1 class="app-title">Заявки на интеграцию</h1>
-            <p class="app-subtitle">Инициаторы фиксируют потребность в новой интеграции, администратор ведет статус выполнения.</p>
+            <h1 class="app-title">Журнал интеграций</h1>
+            <p class="app-subtitle">Новые заявки создаются через wizard, а здесь администратор ведет статус и комментарии.</p>
         </div>
         <form class="command-bar" method="get">
+            <a class="command-button-primary" href="/settings/integration-requests/wizard/">+ Новая заявка</a>
             <label class="toolbar-label" for="status">Статус</label>
             <select class="field-control-select toolbar-select-md" id="status" name="status">
                 {% for value, label in status_choices %}
                     <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
                 {% endfor %}
             </select>
-            <button class="command-button-primary" type="submit">Отобрать</button>
+            <button class="command-button" type="submit">Отобрать</button>
             <a class="command-button" href="/settings/integration-requests/">Сбросить</a>
-            <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
         </form>
     </div>
 
-    <div class="document-grid">
-        <aside class="form-panel">
-            <form id="integration-request-form" method="post" class="form-stack">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="create">
-                <div>
-                    <label class="field-label" for="integration_name">Название интеграции</label>
-                    <input class="field-control is-focused" id="integration_name" name="integration_name" value="">
-                </div>
-                <div>
-                    <label class="field-label" for="target_system">Целевая система</label>
-                    <input class="field-control" id="target_system" name="target_system" value="" placeholder="1С:ERP, 1С:БП, API ...">
-                </div>
-                <div>
-                    <label class="field-label" for="description">Описание потребности</label>
-                    <textarea class="field-control" id="description" name="description"></textarea>
-                </div>
-                <button class="command-button-primary" type="submit">Создать заявку</button>
-            </form>
-        </aside>
-
-        <section class="data-panel stack">
-            <div class="metric-strip">
-                <div class="metric-cell">
-                    <div class="metric-value">{{ requests|length }}</div>
-                    <div class="metric-label">Заявок в списке</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{% if can_manage_integration_requests %}Да{% else %}Нет{% endif %}</div>
-                    <div class="metric-label">Права администрирования</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">9.3</div>
-                    <div class="metric-label">Пункт ТЗ</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">Mock</div>
-                    <div class="metric-label">Контур пилота</div>
-                </div>
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell">
+                <div class="metric-value">{{ requests|length }}</div>
+                <div class="metric-label">Заявок</div>
             </div>
-
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Заявок в списке: <strong id="integration-requests-table-count">{{ requests|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по заявкам интеграции"
-                    data-table-search="#integration-requests-table"
-                    data-table-count="#integration-requests-table-count"
-                >
+            <div class="metric-cell">
+                <div class="metric-value">{% if can_manage_integration_requests %}Да{% else %}Нет{% endif %}</div>
+                <div class="metric-label">Администрирование</div>
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="integration-requests-table" class="data-table">
-                    <thead>
+            <div class="metric-cell">
+                <div class="metric-value">Wizard</div>
+                <div class="metric-label">Создание</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">Mock</div>
+                <div class="metric-label">Контур пилота</div>
+            </div>
+        </div>
+
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Заявок в списке: <strong id="integration-requests-table-count">{{ requests|length }}</strong></span>
+            <input
+                class="field-control field-control-sm table-search-input"
+                type="search"
+                placeholder="Поиск по заявкам"
+                data-table-search="#integration-requests-table"
+                data-table-count="#integration-requests-table-count"
+            >
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="integration-requests-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col">Номер</th>
+                        <th scope="col">Инициатор</th>
+                        <th scope="col">Интеграция</th>
+                        <th scope="col">Система</th>
+                        <th scope="col">Описание</th>
+                        <th scope="col">Статус</th>
+                        <th scope="col">Комментарий</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in requests %}
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th>Номер</th>
-                            <th>Инициатор</th>
-                            <th>Интеграция</th>
-                            <th>Целевая система</th>
-                            <th>Описание</th>
-                            <th>Статус</th>
-                            <th>Админ-комментарий</th>
-                            <th class="table-action-col">Действие</th>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td>{{ item.number }}</td>
+                            <td>{{ item.requested_by.username }}</td>
+                            <td>{{ item.integration_name }}</td>
+                            <td>{{ item.target_system }}</td>
+                            <td>{{ item.description|truncatechars:90 }}</td>
+                            <td><span class="badge">{{ item.get_status_display }}</span></td>
+                            <td>{% if item.admin_comment %}{{ item.admin_comment|truncatechars:70 }}{% else %}—{% endif %}</td>
+                            <td>
+                                {% if can_manage_integration_requests %}
+                                    <a class="command-button" href="{% url 'integration_request_status_wizard' item.id %}">Вести статус</a>
+                                {% else %}
+                                    <span class="badge">Просмотр</span>
+                                {% endif %}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in requests %}
-                            <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td>{{ item.number }}</td>
-                                <td>{{ item.requested_by.username }}</td>
-                                <td>{{ item.integration_name }}</td>
-                                <td>{{ item.target_system }}</td>
-                                <td>{{ item.description|truncatechars:90 }}</td>
-                                <td><span class="badge">{{ item.get_status_display }}</span></td>
-                                <td class="table-action-col">
-                                    {% if item.admin_comment %}{{ item.admin_comment|truncatechars:70 }}{% else %}—{% endif %}
-                                </td>
-                                <td>
-                                    {% if can_manage_integration_requests %}
-                                        <form method="post" class="form-stack-compact">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="set_status">
-                                            <input type="hidden" name="request_id" value="{{ item.id }}">
-                                            <select class="field-control-select field-control-select-sm" name="status">
-                                                {% for value, label in status_choices %}
-                                                    {% if value %}
-                                                        <option value="{{ value }}" {% if value == item.status %}selected{% endif %}>{{ label }}</option>
-                                                    {% endif %}
-                                                {% endfor %}
-                                            </select>
-                                            <input class="field-control field-control-sm" name="admin_comment" value="{{ item.admin_comment }}">
-                                            <button class="command-button" type="submit">Сохранить</button>
-                                        </form>
-                                    {% else %}
-                                        <span class="badge">Просмотр</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="9">Заявок пока нет. Создайте первую заявку на интеграцию слева.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
+                    {% empty %}
+                        <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

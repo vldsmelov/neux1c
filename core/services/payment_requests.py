@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
@@ -20,6 +21,8 @@ from core.models import (
     PaymentRequestKind,
     PaymentRequestStatus,
 )
+from core.services.document_numbers import next_document_number
+from core.validators import validate_justification_file
 
 
 MONEY_QUANT = Decimal("0.01")
@@ -65,8 +68,17 @@ def create_payment_request(
         amount=amount,
         manual_exchange_rate=manual_exchange_rate,
     )
+    try:
+        validate_justification_file(justification_file)
+    except ValidationError as exc:
+        raise ValueError("; ".join(exc.messages)) from exc
+
     amount_rub = amount_to_rub(currency.code, amount, manual_exchange_rate)
-    before_limit, after_limit, is_exceeded = calculate_limit_delta(article=article, request_amount_rub=amount_rub)
+    before_limit, after_limit, is_exceeded = calculate_limit_delta(
+        article=article,
+        organization=organization,
+        request_amount_rub=amount_rub,
+    )
     control_settings = PaymentRequestControlSettings.active_or_default()
     _enforce_limit_control_mode(control_settings.control_mode, is_exceeded)
 
@@ -107,12 +119,102 @@ def create_payment_request(
 
 
 @transaction.atomic
+def update_payment_request(
+    *,
+    request: PaymentRequest,
+    user,
+    request_kind: str,
+    organization,
+    article,
+    counterparty,
+    contract: Contract | None,
+    currency,
+    amount: Decimal,
+    manual_exchange_rate: Decimal | None,
+    approver,
+    additional_agreement: AdditionalAgreement | None = None,
+    invoice_number: str = "",
+    invoice_date=None,
+    payment_purpose: str = "",
+    comment: str = "",
+    justification_text: str = "",
+    justification_file=None,
+) -> PaymentRequest:
+    if request.status not in [PaymentRequestStatus.DRAFT, PaymentRequestStatus.REJECTED]:
+        raise ValueError("Редактировать можно только черновик или отклоненную заявку")
+
+    _validate_request_payload(
+        request_kind=request_kind,
+        counterparty=counterparty,
+        contract=contract,
+        additional_agreement=additional_agreement,
+        invoice_number=invoice_number,
+        invoice_date=invoice_date,
+        payment_purpose=payment_purpose,
+        justification_text=justification_text,
+        amount=amount,
+        manual_exchange_rate=manual_exchange_rate,
+    )
+    if justification_file:
+        try:
+            validate_justification_file(justification_file)
+        except ValidationError as exc:
+            raise ValueError("; ".join(exc.messages)) from exc
+
+    amount_rub = amount_to_rub(currency.code, amount, manual_exchange_rate)
+    before_limit, after_limit, is_exceeded = calculate_limit_delta(
+        article=article,
+        organization=organization,
+        request_amount_rub=amount_rub,
+        exclude_request_id=request.id,
+    )
+    control_settings = PaymentRequestControlSettings.active_or_default()
+    _enforce_limit_control_mode(control_settings.control_mode, is_exceeded)
+
+    request.request_kind = request_kind
+    request.organization = organization
+    request.article = article
+    request.counterparty = counterparty
+    request.contract = contract
+    request.additional_agreement = additional_agreement
+    request.invoice_number = invoice_number.strip()
+    request.invoice_date = invoice_date
+    request.payment_purpose = payment_purpose.strip()
+    request.currency = currency
+    request.amount = amount.quantize(MONEY_QUANT)
+    request.manual_exchange_rate = _normalized_rate(currency.code, manual_exchange_rate)
+    request.amount_rub = amount_rub
+    request.limit_remaining_before_rub = before_limit
+    request.limit_remaining_after_rub = after_limit
+    request.limit_exceeded = is_exceeded
+    request.approver = approver
+    request.comment = comment
+    request.justification_text = justification_text.strip()
+    if justification_file:
+        request.justification_file = justification_file
+    request.status = PaymentRequestStatus.DRAFT
+    request.approver_comment = ""
+    request.rejected_at = None
+    request.save()
+    AuditLog.objects.create(
+        user=user,
+        action=AuditAction.UPDATE,
+        path=WORKFLOW_PATH,
+        object_type="PaymentRequest",
+        object_id=str(request.pk),
+        message=f"Заявка на оплату {request.number} отредактирована",
+    )
+    return request
+
+
+@transaction.atomic
 def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
     if request.status != PaymentRequestStatus.DRAFT:
         raise ValueError("На согласование можно отправить только черновик")
 
     before_limit, after_limit, is_exceeded = calculate_limit_delta(
         article=request.article,
+        organization=request.organization,
         request_amount_rub=request.amount_rub,
         exclude_request_id=request.id,
     )
@@ -152,6 +254,7 @@ def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
 
     before_limit, after_limit, is_exceeded = calculate_limit_delta(
         article=request.article,
+        organization=request.organization,
         request_amount_rub=request.amount_rub,
         exclude_request_id=request.id,
     )
@@ -228,27 +331,35 @@ def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequ
     return request
 
 
-def calculate_limit_delta(*, article, request_amount_rub: Decimal, exclude_request_id: int | None = None) -> tuple[Decimal, Decimal, bool]:
+def calculate_limit_delta(
+    *, article, organization, request_amount_rub: Decimal, exclude_request_id: int | None = None
+) -> tuple[Decimal, Decimal, bool]:
     approved_limit = (
-        BudgetLimitPlan.objects.filter(article=article, status=BudgetPlanStatus.APPROVED)
+        BudgetLimitPlan.objects.filter(article=article, organization=organization, status=BudgetPlanStatus.APPROVED)
         .aggregate(total=Sum("annual_amount"))
         .get("total")
         or Decimal("0")
     )
-    paid_amount = spent_amount_rub_by_article(article_id=article.id)
-    reserved_by_requests = reserved_amount_rub_by_article(article_id=article.id, exclude_request_id=exclude_request_id)
+    paid_amount = spent_amount_rub_by_article(article_id=article.id, organization_id=organization.id)
+    reserved_by_requests = reserved_amount_rub_by_article(
+        article_id=article.id,
+        organization_id=organization.id,
+        exclude_request_id=exclude_request_id,
+    )
 
     before_limit = quant_money(approved_limit - paid_amount - reserved_by_requests)
     after_limit = quant_money(before_limit - request_amount_rub)
     return before_limit, after_limit, after_limit < 0
 
 
-def spent_amount_rub_by_article(*, article_id: int) -> Decimal:
+def spent_amount_rub_by_article(*, article_id: int, organization_id: int | None = None) -> Decimal:
     facts = PaymentFact.objects.filter(
         article_id=article_id,
         accounting_kind="bu",
         direction=PaymentDirection.OUTFLOW,
     ).select_related("currency", "contract")
+    if organization_id:
+        facts = facts.filter(organization_id=organization_id)
     total = Decimal("0")
     for fact in facts:
         total += amount_to_rub(
@@ -259,8 +370,12 @@ def spent_amount_rub_by_article(*, article_id: int) -> Decimal:
     return quant_money(total)
 
 
-def reserved_amount_rub_by_article(*, article_id: int, exclude_request_id: int | None = None) -> Decimal:
+def reserved_amount_rub_by_article(
+    *, article_id: int, organization_id: int | None = None, exclude_request_id: int | None = None
+) -> Decimal:
     query = PaymentRequest.objects.filter(article_id=article_id, status__in=RESERVED_REQUEST_STATUSES)
+    if organization_id:
+        query = query.filter(organization_id=organization_id)
     if exclude_request_id:
         query = query.exclude(pk=exclude_request_id)
     return query.aggregate(total=Sum("amount_rub")).get("total") or Decimal("0")
@@ -278,12 +393,11 @@ def amount_to_rub(currency_code: str, amount: Decimal, manual_exchange_rate: Dec
 
 
 def next_payment_request_number() -> str:
-    return f"REQ-{timezone.localdate():%Y}-{PaymentRequest.objects.count() + 1:06d}"
+    return next_document_number("REQ")
 
 
 def next_do_external_id() -> str:
-    current = PaymentRequest.objects.exclude(do_external_id="").count() + 1
-    return f"DO-{timezone.localdate():%Y}-{current:06d}"
+    return next_document_number("DO")
 
 
 def _validate_request_payload(

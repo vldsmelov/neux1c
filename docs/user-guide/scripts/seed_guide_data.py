@@ -20,7 +20,6 @@ from core.models import (
     PaymentRequest,
     PaymentRequestKind,
     PaymentRequestStatus,
-    UserRole,
 )
 from core.services.one_c_sync import sync_one_c_dataset
 

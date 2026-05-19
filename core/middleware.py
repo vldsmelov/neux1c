@@ -3,6 +3,37 @@ from django.db import OperationalError, ProgrammingError
 from .models import AuditAction, AuditLog
 
 
+class SecurityHeadersMiddleware:
+    """Adds lightweight browser security headers without extra dependencies."""
+
+    CONTENT_SECURITY_POLICY = (
+        "default-src 'self'; "
+        "img-src 'self' data:; "
+        "style-src 'self' 'unsafe-inline'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "font-src 'self'; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'"
+    )
+
+    PERMISSIONS_POLICY = (
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=(), "
+        "fullscreen=(self)"
+    )
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        response.setdefault("Content-Security-Policy", self.CONTENT_SECURITY_POLICY)
+        response.setdefault("Permissions-Policy", self.PERMISSIONS_POLICY)
+        response.setdefault("Cross-Origin-Opener-Policy", "same-origin")
+        return response
+
+
 class AuditLogMiddleware:
     SKIPPED_PREFIXES = ("/admin/jsi18n/", "/healthz/")
 

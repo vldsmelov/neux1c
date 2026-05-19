@@ -1,0 +1,455 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Заявка на корректировку · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab is-active" href="/planning/adjustments/wizard/">Корректировка</a>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .wizard-shell {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .wizard-stepper {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 1px;
+            background: var(--app-border);
+            border-bottom: 1px solid var(--app-border);
+        }
+
+        .wizard-step-button {
+            border: 0;
+            background: var(--app-surface);
+            color: var(--app-muted);
+            cursor: pointer;
+            font: inherit;
+            min-height: 56px;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        .wizard-step-button.is-active {
+            background: var(--app-toolbar);
+            color: var(--app-text);
+            box-shadow: inset 0 -2px 0 var(--app-primary);
+        }
+
+        .wizard-step-number {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .wizard-step {
+            display: none;
+            padding: 20px;
+        }
+
+        .wizard-step.is-active {
+            display: block;
+        }
+
+        .wizard-actions {
+            align-items: center;
+            border-top: 1px solid var(--app-border);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 14px 20px;
+        }
+
+        .wizard-review-grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .wizard-review-cell {
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .wizard-review-label {
+            color: var(--app-muted);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .wizard-review-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .wizard-month-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(6, minmax(92px, 1fr));
+        }
+
+        @media (max-width: 900px) {
+            .wizard-stepper,
+            .wizard-review-grid,
+            .wizard-month-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Заявка на корректировку лимита</h1>
+            <p class="app-subtitle">Создайте новую версию утвержденного лимита. После заполнения заявка уйдет руководителю на утверждение.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/planning/limits/">Лимиты</a>
+            <a class="command-button" href="/planning/budgets/">Бюджеты</a>
+        </div>
+    </div>
+
+    {% if can_create_adjustment and approved_plans %}
+        <form id="limit-adjustment-wizard" method="post" class="stack" data-adjustment-wizard-form>
+            {% csrf_token %}
+            <section class="data-panel wizard-shell">
+                <div class="wizard-stepper" aria-label="Шаги заявки на корректировку">
+                    <button class="wizard-step-button is-active" type="button" data-wizard-target="0" aria-current="step">
+                        <span class="wizard-step-number">Шаг 1</span>
+                        Лимит
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="1">
+                        <span class="wizard-step-number">Шаг 2</span>
+                        Изменение
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="2">
+                        <span class="wizard-step-number">Шаг 3</span>
+                        Месяцы
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="3">
+                        <span class="wizard-step-number">Шаг 4</span>
+                        Проверка
+                    </button>
+                </div>
+
+                <section class="wizard-step is-active" data-wizard-step>
+                    <div class="form-stack">
+                        <div>
+                            <label class="field-label" for="base_plan_id">Утвержденный лимит</label>
+                            <select class="field-control-select is-focused" id="base_plan_id" name="base_plan_id" data-base-plan>
+                                {% for plan in approved_plans %}
+                                    <option
+                                        value="{{ plan.id }}"
+                                        data-number="{{ plan.number }}"
+                                        data-budget="{% if plan.budget %}{{ plan.budget.number }}{% else %}Без бюджета{% endif %}"
+                                        data-department="{{ plan.department.name }}"
+                                        data-article="{{ plan.article.code }} · {{ plan.article.name }}"
+                                        data-year="{{ plan.planning_year }}"
+                                        data-currency="{{ plan.currency.code }}"
+                                        data-amount="{{ plan.annual_amount }}"
+                                        data-version="{{ plan.version }}"
+                                        {% for month in plan.months.all %}
+                                            data-month-{{ month.month }}="{{ month.amount }}"
+                                        {% endfor %}
+                                    >
+                                        {{ plan.number }} · {{ plan.department.name }} · {{ plan.article.name }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="data-table-wrap">
+                            <table class="data-table table-narrow">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Поле</th>
+                                        <th scope="col">Текущий лимит</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Бюджет</td>
+                                        <td data-plan-budget></td>
+                                    </tr>
+                                    <tr>
+                                        <td>ЦФО</td>
+                                        <td data-plan-department></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Статья</td>
+                                        <td data-plan-article></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Год</td>
+                                        <td data-plan-year></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Версия</td>
+                                        <td data-plan-version></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack form-grid form-grid-2">
+                        <div>
+                            <label class="field-label" for="new_annual_amount">Новая годовая сумма</label>
+                            <input class="field-control" id="new_annual_amount" name="new_annual_amount" value="" inputmode="decimal" data-new-amount>
+                        </div>
+                        <div>
+                            <label class="field-label">Текущая сумма</label>
+                            <div class="field-control"><span data-current-amount></span></div>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="target_plan_id">Целевой лимит другой компании</label>
+                            <select class="field-control-select" id="target_plan_id" name="target_plan_id" data-target-plan>
+                                <option value="">Не переносить между компаниями</option>
+                                {% for plan in target_plans %}
+                                    <option value="{{ plan.id }}">
+                                        {{ plan.organization.name }} · {{ plan.number }} · {{ plan.department.name }} · {{ plan.article.name }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="reason">Причина корректировки</label>
+                            <textarea class="field-control" id="reason" name="reason" rows="4" required></textarea>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div class="table-toolbar">
+                            <span class="table-toolbar-note">Месяцы можно оставить пустыми, тогда новая сумма распределится равномерно.</span>
+                            <span class="command-bar">
+                                <button class="command-button" type="button" data-fill-current-months>Текущие месяцы</button>
+                                <button class="command-button" type="button" data-split-new-amount>Разделить новую сумму</button>
+                            </span>
+                        </div>
+                        <div class="wizard-month-grid">
+                            {% for month in months %}
+                                <div>
+                                    <label class="field-label" for="adjustment_month_{{ month.number }}">{{ month.label }}</label>
+                                    <input
+                                        class="field-control"
+                                        id="adjustment_month_{{ month.number }}"
+                                        name="adjustment_month_{{ month.number }}"
+                                        value=""
+                                        inputmode="decimal"
+                                        data-month-input="{{ month.number }}"
+                                    >
+                                </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div class="wizard-review-grid">
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Лимит</div>
+                                <div class="wizard-review-value" data-summary-number></div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Было</div>
+                                <div class="wizard-review-value" data-summary-current>0.00</div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Станет</div>
+                                <div class="wizard-review-value" data-summary-new>0.00</div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Изменение</div>
+                                <div class="wizard-review-value" data-summary-delta>0.00</div>
+                            </div>
+                        </div>
+                        <div class="data-table-wrap">
+                            <table class="data-table table-narrow">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Параметр</th>
+                                        <th scope="col">Значение</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>ЦФО</td>
+                                        <td data-summary-department></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Статья</td>
+                                        <td data-summary-article></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Год</td>
+                                        <td data-summary-year></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Месячная сумма</td>
+                                        <td data-summary-months>Автоматически</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="wizard-actions">
+                    <button class="command-button" type="button" data-wizard-prev disabled>Назад</button>
+                    <button class="command-button-primary" type="button" data-wizard-next>Далее</button>
+                    <button class="command-button-primary" type="submit" data-wizard-submit hidden>Отправить заявку</button>
+                </div>
+            </section>
+        </form>
+    {% else %}
+        <section class="data-panel">
+            <div class="empty-state">
+                {% if can_create_adjustment %}
+                    <h2>Нет утвержденных лимитов</h2>
+                    <p>Заявку на корректировку можно создать после утверждения базового лимита.</p>
+                {% else %}
+                    <h2>Нет прав на создание заявки</h2>
+                    <p>Для заявки нужны права на создание и изменение корректировок лимитов.</p>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
+
+    <script>
+        (() => {
+            const form = document.querySelector("[data-adjustment-wizard-form]");
+            if (!form) {
+                return;
+            }
+
+            const steps = Array.from(form.querySelectorAll("[data-wizard-step]"));
+            const stepButtons = Array.from(form.querySelectorAll("[data-wizard-target]"));
+            const prevButton = form.querySelector("[data-wizard-prev]");
+            const nextButton = form.querySelector("[data-wizard-next]");
+            const submitButton = form.querySelector("[data-wizard-submit]");
+            const planSelect = form.querySelector("[data-base-plan]");
+            const newAmountInput = form.querySelector("[data-new-amount]");
+            const monthInputs = Array.from(form.querySelectorAll("[data-month-input]"));
+            let activeStep = 0;
+
+            const parseNumber = (value) => Number((value || "0").replace(/\s/g, "").replace(",", ".")) || 0;
+            const formatNumber = (value) => value.toLocaleString("ru-RU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            const selectedPlan = () => planSelect?.selectedOptions?.[0];
+
+            const setText = (selector, value) => {
+                const node = form.querySelector(selector);
+                if (node) {
+                    node.textContent = value;
+                }
+            };
+
+            const updatePlanDetails = () => {
+                const option = selectedPlan();
+                if (!option) {
+                    return;
+                }
+                setText("[data-plan-budget]", option.dataset.budget || "");
+                setText("[data-plan-department]", option.dataset.department || "");
+                setText("[data-plan-article]", option.dataset.article || "");
+                setText("[data-plan-year]", option.dataset.year || "");
+                setText("[data-plan-version]", `v${option.dataset.version || "1"}`);
+                setText("[data-current-amount]", `${formatNumber(parseNumber(option.dataset.amount))} ${option.dataset.currency || ""}`);
+                if (!newAmountInput.value) {
+                    newAmountInput.value = option.dataset.amount || "";
+                }
+                updateSummary();
+            };
+
+            const updateSummary = () => {
+                const option = selectedPlan();
+                if (!option) {
+                    return;
+                }
+                const currentAmount = parseNumber(option.dataset.amount);
+                const newAmount = parseNumber(newAmountInput.value);
+                const filledMonths = monthInputs.filter((input) => input.value.trim()).length;
+                setText("[data-summary-number]", option.dataset.number || "");
+                setText("[data-summary-current]", formatNumber(currentAmount));
+                setText("[data-summary-new]", formatNumber(newAmount));
+                setText("[data-summary-delta]", formatNumber(newAmount - currentAmount));
+                setText("[data-summary-department]", option.dataset.department || "");
+                setText("[data-summary-article]", option.dataset.article || "");
+                setText("[data-summary-year]", option.dataset.year || "");
+                setText("[data-summary-months]", filledMonths ? `${filledMonths} из 12 заполнено` : "Автоматически");
+            };
+
+            const setStep = (stepIndex) => {
+                activeStep = Math.max(0, Math.min(steps.length - 1, stepIndex));
+                steps.forEach((step, index) => step.classList.toggle("is-active", index === activeStep));
+                stepButtons.forEach((button, index) => {
+                    button.classList.toggle("is-active", index === activeStep);
+                    if (index === activeStep) {
+                        button.setAttribute("aria-current", "step");
+                    } else {
+                        button.removeAttribute("aria-current");
+                    }
+                });
+                prevButton.disabled = activeStep === 0;
+                nextButton.hidden = activeStep === steps.length - 1;
+                submitButton.hidden = activeStep !== steps.length - 1;
+                updateSummary();
+            };
+
+            const splitAmountToMonths = (amount) => {
+                const annualCents = Math.round(parseNumber(amount) * 100);
+                if (!annualCents) {
+                    return;
+                }
+                const base = Math.floor(annualCents / 12);
+                let remainder = annualCents - base * 12;
+                monthInputs.forEach((input) => {
+                    const cents = base + (remainder > 0 ? 1 : 0);
+                    remainder -= remainder > 0 ? 1 : 0;
+                    input.value = (cents / 100).toFixed(2);
+                });
+                updateSummary();
+            };
+
+            const fillCurrentMonths = () => {
+                const option = selectedPlan();
+                if (!option) {
+                    return;
+                }
+                monthInputs.forEach((input) => {
+                    input.value = option.dataset[`month-${input.dataset.monthInput}`] || "";
+                });
+                updateSummary();
+            };
+
+            stepButtons.forEach((button) => {
+                button.addEventListener("click", () => setStep(Number(button.dataset.wizardTarget)));
+            });
+            prevButton?.addEventListener("click", () => setStep(activeStep - 1));
+            nextButton?.addEventListener("click", () => setStep(activeStep + 1));
+            form.querySelector("[data-fill-current-months]")?.addEventListener("click", fillCurrentMonths);
+            form.querySelector("[data-split-new-amount]")?.addEventListener("click", () => splitAmountToMonths(newAmountInput.value));
+            form.querySelectorAll("input, select, textarea").forEach((control) => {
+                control.addEventListener("input", updateSummary);
+                control.addEventListener("change", updateSummary);
+            });
+            planSelect?.addEventListener("change", updatePlanDetails);
+
+            updatePlanDetails();
+            setStep(0);
+        })();
+    </script>
+{% endblock %}

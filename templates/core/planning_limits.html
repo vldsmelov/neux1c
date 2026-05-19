@@ -1,335 +1,135 @@
 {% extends "core/base.html" %}
 {% load ui_format %}
 
-{% block title %}Планы и лимиты · NE UX{% endblock %}
+{% block title %}Лимиты · NE UX{% endblock %}
 
 {% block tabs %}
-    <a class="app-tab is-active" href="/planning/limits/">Планы / лимиты</a>
+    <a class="app-tab" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab is-active" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab" href="/planning/adjustments/wizard/">Корректировка</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
-            <h1 class="app-title">Планы / лимиты</h1>
-            <p class="app-subtitle">Годовой план с помесячной разбивкой и утверждением руководителем.</p>
+            <h1 class="app-title">Журнал лимитов</h1>
+            <p class="app-subtitle">Рабочая компания: {{ working_organization.name }}. Первичный ввод и корректировки вынесены в wizard. Журнал показывает утверждение, версии и контроль бюджета.</p>
         </div>
         <div class="command-bar">
             {% if can_create_plans %}
-                <button class="command-button-primary" type="submit" form="create-plan-form">Записать</button>
+                <a class="command-button-primary" href="/planning/wizard/">+ Первичный ввод</a>
             {% endif %}
-            <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            {% if can_create_limit_adjustments %}
+                <a class="command-button" href="/planning/adjustments/wizard/">Корректировка</a>
+            {% endif %}
+            <a class="command-button" href="/planning/budgets/">Бюджеты</a>
         </div>
     </div>
 
-    <div class="document-grid document-grid-priority-data">
-        <aside class="form-panel">
-            {% if can_create_plans %}
-                <details class="form-section" open>
-                    <summary>Создание плана</summary>
-                    <div class="form-section-content">
-                        <p class="section-subtitle">Базовые реквизиты и помесячная разбивка для первичного лимита.</p>
-                        <form id="create-plan-form" method="post" class="form-stack form-grid form-grid-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="create">
-                            <div>
-                                <label class="field-label" for="planning_year">Период планирования</label>
-                                <input class="field-control is-focused" id="planning_year" name="planning_year" value="{{ current_year }}">
-                            </div>
-                            <div>
-                                <label class="field-label" for="planning_horizon">Горизонт</label>
-                                <select class="field-control-select" id="planning_horizon" name="planning_horizon">
-                                    <option value="1">1 год</option>
-                                    <option value="2">2 года</option>
-                                    <option value="3">3 года</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="department_id">ЦФО</label>
-                                <select class="field-control-select" id="department_id" name="department_id">
-                                    {% for department in departments %}
-                                        <option value="{{ department.id }}">{{ department.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="article_id">Статья ДДС</label>
-                                <select class="field-control-select" id="article_id" name="article_id">
-                                    {% for article in articles %}
-                                        <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="currency_id">Валюта</label>
-                                <select class="field-control-select" id="currency_id" name="currency_id">
-                                    {% for currency in currencies %}
-                                        <option value="{{ currency.id }}">{{ currency.code }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="annual_amount">Годовая сумма</label>
-                                <input class="field-control" id="annual_amount" name="annual_amount" value="1200000.00">
-                            </div>
-                            <details class="form-section form-grid-span-full">
-                                <summary>Помесячная разбивка плана</summary>
-                                <div class="form-section-content">
-                                    <div class="data-table-wrap">
-                                        <table class="data-table table-narrow">
-                                            <tbody>
-                                                <tr><td>Январь</td><td><input class="field-control" name="month_1" value="100000.00"></td></tr>
-                                                <tr><td>Февраль</td><td><input class="field-control" name="month_2" value="100000.00"></td></tr>
-                                                <tr><td>Март</td><td><input class="field-control" name="month_3" value="100000.00"></td></tr>
-                                                <tr><td>Апрель</td><td><input class="field-control" name="month_4" value="100000.00"></td></tr>
-                                                <tr><td>Май</td><td><input class="field-control" name="month_5" value="100000.00"></td></tr>
-                                                <tr><td>Июнь</td><td><input class="field-control" name="month_6" value="100000.00"></td></tr>
-                                                <tr><td>Июль</td><td><input class="field-control" name="month_7" value="100000.00"></td></tr>
-                                                <tr><td>Август</td><td><input class="field-control" name="month_8" value="100000.00"></td></tr>
-                                                <tr><td>Сентябрь</td><td><input class="field-control" name="month_9" value="100000.00"></td></tr>
-                                                <tr><td>Октябрь</td><td><input class="field-control" name="month_10" value="100000.00"></td></tr>
-                                                <tr><td>Ноябрь</td><td><input class="field-control" name="month_11" value="100000.00"></td></tr>
-                                                <tr><td>Декабрь</td><td><input class="field-control" name="month_12" value="100000.00"></td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </details>
-                            <div>
-                                <label class="field-label" for="approver_id">Утверждающий</label>
-                                <select class="field-control-select" id="approver_id" name="approver_id">
-                                    {% for approver in approvers %}
-                                        <option value="{{ approver.id }}">{{ approver.username }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="comment">Комментарий</label>
-                                <input class="field-control" id="comment" name="comment" value="Пилотный лимит">
-                            </div>
-                        </form>
-                    </div>
-                </details>
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell"><div class="metric-value">{{ plans|length }}</div><div class="metric-label">Лимитов</div></div>
+            <div class="metric-cell"><div class="metric-value">{{ adjustments|length }}</div><div class="metric-label">Корректировок</div></div>
+            <div class="metric-cell"><div class="metric-value">Wizard</div><div class="metric-label">Создание</div></div>
+            <div class="metric-cell"><div class="metric-value">≤ бюджет</div><div class="metric-label">Контроль</div></div>
+        </div>
 
-                <details class="form-section">
-                    <summary>Корректировка лимита</summary>
-                    <div class="form-section-content">
-                        <p class="section-subtitle">Создание новой версии лимита на основе утвержденного плана.</p>
-                        <form method="post" class="form-stack form-grid form-grid-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="create_adjustment">
-                            <div class="form-grid-span-full">
-                                <label class="field-label" for="base_plan_id">Базовый план</label>
-                                <select class="field-control-select" id="base_plan_id" name="base_plan_id">
-                                    {% for plan in approved_plans %}
-                                        <option value="{{ plan.id }}">{{ plan.number }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="new_annual_amount">Новая годовая сумма</label>
-                                <input class="field-control" id="new_annual_amount" name="new_annual_amount" value="1320000.00">
-                            </div>
-                            <div>
-                                <label class="field-label" for="reason">Причина</label>
-                                <input class="field-control" id="reason" name="reason" value="Уточнение бюджета">
-                            </div>
-                            <details class="form-section form-grid-span-full">
-                                <summary>Новая помесячная разбивка</summary>
-                                <div class="form-section-content">
-                                    <div class="data-table-wrap">
-                                        <table class="data-table table-narrow">
-                                            <tbody>
-                                                <tr><td>Январь</td><td><input class="field-control" name="adjustment_month_1" value="110000.00"></td></tr>
-                                                <tr><td>Февраль</td><td><input class="field-control" name="adjustment_month_2" value="110000.00"></td></tr>
-                                                <tr><td>Март</td><td><input class="field-control" name="adjustment_month_3" value="110000.00"></td></tr>
-                                                <tr><td>Апрель</td><td><input class="field-control" name="adjustment_month_4" value="110000.00"></td></tr>
-                                                <tr><td>Май</td><td><input class="field-control" name="adjustment_month_5" value="110000.00"></td></tr>
-                                                <tr><td>Июнь</td><td><input class="field-control" name="adjustment_month_6" value="110000.00"></td></tr>
-                                                <tr><td>Июль</td><td><input class="field-control" name="adjustment_month_7" value="110000.00"></td></tr>
-                                                <tr><td>Август</td><td><input class="field-control" name="adjustment_month_8" value="110000.00"></td></tr>
-                                                <tr><td>Сентябрь</td><td><input class="field-control" name="adjustment_month_9" value="110000.00"></td></tr>
-                                                <tr><td>Октябрь</td><td><input class="field-control" name="adjustment_month_10" value="110000.00"></td></tr>
-                                                <tr><td>Ноябрь</td><td><input class="field-control" name="adjustment_month_11" value="110000.00"></td></tr>
-                                                <tr><td>Декабрь</td><td><input class="field-control" name="adjustment_month_12" value="110000.00"></td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </details>
-                            <button class="command-button-primary form-grid-span-full" type="submit">Создать корректировку</button>
-                        </form>
-                    </div>
-                </details>
-            {% else %}
-                <details class="form-section" open>
-                    <summary>Режим утверждения</summary>
-                    <div class="form-section-content">
-                        <div>
-                            <div class="field-label">Роль</div>
-                            <div class="field-control is-focused">Руководитель</div>
-                        </div>
-                        <div>
-                            <div class="field-label">Доступное действие</div>
-                            <div class="field-control"><span><span class="status-dot"></span>Утверждение лимитов</span></div>
-                        </div>
-                    </div>
-                </details>
-            {% endif %}
-        </aside>
-
-        <section class="data-panel stack">
-            <div class="metric-strip">
-                <div class="metric-cell">
-                    <div class="metric-value">{{ plans|length }}</div>
-                    <div class="metric-label">Документы</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">12</div>
-                    <div class="metric-label">Месяцев в плане</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">1-3</div>
-                    <div class="metric-label">Горизонт, лет</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">v1</div>
-                    <div class="metric-label">Версия документа</div>
-                </div>
-            </div>
-
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Планов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по планам"
-                    data-table-search="#plans-table"
-                    data-table-count="#plans-table-count"
-                >
-            </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="plans-table" class="data-table">
-                    <thead>
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Лимитов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
+            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по лимитам" data-table-search="#plans-table" data-table-count="#plans-table-count">
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="plans-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col" class="table-col-doc">Номер</th>
+                        <th scope="col" class="table-col-doc">Бюджет</th>
+                        <th scope="col">Компания</th>
+                        <th scope="col" class="table-col-short">Год</th>
+                        <th scope="col" class="table-col-counterparty">ЦФО</th>
+                        <th scope="col" class="table-col-article">Статья</th>
+                        <th scope="col" class="table-col-number">Сумма</th>
+                        <th scope="col" class="table-col-status">Статус</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for plan in plans %}
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th class="table-col-doc">Номер</th>
-                            <th class="table-col-short">Год</th>
-                            <th class="table-col-counterparty">ЦФО</th>
-                            <th class="table-col-article">Статья</th>
-                            <th class="table-col-number">Сумма</th>
-                            <th class="table-col-status">Статус</th>
-                            <th class="table-action-col">Действие</th>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
+                            <td class="table-col-doc table-cell-nowrap">{% if plan.budget %}{{ plan.budget.number }}{% else %}—{% endif %}</td>
+                            <td>{{ plan.organization.name }}</td>
+                            <td class="table-col-short">{{ plan.planning_year }}</td>
+                            <td class="table-col-counterparty">{{ plan.department.name }}</td>
+                            <td class="table-col-article">{{ plan.article.name }}</td>
+                            <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
+                            <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span></td>
+                            <td class="table-action-col">
+                                {% if plan.status == status.DRAFT and can_edit_plans %}
+                                    <a class="command-button" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
+                                {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit' plan.id 'approve' %}">Утвердить</a>
+                                {% elif plan.status == status.APPROVED and can_create_limit_adjustments %}
+                                    <a class="command-button" href="/planning/adjustments/wizard/">Корректировать</a>
+                                {% else %}
+                                    <span class="badge">Открыть</span>
+                                {% endif %}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for plan in plans %}
-                            <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
-                                <td class="table-col-short">{{ plan.planning_year }}</td>
-                                <td class="table-col-counterparty">{{ plan.department.name }}</td>
-                                <td class="table-col-article">{{ plan.article.name }}</td>
-                                <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
-                                <td class="table-col-status">
-                                    <span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span>
-                                </td>
-                                <td class="table-action-col">
-                                    {% if plan.status == status.DRAFT and can_edit_plans %}
-                                        <form method="post">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="submit">
-                                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                            <button class="command-button" type="submit">На утверждение</button>
-                                        </form>
-                                    {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
-                                        <form method="post">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="approve">
-                                            <input type="hidden" name="plan_id" value="{{ plan.id }}">
-                                            <button class="command-button-primary" type="submit">Утвердить</button>
-                                        </form>
-                                    {% else %}
-                                        <span class="badge">Открыть</span>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="8">Планов пока нет. Заполните реквизиты ниже и нажмите "Записать".</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                    {% empty %}
+                        <tr><td colspan="10">Лимитов пока нет. Запустите первичный ввод через wizard.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-            <div class="summary-line">
-                <span>Контроль</span>
-                <span class="summary-value">месяцы = год</span>
-            </div>
-
-            <div>
-                <h2 class="section-title">Корректировки лимитов</h2>
-                <div class="table-toolbar">
-                    <span class="table-toolbar-note">Корректировок: <strong id="adjustments-table-count">{{ adjustments|length }}</strong></span>
-                    <input
-                        class="field-control field-control-sm table-search-input"
-                        type="search"
-                        placeholder="Поиск по корректировкам"
-                        data-table-search="#adjustments-table"
-                        data-table-count="#adjustments-table-count"
-                    >
-                </div>
-                <div class="data-table-wrap desktop-scroll">
-                    <table id="adjustments-table" class="data-table">
-                        <thead>
-                            <tr>
-                                <th class="checkbox-cell"></th>
-                                <th class="table-col-doc">Номер</th>
-                                <th class="table-col-doc">Базовый план</th>
-                                <th class="table-col-number">Новая сумма</th>
-                                <th class="table-col-short">Версия</th>
-                                <th class="table-col-status">Статус</th>
-                                <th class="table-action-col">Действие</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for adjustment in adjustments %}
-                                <tr>
-                                    <td><span class="fake-checkbox"></span></td>
-                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
-                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
-                                    <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
-                                    <td class="table-col-short">v{{ adjustment.version }}</td>
-                                    <td class="table-col-status">
-                                        <span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span>
-                                    </td>
-                                    <td class="table-action-col">
-                                        {% if adjustment.status == status.DRAFT and can_edit_plans %}
-                                            <form method="post">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="action" value="submit_adjustment">
-                                                <input type="hidden" name="adjustment_id" value="{{ adjustment.id }}">
-                                                <button class="command-button" type="submit">На утверждение</button>
-                                            </form>
-                                        {% elif adjustment.status == status.PENDING_APPROVAL and can_approve_plans %}
-                                            <form method="post">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="action" value="approve_adjustment">
-                                                <input type="hidden" name="adjustment_id" value="{{ adjustment.id }}">
-                                                <button class="command-button-primary" type="submit">Утвердить</button>
-                                            </form>
-                                        {% else %}
-                                            <span class="badge">Открыть</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% empty %}
-                                <tr><td colspan="7">Корректировок пока нет.</td></tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-    </div>
+        <h2 class="section-title">Корректировки лимитов</h2>
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Корректировок: <strong id="adjustments-table-count">{{ adjustments|length }}</strong></span>
+            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по корректировкам" data-table-search="#adjustments-table" data-table-count="#adjustments-table-count">
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="adjustments-table" class="data-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col" class="table-col-doc">Номер</th>
+                        <th scope="col" class="table-col-doc">Базовый лимит</th>
+                        <th scope="col">Перенос</th>
+                        <th scope="col" class="table-col-number">Новая сумма</th>
+                        <th scope="col" class="table-col-short">Версия</th>
+                        <th scope="col" class="table-col-status">Статус</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for adjustment in adjustments %}
+                        <tr>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
+                            <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
+                            <td>{% if adjustment.target_organization %}→ {{ adjustment.target_organization.name }}{% else %}Внутри компании{% endif %}</td>
+                            <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
+                            <td class="table-col-short">v{{ adjustment.version }}</td>
+                            <td class="table-col-status"><span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span></td>
+                            <td class="table-action-col">
+                                {% if adjustment.status == status.DRAFT and can_edit_plans %}
+                                    <a class="command-button" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'submit' %}">На утверждение</a>
+                                {% elif adjustment.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'approve' %}">Утвердить</a>
+                                {% else %}
+                                    <span class="badge">Открыть</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="8">Корректировок пока нет.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
 {% endblock %}

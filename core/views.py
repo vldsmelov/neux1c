@@ -21,11 +21,12 @@ from django.utils.safestring import mark_safe
 
 from .models import (
     AdditionalAgreement,
-    AuditAction,
-    AuditLog,
     BudgetLimitAdjustment,
     BudgetLimitPlan,
+    BudgetPlan,
+    BudgetPeriodicity,
     BudgetPlanStatus,
+    BudgetScope,
     CashFlowArticle,
     Contract,
     ContractKind,
@@ -55,8 +56,17 @@ from .services.budget_planning import (
     approve_limit_adjustment,
     create_budget_plan,
     create_limit_adjustment,
+    create_limit_adjustment_request,
     submit_budget_plan,
     submit_limit_adjustment,
+)
+from .services.budgets import (
+    approve_budget,
+    build_budget_rows,
+    build_budget_summary,
+    create_budget,
+    create_primary_budget_package,
+    submit_budget,
 )
 from .services.contract_reservations import build_contract_reservation_rows, build_contract_reservation_summary
 from .services.contract_tree import ContractTreeFilters, build_contract_tree
@@ -69,6 +79,7 @@ from .services.payment_requests import (
     reject_payment_request,
     submit_payment_request,
     transfer_payment_request_to_do,
+    update_payment_request,
 )
 from .services.payment_fact_adjustments import adjust_payment_fact
 from .services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
@@ -77,6 +88,21 @@ from .services.plan_fact_report import PlanFactFilters, build_plan_fact_report, 
 User = get_user_model()
 BASE_DIR = Path(__file__).resolve().parent.parent
 USER_GUIDE_DIR = BASE_DIR / "docs" / "user-guide"
+PRIMARY_WIZARD_LIMIT_ROWS = 12
+WIZARD_MONTHS = [
+    (1, "Янв"),
+    (2, "Фев"),
+    (3, "Мар"),
+    (4, "Апр"),
+    (5, "Май"),
+    (6, "Июн"),
+    (7, "Июл"),
+    (8, "Авг"),
+    (9, "Сен"),
+    (10, "Окт"),
+    (11, "Ноя"),
+    (12, "Дек"),
+]
 
 
 class RoleAwareLoginView(LoginView):
@@ -104,6 +130,17 @@ def set_theme_mode(request):
     next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("workspace")
     if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}):
         next_url = reverse("workspace")
+    return redirect(next_url)
+
+
+@login_required
+def set_working_organization(request):
+    organization = get_object_or_404(Organization, pk=request.POST.get("organization_id"))
+    request.session["working_organization_id"] = organization.id
+    next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse("workspace")
+    if not url_has_allowed_host_and_scheme(next_url, {request.get_host()}):
+        next_url = reverse("workspace")
+    messages.success(request, f"Рабочая компания: {organization.name}")
     return redirect(next_url)
 
 
@@ -154,13 +191,109 @@ def integration_requests(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def integration_request_wizard(request):
+    if request.method == "POST":
+        try:
+            integration_request = create_integration_request(
+                requested_by=request.user,
+                integration_name=request.POST.get("integration_name", ""),
+                target_system=request.POST.get("target_system", ""),
+                description=request.POST.get("description", ""),
+            )
+            messages.success(request, f"Заявка {integration_request.number} создана")
+            return redirect("integration_requests")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("integration_request_wizard")
+
+    return render(
+        request,
+        "core/integration_request_wizard.html",
+        {"active_section": "settings"},
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def integration_request_status_wizard(request, request_id: int):
+    integration_request = get_object_or_404(IntegrationRequest, pk=request_id)
+    if request.method == "POST":
+        try:
+            if not _is_administrator(request.user):
+                raise ValueError("Изменять статус заявки может только администратор")
+            update_integration_request_status(
+                request=integration_request,
+                admin_user=request.user,
+                status=request.POST.get("status", ""),
+                admin_comment=request.POST.get("admin_comment", ""),
+            )
+            messages.success(request, f"Статус заявки {integration_request.number} обновлен")
+            return redirect("integration_requests")
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect("integration_request_status_wizard", request_id=integration_request.id)
+
+    return render(
+        request,
+        "core/integration_request_status_wizard.html",
+        {
+            "active_section": "settings",
+            "item": integration_request,
+            "status_choices": list(IntegrationRequestStatus.choices),
+            "can_manage_integration_requests": _is_administrator(request.user),
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def document_action_wizard(request, document_type: str, document_id: int, action: str):
+    config = _document_action_config(document_type, action, document_id)
+    if config is None:
+        raise Http404("Document action not found")
+
+    document = config["document"]
+    can_execute = config["can_execute"](request.user, document)
+    if request.method == "POST":
+        try:
+            if not can_execute:
+                raise ValueError(config["permission_error"])
+            comment = request.POST.get("comment", "")
+            config["execute"](document, request.user, comment)
+            messages.success(request, config["success_message"].format(number=document.number))
+            return redirect(config["return_route"])
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect(
+                "document_action_wizard",
+                document_type=document_type,
+                document_id=document_id,
+                action=action,
+            )
+
+    context = {
+        "active_section": config["active_section"],
+        "document": document,
+        "document_kind": config["document_kind"],
+        "details": config["details"](document),
+        "action_label": config["action_label"],
+        "action_text": config["action_text"],
+        "submit_label": config["submit_label"],
+        "comment_label": config.get("comment_label", "Комментарий"),
+        "comment_placeholder": config.get("comment_placeholder", ""),
+        "comment_required": config.get("comment_required", False),
+        "can_execute": can_execute,
+        "return_url": reverse(config["return_route"]),
+    }
+    return render(request, "core/document_action_wizard.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def workspace(request):
     modules = [
         {
             "name": "Планирование",
-            "document": "План / лимит",
+            "document": "Бюджет и лимит",
             "state": "В работе",
-            "check": "Создание и утверждение",
+            "check": "Бюджет, резерв и контроль лимитов",
         },
         {
             "name": "НСИ",
@@ -199,12 +332,15 @@ def workspace(request):
         "payment_facts": PaymentFact.objects.count(),
         "sync_runs": SyncRun.objects.count(),
     }
+    working_organization = _working_organization(request)
+    workday = _build_workday_context(request.user, working_organization)
     return render(
         request,
         "core/workspace.html",
         {
             "modules": modules,
             "counts": counts,
+            "workday": workday,
             "active_section": "workspace",
         },
     )
@@ -248,19 +384,131 @@ def nsi_dashboard(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def planning_wizard(request):
+    departments = list(Department.objects.all())
+    working_organization = _working_organization(request)
+    can_create_package = (
+        _can_create_budgets(request.user)
+        and _can_create_plans(request.user)
+        and _can_edit_plans(request.user)
+    )
+
+    if request.method == "POST":
+        try:
+            if not can_create_package:
+                raise ValueError(
+                    "Первичный ввод бюджета и лимитов может выполнять экономист или администратор"
+                )
+            budget, limits = create_primary_budget_package(
+                author=request.user,
+                organization=working_organization,
+                budget_year=int(request.POST.get("budget_year")),
+                scope=request.POST.get("scope", ""),
+                currency=get_object_or_404(Currency, pk=request.POST.get("currency_id")),
+                approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
+                total_amount=_parse_decimal(request.POST.get("total_amount")),
+                department_amounts=_parse_department_budget_amounts(request.POST, departments),
+                limit_rows=_parse_primary_wizard_limit_rows(request.POST),
+                comment=request.POST.get("comment", ""),
+            )
+            messages.success(
+                request,
+                f"Документ {budget.number} отправлен на утверждение. Лимитов в пакете: {len(limits)}",
+            )
+            return redirect("planning_budgets")
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("planning_wizard")
+
+    context = {
+        "active_section": "planning",
+        "departments": departments,
+        "articles": CashFlowArticle.objects.all(),
+        "currencies": Currency.objects.all(),
+        "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
+        "current_year": timezone.localdate().year,
+        "working_organization": working_organization,
+        "scope": BudgetScope,
+        "periodicity": BudgetPeriodicity,
+        "wizard_limit_rows": [
+            {"index": index, "hidden": index > 3}
+            for index in range(1, PRIMARY_WIZARD_LIMIT_ROWS + 1)
+        ],
+        "months": [{"number": number, "label": label} for number, label in WIZARD_MONTHS],
+        "can_create_package": can_create_package,
+    }
+    return render(request, "core/planning_wizard.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def planning_budgets(request):
+    departments = list(Department.objects.all())
+    working_organization = _working_organization(request)
+    if request.method == "POST":
+        action = request.POST.get("action")
+        try:
+            if action == "create":
+                if not _can_create_budgets(request.user):
+                    raise ValueError("Создавать бюджеты может только экономист или администратор")
+                create_budget(
+                    author=request.user,
+                    organization=working_organization,
+                    budget_year=int(request.POST.get("budget_year")),
+                    scope=request.POST.get("scope", ""),
+                    currency=get_object_or_404(Currency, pk=request.POST.get("currency_id")),
+                    total_amount=_parse_decimal(request.POST.get("total_amount")),
+                    department_amounts=_parse_department_budget_amounts(request.POST, departments),
+                    comment=request.POST.get("comment", ""),
+                )
+                messages.success(request, "Бюджет создан")
+            elif action == "approve":
+                if not _can_approve_budgets(request.user):
+                    raise ValueError("Утверждать бюджеты может руководитель или администратор")
+                approve_budget(get_object_or_404(BudgetPlan, pk=request.POST.get("budget_id")), request.user)
+                messages.success(request, "Бюджет утвержден")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+        return redirect("planning_budgets")
+
+    rows = build_budget_rows(organization=working_organization)
+    context = {
+        "active_section": "planning",
+        "rows": rows,
+        "summary": build_budget_summary(rows),
+        "departments": departments,
+        "currencies": Currency.objects.all(),
+        "current_year": timezone.localdate().year,
+        "working_organization": working_organization,
+        "scope": BudgetScope,
+        "periodicity": BudgetPeriodicity,
+        "status": BudgetPlanStatus,
+        "can_create_budgets": _can_create_budgets(request.user),
+        "can_approve_budgets": _can_approve_budgets(request.user),
+    }
+    return render(request, "core/planning_budgets.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def planning_limits(request):
+    working_organization = _working_organization(request)
     if request.method == "POST":
         action = request.POST.get("action")
         try:
             if action == "create":
                 if not _can_create_plans(request.user):
                     raise ValueError("Создавать планы может только экономист или администратор")
+                budget = None
+                budget_id = request.POST.get("budget_id")
+                if budget_id:
+                    budget = get_object_or_404(BudgetPlan, pk=budget_id)
                 create_budget_plan(
                     author=request.user,
+                    budget=budget,
+                    organization=working_organization,
                     department=get_object_or_404(Department, pk=request.POST.get("department_id")),
                     article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
-                    currency=get_object_or_404(Currency, pk=request.POST.get("currency_id")),
-                    planning_year=int(request.POST.get("planning_year")),
+                    currency=budget.currency if budget else get_object_or_404(Currency, pk=request.POST.get("currency_id")),
+                    planning_year=budget.budget_year if budget else int(request.POST.get("planning_year")),
                     planning_horizon=int(request.POST.get("planning_horizon")),
                     annual_amount=_parse_decimal(request.POST.get("annual_amount")),
                     approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
@@ -307,17 +555,20 @@ def planning_limits(request):
 
     context = {
         "active_section": "planning",
-        "plans": BudgetLimitPlan.objects.select_related("department", "article", "currency", "approver", "author"),
-        "adjustments": BudgetLimitAdjustment.objects.select_related("base_plan", "article", "approver", "author"),
-        "approved_plans": BudgetLimitPlan.objects.filter(status=BudgetPlanStatus.APPROVED).select_related("currency"),
+        "plans": BudgetLimitPlan.objects.filter(organization=working_organization).select_related("budget", "department", "article", "currency", "approver", "author"),
+        "adjustments": BudgetLimitAdjustment.objects.filter(base_plan__organization=working_organization).select_related("base_plan", "article", "approver", "author", "target_plan", "target_organization"),
+        "approved_plans": BudgetLimitPlan.objects.filter(organization=working_organization, status=BudgetPlanStatus.APPROVED).select_related("currency"),
+        "budgets": BudgetPlan.objects.filter(organization=working_organization, status=BudgetPlanStatus.APPROVED).select_related("currency"),
         "departments": Department.objects.all(),
         "articles": CashFlowArticle.objects.all(),
         "currencies": Currency.objects.all(),
         "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
         "current_year": timezone.localdate().year,
+        "working_organization": working_organization,
         "status": BudgetPlanStatus,
         "can_edit_plans": _can_edit_plans(request.user),
         "can_create_plans": _can_create_plans(request.user),
+        "can_create_limit_adjustments": _can_create_limit_adjustments(request.user),
         "can_approve_plans": _can_approve_plans(request.user),
         "plans_acl": {
             "view": _has_model_permission(request.user, BudgetLimitPlan, "view"),
@@ -327,6 +578,48 @@ def planning_limits(request):
         },
     }
     return render(request, "core/planning_limits.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def limit_adjustment_wizard(request):
+    can_create_adjustment = _can_create_limit_adjustments(request.user) and _can_edit_limit_adjustments(request.user)
+    working_organization = _working_organization(request)
+
+    if request.method == "POST":
+        try:
+            if not can_create_adjustment:
+                raise ValueError("Заявку на корректировку лимита может создать экономист или администратор")
+            adjustment = create_limit_adjustment_request(
+                author=request.user,
+                base_plan=get_object_or_404(
+                    BudgetLimitPlan,
+                    pk=request.POST.get("base_plan_id"),
+                    status=BudgetPlanStatus.APPROVED,
+                ),
+                new_annual_amount=_parse_decimal(request.POST.get("new_annual_amount")),
+                reason=request.POST.get("reason", ""),
+                monthly_amounts=_parse_adjustment_monthly_amounts(request.POST),
+                target_plan=_resolve_target_plan(request.POST.get("target_plan_id")),
+            )
+            messages.success(request, f"Заявка {adjustment.number} отправлена на утверждение")
+            return redirect("planning_limits")
+        except (InvalidOperation, TypeError, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("limit_adjustment_wizard")
+
+    context = {
+        "active_section": "planning",
+        "approved_plans": BudgetLimitPlan.objects.filter(organization=working_organization, status=BudgetPlanStatus.APPROVED)
+        .select_related("budget", "department", "article", "currency", "approver")
+        .prefetch_related("months"),
+        "target_plans": BudgetLimitPlan.objects.filter(status=BudgetPlanStatus.APPROVED)
+        .exclude(organization=working_organization)
+        .select_related("organization", "budget", "department", "article", "currency"),
+        "months": [{"number": number, "label": label} for number, label in WIZARD_MONTHS],
+        "can_create_adjustment": can_create_adjustment,
+        "working_organization": working_organization,
+    }
+    return render(request, "core/limit_adjustment_wizard.html", context)
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
@@ -372,6 +665,7 @@ def contracts_tree(request):
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def payment_requests(request):
+    working_organization = _working_organization(request)
     if request.method == "POST":
         action = request.POST.get("action")
         try:
@@ -477,8 +771,9 @@ def payment_requests(request):
             "currency",
             "approver",
             "author",
-        ),
+        ).filter(organization=working_organization),
         "organizations": Organization.objects.all(),
+        "working_organization": working_organization,
         "articles": CashFlowArticle.objects.all(),
         "counterparties": Counterparty.objects.all(),
         "contracts": contracts,
@@ -522,7 +817,64 @@ def payment_requests(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_request_wizard(request):
+    can_create_request = _can_create_payment_requests(request.user) and _can_manage_payment_requests(request.user)
+    working_organization = _working_organization(request)
+    if request.method == "POST":
+        try:
+            if not can_create_request:
+                raise ValueError("Заявку на оплату может создать экономист или администратор")
+            payment_request = _create_payment_request_from_request(request)
+            submit_payment_request(payment_request, request.user)
+            messages.success(request, f"Заявка {payment_request.number} отправлена на согласование")
+            return redirect("payment_requests")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("payment_request_wizard")
+
+    context = {
+        "active_section": "payments",
+        "request_kind": PaymentRequestKind,
+        "can_create_request": can_create_request,
+        "working_organization": working_organization,
+        **_payment_request_reference_context(),
+    }
+    return render(request, "core/payment_request_wizard.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_request_edit_wizard(request, request_id: int):
+    payment_request = get_object_or_404(PaymentRequest, pk=request_id)
+    can_edit_request = _can_manage_payment_requests(request.user) and payment_request.status in [
+        PaymentRequestStatus.DRAFT,
+        PaymentRequestStatus.REJECTED,
+    ]
+
+    if request.method == "POST":
+        try:
+            if not can_edit_request:
+                raise ValueError("Редактировать заявку может экономист или администратор")
+            _update_payment_request_from_request(payment_request, request)
+            messages.success(request, f"Заявка {payment_request.number} сохранена")
+            return redirect("payment_requests")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("payment_request_edit_wizard", request_id=payment_request.id)
+
+    context = {
+        "active_section": "payments",
+        "payment_request": payment_request,
+        "request_kind": PaymentRequestKind,
+        "can_edit_request": can_edit_request,
+        "working_organization": _working_organization(request),
+        **_payment_request_reference_context(),
+    }
+    return render(request, "core/payment_request_edit_wizard.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def payment_facts(request):
+    working_organization = _working_organization(request)
     if request.method == "POST":
         action = request.POST.get("action")
         try:
@@ -553,7 +905,7 @@ def payment_facts(request):
 
     facts_query = PaymentFact.objects.select_related(
         "organization", "article", "counterparty", "contract", "currency"
-    ).filter(date__year=selected_year)
+    ).filter(organization=working_organization, date__year=selected_year)
     if selected_month:
         facts_query = facts_query.filter(date__month=selected_month)
     if selected_accounting_kind:
@@ -597,6 +949,7 @@ def payment_facts(request):
         "selected_accounting_kind": selected_accounting_kind,
         "selected_article_id": selected_article_id,
         "selected_counterparty_id": selected_counterparty_id,
+        "working_organization": working_organization,
         "can_view_payment_facts": _can_view_payment_facts(request.user),
         "can_edit_payment_facts": _can_edit_payment_facts(request.user),
         "payment_facts_acl": {
@@ -607,6 +960,42 @@ def payment_facts(request):
         },
     }
     return render(request, "core/payment_facts.html", context)
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_fact_adjustment_wizard(request):
+    if request.method == "POST":
+        try:
+            if not _can_edit_payment_facts(request.user):
+                raise ValueError("Корректировать факт может только экономист или администратор")
+            fact = get_object_or_404(PaymentFact, pk=request.POST.get("fact_id"))
+            adjustment = adjust_payment_fact(
+                payment_fact=fact,
+                author=request.user,
+                new_amount=_parse_decimal(request.POST.get("new_amount")),
+                reason=request.POST.get("reason", ""),
+                new_comment=request.POST.get("new_comment", ""),
+            )
+            messages.success(request, f"Корректировка факта v{adjustment.version} сохранена")
+            return redirect("payment_facts")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("payment_fact_adjustment_wizard")
+
+    facts = PaymentFact.objects.select_related(
+        "organization",
+        "article",
+        "counterparty",
+        "contract",
+        "currency",
+    ).order_by("-date", "-id")[:200]
+    context = {
+        "active_section": "payments",
+        "facts": facts,
+        "selected_fact_id": _parse_optional_int(request.GET.get("fact_id")),
+        "can_edit_payment_facts": _can_edit_payment_facts(request.user),
+    }
+    return render(request, "core/payment_fact_adjustment_wizard.html", context)
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
@@ -648,6 +1037,7 @@ def _legacy_plan_fact_report(request):
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def plan_fact_report(request):
+    working_organization = _working_organization(request)
     current_year = timezone.localdate().year
     templates = list(
         ReportTemplate.objects.filter(owner=request.user, report_type=ReportTemplateType.PLAN_FACT).order_by("name")
@@ -712,7 +1102,7 @@ def plan_fact_report(request):
     )
     selected_article_id = _read_filter_int(request.GET, base_filters, "article_id")
     selected_counterparty_id = _read_filter_int(request.GET, base_filters, "counterparty_id")
-    selected_organization_id = _read_filter_int(request.GET, base_filters, "organization_id")
+    selected_organization_id = _read_filter_int(request.GET, base_filters, "organization_id") or working_organization.id
     selected_customer_contract_id = _read_filter_int(request.GET, base_filters, "customer_contract_id")
     selected_supplier_contract_id = _read_filter_int(request.GET, base_filters, "supplier_contract_id")
 
@@ -752,6 +1142,7 @@ def plan_fact_report(request):
         "selected_request_status": selected_status,
         "report_templates": templates,
         "selected_template_id": selected_template_id,
+        "working_organization": working_organization,
         "can_manage_report_templates": _can_manage_report_templates(request.user),
         "active_filters_payload": {
             "year": selected_year,
@@ -768,13 +1159,15 @@ def plan_fact_report(request):
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def manager_dashboard(request):
+    working_organization = _working_organization(request)
     current_year = timezone.localdate().year
     selected_year = _parse_optional_int(request.GET.get("year")) or current_year
-    payload = build_manager_dashboard(year=selected_year)
+    payload = build_manager_dashboard(year=selected_year, organization_id=working_organization.id)
     context = {
         "active_section": "reports",
         "years": list(range(current_year - 1, current_year + 3)),
         "selected_year": selected_year,
+        "working_organization": working_organization,
         **payload,
     }
     return render(request, "core/manager_dashboard.html", context)
@@ -820,6 +1213,49 @@ def external_accounting(request):
             "active_section": "external_accounting",
             "rows": rows,
             "payments_total": sum(row["paid_amount"] for row in rows),
+        },
+    )
+
+
+@external_accounting_required
+def external_payment_wizard(request):
+    if request.method == "POST":
+        contract = get_object_or_404(
+            Contract,
+            pk=request.POST.get("contract_id"),
+            kind=ContractKind.SOLE_SUPPLIER,
+        )
+        try:
+            amount = _parse_decimal(request.POST.get("amount")) or remaining_contract_amount(contract)
+            payment = pay_contract(contract=contract, accountant=request.user, amount=amount)
+            messages.success(request, f"Оплата {payment.number} проведена")
+            return redirect("external_accounting")
+        except (InvalidOperation, ValueError) as exc:
+            messages.error(request, str(exc))
+            return redirect("external_payment_wizard")
+
+    supplier_contracts = Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related(
+        "counterparty",
+        "currency",
+    )
+    rows = []
+    for contract in supplier_contracts:
+        paid_amount = paid_amount_for_contract(contract)
+        remaining_amount = remaining_contract_amount(contract)
+        if remaining_amount > 0:
+            rows.append(
+                {
+                    "contract": contract,
+                    "paid_amount": paid_amount,
+                    "remaining_amount": remaining_amount,
+                }
+            )
+    return render(
+        request,
+        "core/external_payment_wizard.html",
+        {
+            "active_section": "external_accounting",
+            "rows": rows,
         },
     )
 
@@ -877,23 +1313,236 @@ def _parse_decimal(raw_value):
     return Decimal(raw_value.replace(" ", "").replace(",", "."))
 
 
+def _payment_request_reference_context():
+    contracts = list(
+        Contract.objects.filter(kind=ContractKind.SOLE_SUPPLIER).select_related("counterparty", "currency")
+    )
+    agreements = list(
+        AdditionalAgreement.objects.select_related("contract", "currency", "contract__counterparty").order_by(
+            "date",
+            "number",
+        )
+    )
+    return {
+        "organizations": Organization.objects.all(),
+        "articles": CashFlowArticle.objects.all(),
+        "counterparties": Counterparty.objects.all(),
+        "contracts": contracts,
+        "agreements": agreements,
+        "contracts_autofill": [
+            {
+                "id": contract.id,
+                "counterparty_id": contract.counterparty_id,
+                "currency_id": contract.currency_id,
+                "amount": str(contract.amount),
+                "manual_exchange_rate": str(contract.manual_exchange_rate),
+            }
+            for contract in contracts
+        ],
+        "agreements_autofill": [
+            {
+                "id": agreement.id,
+                "contract_id": agreement.contract_id,
+            }
+            for agreement in agreements
+        ],
+        "currencies": Currency.objects.all(),
+        "approvers": User.objects.filter(profile__role=UserRole.MANAGER),
+    }
+
+
+def _create_payment_request_from_request(request):
+    contract = None
+    contract_id = request.POST.get("contract_id")
+    if contract_id:
+        contract = get_object_or_404(Contract, pk=contract_id)
+
+    additional_agreement = None
+    additional_agreement_id = request.POST.get("additional_agreement_id")
+    if additional_agreement_id:
+        additional_agreement = get_object_or_404(AdditionalAgreement, pk=additional_agreement_id)
+
+    counterparty = contract.counterparty if contract else get_object_or_404(
+        Counterparty,
+        pk=request.POST.get("counterparty_id"),
+    )
+    currency = contract.currency if contract else get_object_or_404(
+        Currency,
+        pk=request.POST.get("currency_id"),
+    )
+    amount_raw = (request.POST.get("amount") or "").strip()
+    amount = _parse_decimal(amount_raw) if amount_raw else (contract.amount if contract else None)
+    manual_exchange_rate_raw = (request.POST.get("manual_exchange_rate") or "").strip()
+    manual_exchange_rate = (
+        _parse_decimal(manual_exchange_rate_raw)
+        if manual_exchange_rate_raw
+        else (contract.manual_exchange_rate if contract else None)
+    )
+    return create_payment_request(
+        author=request.user,
+        request_kind=request.POST.get("request_kind"),
+        organization=get_object_or_404(Organization, pk=request.POST.get("organization_id")),
+        article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
+        counterparty=counterparty,
+        contract=contract,
+        additional_agreement=additional_agreement,
+        currency=currency,
+        amount=amount,
+        manual_exchange_rate=manual_exchange_rate,
+        approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
+        invoice_number=request.POST.get("invoice_number", ""),
+        invoice_date=_parse_optional_date(request.POST.get("invoice_date")),
+        payment_purpose=request.POST.get("payment_purpose", ""),
+        comment=request.POST.get("comment", ""),
+        justification_text=request.POST.get("justification_text", ""),
+        justification_file=request.FILES.get("justification_file"),
+    )
+
+
+def _update_payment_request_from_request(payment_request, request):
+    contract = None
+    contract_id = request.POST.get("contract_id")
+    if contract_id:
+        contract = get_object_or_404(Contract, pk=contract_id)
+
+    additional_agreement = None
+    additional_agreement_id = request.POST.get("additional_agreement_id")
+    if additional_agreement_id:
+        additional_agreement = get_object_or_404(AdditionalAgreement, pk=additional_agreement_id)
+
+    counterparty = contract.counterparty if contract else get_object_or_404(
+        Counterparty,
+        pk=request.POST.get("counterparty_id"),
+    )
+    currency = contract.currency if contract else get_object_or_404(
+        Currency,
+        pk=request.POST.get("currency_id"),
+    )
+    amount_raw = (request.POST.get("amount") or "").strip()
+    amount = _parse_decimal(amount_raw) if amount_raw else (contract.amount if contract else None)
+    manual_exchange_rate_raw = (request.POST.get("manual_exchange_rate") or "").strip()
+    manual_exchange_rate = (
+        _parse_decimal(manual_exchange_rate_raw)
+        if manual_exchange_rate_raw
+        else (contract.manual_exchange_rate if contract else None)
+    )
+    return update_payment_request(
+        request=payment_request,
+        user=request.user,
+        request_kind=request.POST.get("request_kind"),
+        organization=get_object_or_404(Organization, pk=request.POST.get("organization_id")),
+        article=get_object_or_404(CashFlowArticle, pk=request.POST.get("article_id")),
+        counterparty=counterparty,
+        contract=contract,
+        additional_agreement=additional_agreement,
+        currency=currency,
+        amount=amount,
+        manual_exchange_rate=manual_exchange_rate,
+        approver=get_object_or_404(User, pk=request.POST.get("approver_id")),
+        invoice_number=request.POST.get("invoice_number", ""),
+        invoice_date=_parse_optional_date(request.POST.get("invoice_date")),
+        payment_purpose=request.POST.get("payment_purpose", ""),
+        comment=request.POST.get("comment", ""),
+        justification_text=request.POST.get("justification_text", ""),
+        justification_file=request.FILES.get("justification_file"),
+    )
+
+
 def _parse_monthly_amounts(post_data):
     values = {}
+    seen_any = False
     for month in range(1, 13):
         raw_value = post_data.get(f"month_{month}")
         if raw_value in (None, ""):
-            return None
+            continue
+        seen_any = True
         values[month] = _parse_decimal(raw_value)
+    if not seen_any:
+        return None
+    if set(values.keys()) != set(range(1, 13)):
+        raise ValueError("Если указываете помесячную разбивку, заполните все 12 месяцев")
     return values
 
 
 def _parse_adjustment_monthly_amounts(post_data):
     values = {}
+    seen_any = False
     for month in range(1, 13):
         raw_value = post_data.get(f"adjustment_month_{month}")
         if raw_value in (None, ""):
-            return None
+            continue
+        seen_any = True
         values[month] = _parse_decimal(raw_value)
+    if not seen_any:
+        return None
+    if set(values.keys()) != set(range(1, 13)):
+        raise ValueError("Если указываете помесячную корректировку, заполните все 12 месяцев")
+    return values
+
+
+def _resolve_target_plan(raw_plan_id):
+    plan_id = _parse_optional_int(raw_plan_id)
+    if not plan_id:
+        return None
+    return get_object_or_404(BudgetLimitPlan, pk=plan_id, status=BudgetPlanStatus.APPROVED)
+
+
+def _parse_department_budget_amounts(post_data, departments):
+    values = {}
+    for department in departments:
+        raw_value = (post_data.get(f"department_budget_{department.id}") or "").strip()
+        if not raw_value:
+            continue
+        values[department.id] = _parse_decimal(raw_value)
+    return values
+
+
+def _parse_primary_wizard_limit_rows(post_data):
+    rows = []
+    for index in range(1, PRIMARY_WIZARD_LIMIT_ROWS + 1):
+        department_id = (post_data.get(f"limit_{index}_department_id") or "").strip()
+        article_id = (post_data.get(f"limit_{index}_article_id") or "").strip()
+        annual_amount_raw = (post_data.get(f"limit_{index}_annual_amount") or "").strip()
+        has_months = any(
+            (post_data.get(f"limit_{index}_month_{month}") or "").strip()
+            for month, _label in WIZARD_MONTHS
+        )
+
+        if not any([department_id, article_id, annual_amount_raw, has_months]):
+            continue
+        if not department_id or not article_id or not annual_amount_raw:
+            raise ValueError(f"Заполните ЦФО, статью и годовой лимит в строке {index}")
+
+        rows.append(
+            {
+                "department": get_object_or_404(Department, pk=department_id),
+                "article": get_object_or_404(CashFlowArticle, pk=article_id),
+                "annual_amount": _parse_decimal(annual_amount_raw),
+                "monthly_amounts": _parse_primary_wizard_monthly_amounts(post_data, index),
+                "comment": (post_data.get(f"limit_{index}_comment") or "").strip(),
+            }
+        )
+
+    if not rows:
+        raise ValueError("Добавьте минимум один лимит")
+    return rows
+
+
+def _parse_primary_wizard_monthly_amounts(post_data, index: int):
+    values = {}
+    seen_any = False
+    for month, _label in WIZARD_MONTHS:
+        raw_value = (post_data.get(f"limit_{index}_month_{month}") or "").strip()
+        if not raw_value:
+            continue
+        seen_any = True
+        values[month] = _parse_decimal(raw_value)
+    if not seen_any:
+        return None
+    if set(values.keys()) != {month for month, _label in WIZARD_MONTHS}:
+        raise ValueError(
+            f"Если указываете помесячную разбивку в строке {index}, заполните все 12 месяцев"
+        )
     return values
 
 
@@ -973,12 +1622,586 @@ def _plan_fact_payload_to_query(payload: dict, template_id: int | None = None) -
     return urlencode(query)
 
 
+def _document_action_config(document_type: str, action: str, document_id: int):
+    def payment_document():
+        return get_object_or_404(
+            PaymentRequest.objects.select_related(
+                "organization",
+                "article",
+                "counterparty",
+                "contract",
+                "additional_agreement",
+                "currency",
+                "approver",
+                "author",
+            ),
+            pk=document_id,
+        )
+
+    configs = {
+        ("budget", "submit"): {
+            "document": lambda: get_object_or_404(BudgetPlan.objects.select_related("organization", "currency", "author"), pk=document_id),
+            "active_section": "planning",
+            "return_route": "planning_budgets",
+            "document_kind": "Бюджет",
+            "action_label": "Отправка бюджета",
+            "action_text": "Бюджет будет отправлен на утверждение и останется доступен в журнале бюджетов.",
+            "submit_label": "Отправить на утверждение",
+            "permission_error": "Отправлять бюджет может экономист или администратор",
+            "can_execute": lambda user, document: _can_create_budgets(user),
+            "execute": lambda document, user, comment: submit_budget(document, user),
+            "success_message": "Бюджет {number} отправлен на утверждение",
+            "details": _budget_action_details,
+        },
+        ("budget", "approve"): {
+            "document": lambda: get_object_or_404(BudgetPlan.objects.select_related("organization", "currency", "author"), pk=document_id),
+            "active_section": "planning",
+            "return_route": "planning_budgets",
+            "document_kind": "Бюджет",
+            "action_label": "Утверждение бюджета",
+            "action_text": "После утверждения бюджет станет базой контроля лимитов.",
+            "submit_label": "Утвердить бюджет",
+            "permission_error": "Утверждать бюджеты может руководитель или администратор",
+            "can_execute": lambda user, document: _can_approve_budgets(user),
+            "execute": lambda document, user, comment: approve_budget(document, user),
+            "success_message": "Бюджет {number} утвержден",
+            "details": _budget_action_details,
+        },
+        ("limit", "submit"): {
+            "document": lambda: get_object_or_404(
+                BudgetLimitPlan.objects.select_related("organization", "budget", "department", "article", "currency", "approver", "author"),
+                pk=document_id,
+            ),
+            "active_section": "planning",
+            "return_route": "planning_limits",
+            "document_kind": "Лимит",
+            "action_label": "Отправка лимита",
+            "action_text": "Лимит будет передан назначенному руководителю на утверждение.",
+            "submit_label": "Отправить на утверждение",
+            "permission_error": "Отправлять лимиты может экономист или администратор",
+            "can_execute": lambda user, document: _can_edit_plans(user),
+            "execute": lambda document, user, comment: submit_budget_plan(document, user),
+            "success_message": "Лимит {number} отправлен на утверждение",
+            "details": _limit_action_details,
+        },
+        ("limit", "approve"): {
+            "document": lambda: get_object_or_404(
+                BudgetLimitPlan.objects.select_related("organization", "budget", "department", "article", "currency", "approver", "author"),
+                pk=document_id,
+            ),
+            "active_section": "planning",
+            "return_route": "planning_limits",
+            "document_kind": "Лимит",
+            "action_label": "Утверждение лимита",
+            "action_text": "После утверждения лимит участвует в контроле платежных заявок.",
+            "submit_label": "Утвердить лимит",
+            "permission_error": "Утверждать лимиты может назначенный руководитель или администратор",
+            "can_execute": lambda user, document: _can_approve_plans(user),
+            "execute": lambda document, user, comment: approve_budget_plan(document, user),
+            "success_message": "Лимит {number} утвержден",
+            "details": _limit_action_details,
+        },
+        ("limit-adjustment", "submit"): {
+            "document": lambda: get_object_or_404(
+                BudgetLimitAdjustment.objects.select_related(
+                    "base_plan",
+                    "base_plan__organization",
+                    "base_plan__department",
+                    "base_plan__currency",
+                    "target_plan",
+                    "target_organization",
+                    "article",
+                    "approver",
+                    "author",
+                ),
+                pk=document_id,
+            ),
+            "active_section": "planning",
+            "return_route": "planning_limits",
+            "document_kind": "Корректировка лимита",
+            "action_label": "Отправка корректировки",
+            "action_text": "Заявка на корректировку лимита будет передана руководителю.",
+            "submit_label": "Отправить на утверждение",
+            "permission_error": "Отправлять корректировки может экономист или администратор",
+            "can_execute": lambda user, document: _can_edit_limit_adjustments(user),
+            "execute": lambda document, user, comment: submit_limit_adjustment(document, user),
+            "success_message": "Корректировка {number} отправлена на утверждение",
+            "details": _limit_adjustment_action_details,
+        },
+        ("limit-adjustment", "approve"): {
+            "document": lambda: get_object_or_404(
+                BudgetLimitAdjustment.objects.select_related(
+                    "base_plan",
+                    "base_plan__organization",
+                    "base_plan__department",
+                    "base_plan__currency",
+                    "target_plan",
+                    "target_organization",
+                    "article",
+                    "approver",
+                    "author",
+                ),
+                pk=document_id,
+            ),
+            "active_section": "planning",
+            "return_route": "planning_limits",
+            "document_kind": "Корректировка лимита",
+            "action_label": "Утверждение корректировки",
+            "action_text": "После утверждения новая сумма и месячная разбивка обновят базовый лимит.",
+            "submit_label": "Утвердить корректировку",
+            "permission_error": "Утверждать корректировку может назначенный руководитель или администратор",
+            "can_execute": lambda user, document: _can_approve_plans(user),
+            "execute": lambda document, user, comment: approve_limit_adjustment(document, user),
+            "success_message": "Корректировка {number} утверждена",
+            "details": _limit_adjustment_action_details,
+        },
+        ("payment-request", "submit"): {
+            "document": payment_document,
+            "active_section": "payments",
+            "return_route": "payment_requests",
+            "document_kind": "Заявка на оплату",
+            "action_label": "Отправка заявки",
+            "action_text": "Заявка будет отправлена назначенному руководителю на согласование.",
+            "submit_label": "Отправить на согласование",
+            "permission_error": "Отправлять заявки может экономист или администратор",
+            "can_execute": lambda user, document: _can_manage_payment_requests(user),
+            "execute": lambda document, user, comment: submit_payment_request(document, user),
+            "success_message": "Заявка {number} отправлена на согласование",
+            "details": _payment_request_action_details,
+        },
+        ("payment-request", "approve"): {
+            "document": payment_document,
+            "active_section": "payments",
+            "return_route": "payment_requests",
+            "document_kind": "Заявка на оплату",
+            "action_label": "Согласование заявки",
+            "action_text": "После согласования заявка будет готова к передаче во внешний документооборот.",
+            "submit_label": "Согласовать заявку",
+            "permission_error": "Согласовывать заявки может назначенный руководитель",
+            "can_execute": lambda user, document: _can_approve_payment_requests(user),
+            "execute": lambda document, user, comment: approve_payment_request(document, user),
+            "success_message": "Заявка {number} согласована",
+            "details": _payment_request_action_details,
+        },
+        ("payment-request", "reject"): {
+            "document": payment_document,
+            "active_section": "payments",
+            "return_route": "payment_requests",
+            "document_kind": "Заявка на оплату",
+            "action_label": "Отклонение заявки",
+            "action_text": "Заявка вернется автору на исправление. Комментарий обязателен.",
+            "submit_label": "Отклонить заявку",
+            "permission_error": "Отклонять заявки может назначенный руководитель",
+            "can_execute": lambda user, document: _can_approve_payment_requests(user),
+            "execute": lambda document, user, comment: reject_payment_request(document, user, comment),
+            "success_message": "Заявка {number} отклонена",
+            "comment_required": True,
+            "comment_label": "Причина отклонения",
+            "comment_placeholder": "Что нужно исправить в заявке",
+            "details": _payment_request_action_details,
+        },
+        ("payment-request", "transfer"): {
+            "document": payment_document,
+            "active_section": "payments",
+            "return_route": "payment_requests",
+            "document_kind": "Заявка на оплату",
+            "action_label": "Передача в 1С:ДО",
+            "action_text": "Заявка будет передана во внешний документооборот и получит внешний идентификатор.",
+            "submit_label": "Передать в 1С:ДО",
+            "permission_error": "Передавать заявки может экономист или администратор",
+            "can_execute": lambda user, document: _can_manage_payment_requests(user),
+            "execute": lambda document, user, comment: transfer_payment_request_to_do(document, user),
+            "success_message": "Заявка {number} передана в 1С:ДО",
+            "details": _payment_request_action_details,
+        },
+    }
+    config = configs.get((document_type, action))
+    if config is None:
+        return None
+    resolved = dict(config)
+    resolved["document"] = config["document"]()
+    return resolved
+
+
+def _budget_action_details(budget):
+    return [
+        {"label": "Номер", "value": budget.number},
+        {"label": "Компания", "value": budget.organization.name if budget.organization else "Не указана"},
+        {"label": "Год", "value": budget.budget_year},
+        {"label": "Вид", "value": budget.get_scope_display()},
+        {"label": "Сумма", "value": f"{budget.total_amount} {budget.currency.code}"},
+        {"label": "Статус", "value": budget.get_status_display()},
+        {"label": "Автор", "value": budget.author.get_full_name() or budget.author.username},
+    ]
+
+
+def _limit_action_details(plan):
+    return [
+        {"label": "Номер", "value": plan.number},
+        {"label": "Компания", "value": plan.organization.name if plan.organization else "Не указана"},
+        {"label": "Бюджет", "value": plan.budget.number if plan.budget else "Без бюджета"},
+        {"label": "ЦФО", "value": plan.department.name},
+        {"label": "Статья", "value": plan.article.name},
+        {"label": "Сумма", "value": f"{plan.annual_amount} {plan.currency.code}"},
+        {"label": "Согласующий", "value": plan.approver.get_full_name() or plan.approver.username},
+    ]
+
+
+def _limit_adjustment_action_details(adjustment):
+    return [
+        {"label": "Номер", "value": adjustment.number},
+        {"label": "Базовый лимит", "value": adjustment.base_plan.number},
+        {"label": "Компания-источник", "value": adjustment.base_plan.organization.name if adjustment.base_plan.organization else "Не указана"},
+        {"label": "Компания-получатель", "value": adjustment.target_organization.name if adjustment.target_organization else "Внутри компании"},
+        {"label": "ЦФО", "value": adjustment.base_plan.department.name},
+        {"label": "Статья", "value": adjustment.article.name},
+        {"label": "Новая сумма", "value": f"{adjustment.new_annual_amount} {adjustment.base_plan.currency.code}"},
+        {"label": "Версия", "value": f"v{adjustment.version}"},
+    ]
+
+
+def _payment_request_action_details(payment_request):
+    return [
+        {"label": "Номер", "value": payment_request.number},
+        {"label": "Компания", "value": payment_request.organization.name},
+        {"label": "Тип", "value": payment_request.get_request_kind_display()},
+        {"label": "Контрагент", "value": payment_request.counterparty.name},
+        {"label": "Сумма", "value": f"{payment_request.amount} {payment_request.currency.code}"},
+        {"label": "Статус", "value": payment_request.get_status_display()},
+        {"label": "Согласующий", "value": payment_request.approver.get_full_name() or payment_request.approver.username},
+    ]
+
+
+def _working_organization(request):
+    organization_id = request.session.get("working_organization_id")
+    organization = None
+    if organization_id:
+        organization = Organization.objects.filter(pk=organization_id).first()
+    if organization is None:
+        organization = Organization.objects.order_by("name").first()
+    if organization is None:
+        return None
+    request.session["working_organization_id"] = organization.id
+    return organization
+
+
+def _build_workday_context(user, organization) -> dict:
+    profile = getattr(user, "profile", None)
+    role = profile.role if profile else ""
+    tasks = []
+
+    if organization is None:
+        tasks.append(
+            _task_row(
+                "Подготовить компании",
+                "Перед работой с бюджетами и лимитами синхронизируйте или заведите компанию.",
+                "НСИ",
+                reverse("nsi_dashboard") if user.is_superuser or role in [UserRole.ADMINISTRATOR, UserRole.ECONOMIST] else reverse("workspace"),
+                "Открыть",
+                "high",
+            )
+        )
+        return {
+            "role_label": _workday_role_label(role),
+            "headline": _workday_headline(role),
+            "rhythm": _workday_rhythm(role),
+            "tasks": tasks,
+            "task_count": len(tasks),
+            "high_count": 1,
+            "primary_action": _workday_primary_action(role),
+        }
+
+    if _can_approve_budgets(user):
+        for budget in BudgetPlan.objects.filter(
+            organization=organization,
+            status=BudgetPlanStatus.PENDING_APPROVAL,
+        ).select_related("currency")[:5]:
+            tasks.append(
+                _task_row(
+                    "Согласовать бюджет",
+                    f"{budget.number} · {budget.budget_year} · {budget.total_amount} {budget.currency.code}",
+                    "Планирование",
+                    reverse("document_action_wizard", args=["budget", budget.id, "approve"]),
+                    "Открыть wizard",
+                    "high",
+                )
+            )
+
+    if _can_approve_plans(user):
+        plan_query = BudgetLimitPlan.objects.filter(
+            organization=organization,
+            status=BudgetPlanStatus.PENDING_APPROVAL,
+        ).select_related(
+            "department",
+            "article",
+            "currency",
+            "approver",
+        )
+        adjustment_query = BudgetLimitAdjustment.objects.filter(
+            base_plan__organization=organization,
+            status=BudgetPlanStatus.PENDING_APPROVAL,
+        ).select_related(
+            "base_plan",
+            "base_plan__currency",
+            "article",
+            "approver",
+        )
+        if not user.is_superuser:
+            plan_query = plan_query.filter(approver=user)
+            adjustment_query = adjustment_query.filter(approver=user)
+        for plan in plan_query[:5]:
+            tasks.append(
+                _task_row(
+                    "Утвердить лимит",
+                    f"{plan.number} · {plan.department.name} · {plan.annual_amount} {plan.currency.code}",
+                    "Лимиты",
+                    reverse("document_action_wizard", args=["limit", plan.id, "approve"]),
+                    "Открыть wizard",
+                    "high",
+                )
+            )
+        for adjustment in adjustment_query[:5]:
+            tasks.append(
+                _task_row(
+                    "Утвердить корректировку",
+                    f"{adjustment.number} · {adjustment.base_plan.number} · v{adjustment.version}",
+                    "Лимиты",
+                    reverse("document_action_wizard", args=["limit-adjustment", adjustment.id, "approve"]),
+                    "Открыть wizard",
+                    "high",
+                )
+            )
+
+    if _can_approve_payment_requests(user):
+        payment_query = PaymentRequest.objects.filter(
+            organization=organization,
+            status=PaymentRequestStatus.PENDING_APPROVAL,
+        ).select_related(
+            "counterparty",
+            "currency",
+            "approver",
+        )
+        if not user.is_superuser:
+            payment_query = payment_query.filter(approver=user)
+        for payment_request in payment_query[:7]:
+            tasks.append(
+                _task_row(
+                    "Согласовать платеж",
+                    f"{payment_request.number} · {payment_request.counterparty.name} · {payment_request.amount} {payment_request.currency.code}",
+                    "Платежи",
+                    reverse("document_action_wizard", args=["payment-request", payment_request.id, "approve"]),
+                    "Открыть wizard",
+                    "high",
+                )
+            )
+
+    if _can_manage_payment_requests(user):
+        editable_requests = PaymentRequest.objects.filter(
+            Q(status=PaymentRequestStatus.REJECTED) | Q(status=PaymentRequestStatus.DRAFT),
+            organization=organization,
+        ).select_related("counterparty", "currency", "author")
+        if not user.is_superuser:
+            editable_requests = editable_requests.filter(author=user)
+        for payment_request in editable_requests[:5]:
+            action_url = (
+                reverse("payment_request_edit_wizard", args=[payment_request.id])
+                if payment_request.status == PaymentRequestStatus.REJECTED
+                else reverse("document_action_wizard", args=["payment-request", payment_request.id, "submit"])
+            )
+            tasks.append(
+                _task_row(
+                    "Доработать заявку" if payment_request.status == PaymentRequestStatus.REJECTED else "Отправить черновик",
+                    f"{payment_request.number} · {payment_request.counterparty.name} · {payment_request.get_status_display()}",
+                    "Платежи",
+                    action_url,
+                    "Открыть wizard",
+                    "medium",
+                )
+            )
+
+        for payment_request in PaymentRequest.objects.filter(
+            organization=organization,
+            status=PaymentRequestStatus.APPROVED,
+        ).select_related(
+            "counterparty",
+            "currency",
+        )[:7]:
+            tasks.append(
+                _task_row(
+                    "Передать в 1С:ДО",
+                    f"{payment_request.number} · {payment_request.counterparty.name} · {payment_request.amount} {payment_request.currency.code}",
+                    "Платежи",
+                    reverse("document_action_wizard", args=["payment-request", payment_request.id, "transfer"]),
+                    "Открыть wizard",
+                    "medium",
+                )
+            )
+
+    if _can_edit_plans(user):
+        draft_limits = BudgetLimitPlan.objects.filter(
+            organization=organization,
+            status=BudgetPlanStatus.DRAFT,
+        ).select_related(
+            "department",
+            "article",
+            "currency",
+            "author",
+        )
+        draft_adjustments = BudgetLimitAdjustment.objects.filter(
+            base_plan__organization=organization,
+            status=BudgetPlanStatus.DRAFT,
+        ).select_related(
+            "base_plan",
+            "base_plan__currency",
+            "author",
+        )
+        if not user.is_superuser:
+            draft_limits = draft_limits.filter(author=user)
+            draft_adjustments = draft_adjustments.filter(author=user)
+        for plan in draft_limits[:4]:
+            tasks.append(
+                _task_row(
+                    "Отправить лимит",
+                    f"{plan.number} · {plan.department.name} · {plan.annual_amount} {plan.currency.code}",
+                    "Планирование",
+                    reverse("document_action_wizard", args=["limit", plan.id, "submit"]),
+                    "Открыть wizard",
+                    "medium",
+                )
+            )
+        for adjustment in draft_adjustments[:4]:
+            tasks.append(
+                _task_row(
+                    "Отправить корректировку",
+                    f"{adjustment.number} · {adjustment.base_plan.number} · v{adjustment.version}",
+                    "Планирование",
+                    reverse("document_action_wizard", args=["limit-adjustment", adjustment.id, "submit"]),
+                    "Открыть wizard",
+                    "medium",
+                )
+            )
+
+    if _is_administrator(user):
+        for item in IntegrationRequest.objects.filter(status__in=[
+            IntegrationRequestStatus.NEW,
+            IntegrationRequestStatus.IN_PROGRESS,
+        ]).select_related("requested_by")[:6]:
+            tasks.append(
+                _task_row(
+                    "Вести интеграцию",
+                    f"{item.number} · {item.integration_name} · {item.target_system}",
+                    "Настройки",
+                    reverse("integration_request_status_wizard", args=[item.id]),
+                    "Открыть wizard",
+                    "medium",
+                )
+            )
+
+    if not tasks:
+        tasks.append(
+            _task_row(
+                "Создать рабочий документ",
+                "Начните с первичного бюджета, корректировки лимита или платежной заявки.",
+                "Старт",
+                reverse("planning_wizard") if _can_create_budgets(user) else reverse("payment_requests"),
+                "Начать",
+                "low",
+            )
+        )
+
+    tasks = tasks[:12]
+    return {
+        "role_label": _workday_role_label(role),
+        "headline": _workday_headline(role),
+        "rhythm": _workday_rhythm(role),
+        "tasks": tasks,
+        "task_count": len(tasks),
+        "high_count": sum(1 for task in tasks if task["priority"] == "high"),
+        "primary_action": _workday_primary_action(role),
+    }
+
+
+def _task_row(title: str, text: str, area: str, url: str, action_label: str, priority: str) -> dict:
+    return {
+        "title": title,
+        "text": text,
+        "area": area,
+        "url": url,
+        "action_label": action_label,
+        "priority": priority,
+    }
+
+
+def _workday_role_label(role: str) -> str:
+    labels = {
+        UserRole.ADMINISTRATOR: "Администратор",
+        UserRole.ECONOMIST: "Экономист",
+        UserRole.MANAGER: "Руководитель",
+        UserRole.ACCOUNTANT: "Бухгалтер",
+    }
+    return labels.get(role, "Пользователь")
+
+
+def _workday_headline(role: str) -> str:
+    if role == UserRole.MANAGER:
+        return "Утром проверьте документы на утверждении, затем отклонения и превышения."
+    if role == UserRole.ADMINISTRATOR:
+        return "Начните с зависших согласований и интеграционных заявок, затем проверьте журналы."
+    if role == UserRole.ECONOMIST:
+        return "Сначала доработайте возвраты и отправьте черновики, затем создавайте новые документы."
+    return "Начните с документов, которые требуют действия сегодня."
+
+
+def _workday_rhythm(role: str) -> list[dict]:
+    if role == UserRole.MANAGER:
+        return [
+            {"time": "09:00", "title": "Очередь согласований", "text": "Бюджеты, лимиты, корректировки и платежные заявки."},
+            {"time": "12:00", "title": "Контроль лимитов", "text": "Проверка превышений, резервов и спорных заявок."},
+            {"time": "16:00", "title": "Отчеты", "text": "План-факт и управленческий дашборд."},
+        ]
+    if role == UserRole.ADMINISTRATOR:
+        return [
+            {"time": "09:00", "title": "Зависшие операции", "text": "Документы без движения и интеграционные запросы."},
+            {"time": "13:00", "title": "НСИ и доступы", "text": "Синхронизация, роли, справочники."},
+            {"time": "17:00", "title": "Аудит", "text": "Проверка журнала действий и качества данных."},
+        ]
+    return [
+        {"time": "09:00", "title": "Возвраты и черновики", "text": "Исправить отклоненные заявки и отправить готовые документы."},
+        {"time": "11:00", "title": "Новый ввод", "text": "Бюджеты, лимиты, платежные заявки и корректировки через wizard."},
+        {"time": "15:00", "title": "Контроль журналов", "text": "Статусы, передача в 1С:ДО, факты и план-факт."},
+    ]
+
+
+def _workday_primary_action(role: str) -> dict:
+    if role == UserRole.MANAGER:
+        return {"label": "Открыть дашборд", "url": reverse("manager_dashboard")}
+    if role == UserRole.ADMINISTRATOR:
+        return {"label": "Интеграции", "url": reverse("integration_requests")}
+    return {"label": "Новая заявка", "url": reverse("payment_request_wizard")}
+
+
 def _can_edit_plans(user) -> bool:
     return _has_model_permission(user, BudgetLimitPlan, "change")
 
 
+def _can_create_budgets(user) -> bool:
+    return _has_model_permission(user, BudgetPlan, "add")
+
+
+def _can_approve_budgets(user) -> bool:
+    return _can_approve_plans(user) and _has_model_permission(user, BudgetPlan, "view")
+
+
 def _can_create_plans(user) -> bool:
     return _has_model_permission(user, BudgetLimitPlan, "add")
+
+
+def _can_create_limit_adjustments(user) -> bool:
+    return _has_model_permission(user, BudgetLimitAdjustment, "add")
+
+
+def _can_edit_limit_adjustments(user) -> bool:
+    return _has_model_permission(user, BudgetLimitAdjustment, "change")
 
 
 def _can_delete_plans(user) -> bool:

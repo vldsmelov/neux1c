@@ -4,19 +4,20 @@ from core.models import PaymentRequest, PaymentRequestStatus
 from core.services.plan_fact_report import PlanFactFilters, build_plan_fact_report
 
 
-def build_manager_dashboard(*, year: int) -> dict:
-    rows, summary = build_plan_fact_report(PlanFactFilters(year=year))
+def build_manager_dashboard(*, year: int, organization_id: int | None = None) -> dict:
+    rows, summary = build_plan_fact_report(PlanFactFilters(year=year, organization_id=organization_id))
     article_rows = _aggregate_by_article(rows)
     sorted_rows = sorted(article_rows, key=lambda row: row["balance_bu"])
 
     top_overruns = [row for row in sorted_rows if row["has_limit_overrun"]][:5]
     limit_residuals = sorted_rows[:12]
 
+    request_query = PaymentRequest.objects.filter(request_date__year=year)
+    if organization_id:
+        request_query = request_query.filter(organization_id=organization_id)
     statuses_raw = {
         row["status"]: row["total"]
-        for row in PaymentRequest.objects.filter(request_date__year=year)
-        .values("status")
-        .annotate(total=Count("id"))
+        for row in request_query.values("status").annotate(total=Count("id"))
     }
     status_rows = [
         {

@@ -1,6 +1,6 @@
 from django.db import OperationalError, ProgrammingError
 
-from .models import UiThemeMode, UiThemeSettings
+from .models import Organization, UiThemeMode, UiThemeSettings
 
 
 DARK_OVERRIDES = {
@@ -50,4 +50,28 @@ def ui_theme(request):
     return {
         "ui_theme": variables,
         "ui_theme_mode": theme_mode,
+    }
+
+
+def working_organization(request):
+    try:
+        organizations = list(Organization.objects.order_by("name"))
+    except (OperationalError, ProgrammingError):
+        organizations = []
+
+    selected = None
+    selected_id = None
+    session = getattr(request, "session", None)
+    if session is not None:
+        selected_id = session.get("working_organization_id")
+    if selected_id:
+        selected = next((organization for organization in organizations if organization.id == selected_id), None)
+    if selected is None and organizations:
+        selected = organizations[0]
+        if session is not None:
+            session["working_organization_id"] = selected.id
+
+    return {
+        "organizations_for_switch": organizations,
+        "working_organization": selected,
     }

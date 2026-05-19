@@ -4,427 +4,125 @@
 {% block title %}Заявки на оплату · NE UX{% endblock %}
 
 {% block tabs %}
-    <a class="app-tab is-active" href="/payments/requests/">Заявки на оплату</a>
+    <a class="app-tab" href="/payments/requests/wizard/">Новая заявка</a>
+    <a class="app-tab is-active" href="/payments/requests/">Журнал заявок</a>
+    <a class="app-tab" href="/payments/facts/">Факт оплат</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
-            <h1 class="app-title">Заявки на оплату</h1>
-            <p class="app-subtitle">Создание и согласование заявок, контроль лимита и передача в Mock-1С:ДО.</p>
+            <h1 class="app-title">Журнал заявок на оплату</h1>
+            <p class="app-subtitle">Рабочая компания: {{ working_organization.name }}. Создание вынесено в wizard, а журнал сфокусирован на статусах, лимитах и согласовании.</p>
         </div>
         <div class="command-bar">
             {% if can_create_payment_requests %}
-                <button class="command-button-primary" type="submit" form="create-request-form">Записать</button>
+                <a class="command-button-primary" href="/payments/requests/wizard/">+ Новая заявка</a>
             {% endif %}
+            <a class="command-button" href="/payments/facts/">Факт оплат</a>
             <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
+            <button class="icon-button" type="button" aria-label="Поиск" title="Поиск">⌕</button>
         </div>
     </div>
 
-    <div class="document-grid document-grid-priority-data">
-        <aside class="form-panel">
-            {% if can_create_payment_requests %}
-                <details class="form-section" open>
-                    <summary>Создание заявки</summary>
-                    <div class="form-section-content">
-                        <p class="section-subtitle">Основные реквизиты для быстрого создания. Детальные поля доступны в расширенном блоке.</p>
-                        <form id="create-request-form" method="post" enctype="multipart/form-data" class="form-stack form-grid form-grid-2">
-                            {% csrf_token %}
-                            <input type="hidden" name="action" value="create">
-                            <div>
-                                <label class="field-label" for="request_kind">Тип заявки</label>
-                                <select class="field-control-select" id="request_kind" name="request_kind">
-                                    <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
-                                    <option value="{{ request_kind.BY_INVOICE }}">По счету</option>
-                                    <option value="{{ request_kind.WITHOUT_CONTRACT }}">Без договора</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="organization_id">Организация</label>
-                                <select class="field-control-select" id="organization_id" name="organization_id">
-                                    {% for organization in organizations %}
-                                        <option value="{{ organization.id }}">{{ organization.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="article_id">Статья ДДС</label>
-                                <select class="field-control-select" id="article_id" name="article_id">
-                                    {% for article in articles %}
-                                        <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="counterparty_id">Контрагент</label>
-                                <select class="field-control-select" id="counterparty_id" name="counterparty_id">
-                                    {% for counterparty in counterparties %}
-                                        <option value="{{ counterparty.id }}">{{ counterparty.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="contract_id">Договор поставщика</label>
-                                <select class="field-control-select" id="contract_id" name="contract_id">
-                                    <option value="">—</option>
-                                    {% for contract in contracts %}
-                                        <option value="{{ contract.id }}">{{ contract.number }} · {{ contract.counterparty.name }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="additional_agreement_id">Допсоглашение</label>
-                                <select class="field-control-select" id="additional_agreement_id" name="additional_agreement_id">
-                                    <option value="">—</option>
-                                    {% for agreement in agreements %}
-                                        <option value="{{ agreement.id }}" data-contract-id="{{ agreement.contract_id }}">
-                                            {{ agreement.number }} · {{ agreement.contract.number }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="currency_id">Валюта</label>
-                                <select class="field-control-select" id="currency_id" name="currency_id">
-                                    {% for currency in currencies %}
-                                        <option value="{{ currency.id }}">{{ currency.code }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div>
-                                <label class="field-label" for="amount">Сумма</label>
-                                <input class="field-control is-focused" id="amount" name="amount" value="100000.00">
-                            </div>
-                            <div>
-                                <label class="field-label" for="approver_id">Согласующий</label>
-                                <select class="field-control-select" id="approver_id" name="approver_id">
-                                    {% for approver in approvers %}
-                                        <option value="{{ approver.id }}">{{ approver.username }}</option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <details class="form-section form-grid-span-full">
-                                <summary>Расширенные реквизиты</summary>
-                                <div class="form-section-content form-grid form-grid-2">
-                                    <div>
-                                        <label class="field-label" for="invoice_number">Номер счета</label>
-                                        <input class="field-control" id="invoice_number" name="invoice_number" value="">
-                                    </div>
-                                    <div>
-                                        <label class="field-label" for="invoice_date">Дата счета</label>
-                                        <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="" placeholder="дд.мм.гггг">
-                                    </div>
-                                    <div class="form-grid-span-full">
-                                        <label class="field-label" for="payment_purpose">Назначение платежа</label>
-                                        <input class="field-control" id="payment_purpose" name="payment_purpose" value="">
-                                    </div>
-                                    <div>
-                                        <label class="field-label" for="manual_exchange_rate">Курс к руб.</label>
-                                        <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000">
-                                    </div>
-                                    <div class="form-grid-span-full">
-                                        <label class="field-label" for="justification_text">Обоснование (для заявки без договора)</label>
-                                        <textarea class="field-control" id="justification_text" name="justification_text"></textarea>
-                                    </div>
-                                    <div class="form-grid-span-full">
-                                        <label class="field-label" for="justification_file">Файл обоснования</label>
-                                        <input class="field-control" id="justification_file" name="justification_file" type="file">
-                                    </div>
-                                    <div class="form-grid-span-full">
-                                        <label class="field-label" for="comment">Комментарий инициатора</label>
-                                        <input class="field-control" id="comment" name="comment" value="">
-                                    </div>
-                                </div>
-                            </details>
-                        </form>
-                    </div>
-                </details>
-            {% else %}
-                <details class="form-section" open>
-                    <summary>Режим согласования</summary>
-                    <div class="form-section-content">
-                        <div>
-                            <div class="field-label">Роль</div>
-                            <div class="field-control is-focused">Руководитель</div>
-                        </div>
-                        <div>
-                            <div class="field-label">Доступное действие</div>
-                            <div class="field-control"><span><span class="status-dot"></span>Согласование заявок</span></div>
-                        </div>
-                    </div>
-                </details>
-            {% endif %}
-        </aside>
-
-        <section class="data-panel stack">
-            <div class="metric-strip">
-                <div class="metric-cell">
-                    <div class="metric-value">{{ requests|length }}</div>
-                    <div class="metric-label">Заявок</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{{ limit_control_mode_label }}</div>
-                    <div class="metric-label">Режим лимита</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{{ requests|length }}</div>
-                    <div class="metric-label">В работе</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{{ payments_acl.edit|yesno:"Редактирование,Просмотр" }}</div>
-                    <div class="metric-label">Права заявки</div>
-                </div>
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell">
+                <div class="metric-value">{{ requests|length }}</div>
+                <div class="metric-label">Заявок</div>
             </div>
-
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по реестру заявок"
-                    data-table-search="#payment-requests-table"
-                    data-table-count="#payment-requests-table-count"
-                >
+            <div class="metric-cell">
+                <div class="metric-value">{{ limit_control_mode_label }}</div>
+                <div class="metric-label">Режим лимита</div>
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="payment-requests-table" class="data-table payment-requests-table">
-                    <thead>
+            <div class="metric-cell">
+                <div class="metric-value">{{ payments_acl.edit|yesno:"Да,Нет" }}</div>
+                <div class="metric-label">Управление</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">{{ payments_acl.create|yesno:"Wizard,Просмотр" }}</div>
+                <div class="metric-label">Создание</div>
+            </div>
+        </div>
+
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
+            <input
+                class="field-control field-control-sm table-search-input"
+                type="search"
+                placeholder="Поиск по заявкам"
+                data-table-search="#payment-requests-table"
+                data-table-count="#payment-requests-table-count"
+            >
+        </div>
+        <div class="data-table-wrap desktop-scroll">
+            <table id="payment-requests-table" class="data-table payment-requests-table">
+                <thead>
+                    <tr>
+                        <th scope="col" class="checkbox-cell"></th>
+                        <th scope="col" class="table-col-doc">Номер</th>
+                        <th scope="col" class="table-col-short">Тип</th>
+                        <th scope="col" class="table-col-counterparty">Контрагент</th>
+                        <th scope="col" class="table-col-doc">Договор / счет</th>
+                        <th scope="col" class="table-col-number">Сумма</th>
+                        <th scope="col" class="table-col-limit">Лимит до/после</th>
+                        <th scope="col" class="table-col-status">Статус</th>
+                        <th scope="col" class="table-action-col-lg">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for request_row in requests %}
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th class="table-col-doc">Номер</th>
-                            <th class="table-col-short">Тип</th>
-                            <th class="table-col-counterparty">Контрагент</th>
-                            <th class="table-col-doc">Договор / счет</th>
-                            <th class="table-col-number">Сумма</th>
-                            <th class="table-col-limit">Лимит до/после (руб.)</th>
-                            <th class="table-col-status">Статус</th>
-                            <th class="table-action-col-lg">Действие</th>
+                            <td><span class="fake-checkbox"></span></td>
+                            <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
+                            <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
+                            <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
+                            <td class="table-col-doc">
+                                {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
+                                {% if request_row.additional_agreement %}{% if request_row.contract %} · {% endif %}{{ request_row.additional_agreement.number }}{% endif %}
+                                {% if request_row.invoice_number %}{% if request_row.contract or request_row.additional_agreement %} · {% endif %}{{ request_row.invoice_number }}{% endif %}
+                                {% if request_row.invoice_date %} · {{ request_row.invoice_date|date:"d.m.Y" }}{% endif %}
+                            </td>
+                            <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
+                            <td class="table-col-limit table-cell-nowrap">
+                                {{ request_row.limit_remaining_before_rub|ru_number }} → {{ request_row.limit_remaining_after_rub|ru_number }}
+                                {% if request_row.limit_exceeded %}<span class="badge badge-danger">превышение</span>{% endif %}
+                            </td>
+                            <td class="table-col-status">
+                                <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
+                                    {{ request_row.get_status_display }}
+                                </span>
+                            </td>
+                            <td class="table-action-col-lg">
+                                {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
+                                    <div class="form-stack-compact">
+                                        <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Редактировать</a>
+                                        <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'submit' %}">На согласование</a>
+                                    </div>
+                                {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
+                                    <div class="form-stack-compact">
+                                        <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'approve' %}">Согласовать</a>
+                                        <a class="command-button" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'reject' %}">Отклонить</a>
+                                    </div>
+                                {% elif request_row.status == status.REJECTED and can_manage_payment_requests %}
+                                    <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Исправить</a>
+                                {% elif request_row.status == status.APPROVED and can_manage_payment_requests %}
+                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'transfer' %}">Передать в 1С:ДО</a>
+                                {% else %}
+                                    <span class="badge">{% if request_row.do_external_id %}{{ request_row.do_external_id }}{% else %}Открыть{% endif %}</span>
+                                {% endif %}
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for request_row in requests %}
-                            <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
-                                <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
-                                <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
-                                <td class="table-col-doc">
-                                    {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
-                                    {% if request_row.additional_agreement %}
-                                        {% if request_row.contract %} · {% endif %}
-                                        {{ request_row.additional_agreement.number }}
-                                    {% endif %}
-                                    {% if request_row.invoice_number %}
-                                        {% if request_row.contract or request_row.additional_agreement %} · {% endif %}
-                                        {{ request_row.invoice_number }}
-                                    {% endif %}
-                                    {% if request_row.invoice_date %}
-                                        · {{ request_row.invoice_date|date:"d.m.Y" }}
-                                    {% endif %}
-                                </td>
-                                <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
-                                <td class="table-col-limit table-cell-nowrap">
-                                    {{ request_row.limit_remaining_before_rub|ru_number }} → {{ request_row.limit_remaining_after_rub|ru_number }}
-                                    {% if request_row.limit_exceeded %}
-                                        <span class="badge badge-danger">превышение</span>
-                                    {% endif %}
-                                </td>
-                                <td class="table-col-status">
-                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
-                                        {{ request_row.get_status_display }}
-                                    </span>
-                                </td>
-                                <td class="table-action-col-lg">
-                                    {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
-                                        <form method="post">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="submit">
-                                            <input type="hidden" name="request_id" value="{{ request_row.id }}">
-                                            <button class="command-button" type="submit">На согласование</button>
-                                        </form>
-                                    {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
-                                        <div class="form-stack-compact">
-                                            <form method="post" class="inline-form-row">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="action" value="approve">
-                                                <input type="hidden" name="request_id" value="{{ request_row.id }}">
-                                                <button class="command-button-primary" type="submit">Согласовать</button>
-                                            </form>
-                                            <form method="post" class="inline-form-row">
-                                                {% csrf_token %}
-                                                <input type="hidden" name="action" value="reject">
-                                                <input type="hidden" name="request_id" value="{{ request_row.id }}">
-                                                <input class="field-control field-control-sm inline-input-210" name="approver_comment" placeholder="Комментарий при отклонении" required>
-                                                <button class="command-button" type="submit">Отклонить</button>
-                                            </form>
-                                        </div>
-                                    {% elif request_row.status == status.APPROVED and can_manage_payment_requests %}
-                                        <form method="post">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="transfer">
-                                            <input type="hidden" name="request_id" value="{{ request_row.id }}">
-                                            <button class="command-button-primary" type="submit">Передать в 1С:ДО</button>
-                                        </form>
-                                    {% else %}
-                                        {% if request_row.approver_comment %}
-                                            <span class="badge">{{ request_row.approver_comment|truncatechars:32 }}</span>
-                                        {% elif request_row.do_external_id %}
-                                            <span class="badge">{{ request_row.do_external_id }}</span>
-                                        {% else %}
-                                            <span class="badge">Открыть</span>
-                                        {% endif %}
-                                    {% endif %}
-                                </td>
-                            </tr>
-                        {% empty %}
-                            <tr><td colspan="9">Заявок пока нет. Заполните форму ниже и нажмите "Записать".</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                    {% empty %}
+                        <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
 
-            <div class="summary-line">
-                <span>Контроль лимита</span>
-                <span class="summary-value">{{ limit_control_mode_label }}</span>
-            </div>
-        </section>
-    </div>
-    {% if can_create_payment_requests %}
-        {{ contracts_autofill|json_script:"contract-autofill-data" }}
-        {{ agreements_autofill|json_script:"agreement-autofill-data" }}
-        <script>
-            (() => {
-                const form = document.getElementById("create-request-form");
-                if (!form) {
-                    return;
-                }
-
-                const requestKindSelect = form.querySelector("#request_kind");
-                const contractSelect = form.querySelector("#contract_id");
-                const agreementSelect = form.querySelector("#additional_agreement_id");
-                const counterpartySelect = form.querySelector("#counterparty_id");
-                const currencySelect = form.querySelector("#currency_id");
-                const amountInput = form.querySelector("#amount");
-                const exchangeRateInput = form.querySelector("#manual_exchange_rate");
-                const invoiceNumberInput = form.querySelector("#invoice_number");
-                const invoiceDateInput = form.querySelector("#invoice_date");
-                const justificationTextInput = form.querySelector("#justification_text");
-                const contractDataNode = document.getElementById("contract-autofill-data");
-                const agreementDataNode = document.getElementById("agreement-autofill-data");
-                if (!requestKindSelect || !contractSelect || !contractDataNode || !agreementDataNode) {
-                    return;
-                }
-
-                let contractRows = [];
-                let agreementRows = [];
-                try {
-                    contractRows = JSON.parse(contractDataNode.textContent);
-                    agreementRows = JSON.parse(agreementDataNode.textContent);
-                } catch (error) {
-                    return;
-                }
-
-                const contractsById = {};
-                contractRows.forEach((row) => {
-                    contractsById[String(row.id)] = row;
-                });
-
-                const setSelectValue = (selectNode, value) => {
-                    if (!selectNode || value === null || value === undefined) {
-                        return;
-                    }
-                    const expectedValue = String(value);
-                    const option = Array.from(selectNode.options).find((item) => item.value === expectedValue);
-                    if (option) {
-                        selectNode.value = expectedValue;
-                    }
-                };
-
-                const filterAgreements = () => {
-                    const selectedContractId = contractSelect.value;
-                    Array.from(agreementSelect.options).forEach((option) => {
-                        if (!option.value) {
-                            option.hidden = false;
-                            return;
-                        }
-                        option.hidden = option.dataset.contractId !== selectedContractId;
-                    });
-                    if (agreementSelect.value) {
-                        const current = agreementSelect.options[agreementSelect.selectedIndex];
-                        if (current && current.hidden) {
-                            agreementSelect.value = "";
-                        }
-                    }
-                    agreementSelect.disabled = !selectedContractId;
-                };
-
-                const applyContractAutofill = () => {
-                    const selectedContract = contractsById[contractSelect.value];
-                    if (!selectedContract) {
-                        return;
-                    }
-                    setSelectValue(counterpartySelect, selectedContract.counterparty_id);
-                    setSelectValue(currencySelect, selectedContract.currency_id);
-                    if (amountInput) {
-                        amountInput.value = selectedContract.amount;
-                    }
-                    if (exchangeRateInput) {
-                        exchangeRateInput.value = selectedContract.manual_exchange_rate || "1.0000";
-                    }
-                };
-
-                const syncMode = () => {
-                    const mode = requestKindSelect.value;
-                    const isWithoutContract = mode === "{{ request_kind.WITHOUT_CONTRACT }}";
-                    const isInvoice = mode === "{{ request_kind.BY_INVOICE }}";
-
-                    contractSelect.disabled = isWithoutContract;
-                    if (isWithoutContract) {
-                        contractSelect.value = "";
-                    }
-                    filterAgreements();
-
-                    if (invoiceNumberInput) {
-                        invoiceNumberInput.required = isInvoice;
-                    }
-                    if (invoiceDateInput) {
-                        invoiceDateInput.required = isInvoice;
-                    }
-                    if (justificationTextInput) {
-                        justificationTextInput.required = isWithoutContract;
-                    }
-
-                    if (!isInvoice && invoiceDateInput && !invoiceDateInput.value) {
-                        invoiceDateInput.value = "";
-                    }
-
-                    if (!isWithoutContract && contractSelect.value) {
-                        applyContractAutofill();
-                    }
-                };
-
-                contractSelect.addEventListener("change", () => {
-                    applyContractAutofill();
-                    filterAgreements();
-                });
-                requestKindSelect.addEventListener("change", syncMode);
-                agreementSelect.addEventListener("change", () => {
-                    if (!agreementSelect.value) {
-                        return;
-                    }
-                    const selectedAgreement = agreementRows.find((row) => String(row.id) === agreementSelect.value);
-                    if (selectedAgreement) {
-                        setSelectValue(contractSelect, selectedAgreement.contract_id);
-                        applyContractAutofill();
-                        filterAgreements();
-                    }
-                });
-
-                filterAgreements();
-                syncMode();
-            })();
-        </script>
-    {% endif %}
+        <div class="summary-line">
+            <span>Контроль лимита</span>
+            <span class="summary-value">{{ limit_control_mode_label }}</span>
+        </div>
+    </section>
 {% endblock %}

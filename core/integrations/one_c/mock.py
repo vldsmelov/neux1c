@@ -27,6 +27,7 @@ class MockOneCProvider:
             ],
             organizations=[
                 OrganizationDTO("org-gladiolus", 'ООО "Гладиолус"', "7704555010"),
+                OrganizationDTO("org-iris", 'ООО "Ирис"', "7704555020"),
             ],
             departments=[
                 DepartmentDTO("dep-economy", "CFO-001", "Управление экономики"),

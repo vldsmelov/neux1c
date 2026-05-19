@@ -3,15 +3,18 @@ from django.contrib import admin
 from .models import (
     AdditionalAgreement,
     AuditLog,
+    BudgetDepartmentAllocation,
     BudgetLimitAdjustment,
     BudgetLimitAdjustmentMonth,
     BudgetLimitMonth,
+    BudgetPlan,
     BudgetLimitPlan,
     CashFlowArticle,
     Contract,
     Counterparty,
     Currency,
     Department,
+    DocumentSequence,
     ExternalPaymentDocument,
     IntegrationRequest,
     Nomenclature,
@@ -143,11 +146,24 @@ class BudgetLimitMonthInline(admin.TabularInline):
     extra = 0
 
 
+class BudgetDepartmentAllocationInline(admin.TabularInline):
+    model = BudgetDepartmentAllocation
+    extra = 0
+
+
+@admin.register(BudgetPlan)
+class BudgetPlanAdmin(admin.ModelAdmin):
+    list_display = ("number", "budget_year", "scope", "total_amount", "currency", "status", "author")
+    list_filter = ("status", "budget_year", "scope", "currency")
+    search_fields = ("number", "author__username", "comment")
+    inlines = [BudgetDepartmentAllocationInline]
+
+
 @admin.register(BudgetLimitPlan)
 class BudgetLimitPlanAdmin(admin.ModelAdmin):
-    list_display = ("number", "planning_year", "department", "article", "annual_amount", "currency", "status", "version")
-    list_filter = ("status", "planning_year", "department", "currency")
-    search_fields = ("number", "article__name", "department__name", "author__username", "approver__username")
+    list_display = ("number", "budget", "planning_year", "department", "article", "annual_amount", "currency", "status", "version")
+    list_filter = ("status", "planning_year", "department", "currency", "budget")
+    search_fields = ("number", "budget__number", "article__name", "department__name", "author__username", "approver__username")
     inlines = [BudgetLimitMonthInline]
 
 
@@ -169,6 +185,13 @@ class SyncRunAdmin(admin.ModelAdmin):
     list_display = ("provider", "status", "started_at", "finished_at")
     list_filter = ("provider", "status")
     readonly_fields = ("provider", "status", "started_at", "finished_at", "message", "stats")
+
+
+@admin.register(DocumentSequence)
+class DocumentSequenceAdmin(admin.ModelAdmin):
+    list_display = ("prefix", "year", "current_value", "updated_at")
+    list_filter = ("prefix", "year")
+    readonly_fields = ("prefix", "year", "current_value", "updated_at")
 
 
 @admin.register(UiThemeSettings)

@@ -4,31 +4,32 @@
 {% block title %}Факт оплат БДДС · NE UX{% endblock %}
 
 {% block tabs %}
-    <a class="app-tab" href="/payments/requests/">Заявки на оплату</a>
-    <a class="app-tab is-active" href="/payments/facts/">Факт оплат БДДС</a>
+    <a class="app-tab" href="/payments/requests/wizard/">Новая заявка</a>
+    <a class="app-tab" href="/payments/requests/">Журнал заявок</a>
+    <a class="app-tab is-active" href="/payments/facts/">Факт оплат</a>
+    <a class="app-tab" href="/payments/facts/wizard/">Корректировка</a>
 {% endblock %}
 
 {% block content %}
     <div class="app-page-head">
         <div>
             <h1 class="app-title">Факт оплат БДДС</h1>
-            <p class="app-subtitle">Ручная корректировка факта БУ/НУ с версионированием до закрытия периода 1С:БП.</p>
+            <p class="app-subtitle">Журнал фактических оплат. Корректировка вынесена в wizard с версионированием и причиной изменения.</p>
         </div>
-        <div class="command-bar">
-            <a class="command-button" href="/reports/plan-fact/">План-факт БДДС</a>
-            <a class="command-button" href="/payments/requests/">Заявки на оплату</a>
-            <span class="command-spacer"></span>
-            <button class="icon-button" type="button">⌕</button>
-            <button class="icon-button" type="button">⋮</button>
-        </div>
+        <form class="command-bar" method="get">
+            {% if can_edit_payment_facts %}
+                <a class="command-button-primary" href="/payments/facts/wizard/">+ Корректировка</a>
+            {% endif %}
+            <a class="command-button" href="/reports/plan-fact/">План-факт</a>
+            <a class="command-button" href="/payments/requests/">Заявки</a>
+        </form>
     </div>
 
-    <div class="document-grid document-grid-priority-data">
+    <div class="document-grid">
         <aside class="form-panel">
             <details class="form-section" open>
-                <summary>Фильтры факта</summary>
+                <summary>Фильтры</summary>
                 <div class="form-section-content">
-                    <p class="section-subtitle">Отбор периода, учета и аналитик для оперативной корректировки.</p>
                     <form method="get" class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="year">Год</label>
@@ -60,9 +61,7 @@
                             <select class="field-control-select" id="article_id" name="article_id">
                                 <option value="">Все</option>
                                 {% for article in articles %}
-                                    <option value="{{ article.id }}" {% if selected_article_id == article.id %}selected{% endif %}>
-                                        {{ article.code }} · {{ article.name }}
-                                    </option>
+                                    <option value="{{ article.id }}" {% if selected_article_id == article.id %}selected{% endif %}>{{ article.code }} · {{ article.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -71,9 +70,7 @@
                             <select class="field-control-select" id="counterparty_id" name="counterparty_id">
                                 <option value="">Все</option>
                                 {% for counterparty in counterparties %}
-                                    <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
-                                        {{ counterparty.name }}
-                                    </option>
+                                    <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>{{ counterparty.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -88,48 +85,30 @@
 
         <section class="data-panel stack">
             <div class="metric-strip">
-                <div class="metric-cell">
-                    <div class="metric-value">{{ rows|length }}</div>
-                    <div class="metric-label">Строк факта</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{% if can_edit_payment_facts %}Да{% else %}Нет{% endif %}</div>
-                    <div class="metric-label">Разрешено редактирование</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">{{ selected_year }}</div>
-                    <div class="metric-label">Период отчета</div>
-                </div>
-                <div class="metric-cell">
-                    <div class="metric-value">БУ / НУ</div>
-                    <div class="metric-label">Параллельный учет</div>
-                </div>
+                <div class="metric-cell"><div class="metric-value">{{ rows|length }}</div><div class="metric-label">Строк факта</div></div>
+                <div class="metric-cell"><div class="metric-value">{% if can_edit_payment_facts %}Да{% else %}Нет{% endif %}</div><div class="metric-label">Корректировка</div></div>
+                <div class="metric-cell"><div class="metric-value">{{ selected_year }}</div><div class="metric-label">Период</div></div>
+                <div class="metric-cell"><div class="metric-value">БУ / НУ</div><div class="metric-label">Учет</div></div>
             </div>
 
             <div class="table-toolbar">
                 <span class="table-toolbar-note">Строк в реестре: <strong id="payment-facts-table-count">{{ rows|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по факту оплат"
-                    data-table-search="#payment-facts-table"
-                    data-table-count="#payment-facts-table-count"
-                >
+                <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по факту" data-table-search="#payment-facts-table" data-table-count="#payment-facts-table-count">
             </div>
             <div class="data-table-wrap desktop-scroll">
                 <table id="payment-facts-table" class="data-table payment-facts-table">
                     <thead>
                         <tr>
-                            <th class="checkbox-cell"></th>
-                            <th class="table-col-date">Дата</th>
-                            <th class="table-col-short">Учет</th>
-                            <th class="table-col-short">Счет</th>
-                            <th class="table-col-article">Статья ДДС</th>
-                            <th class="table-col-counterparty">Контрагент</th>
-                            <th class="table-col-doc">Договор</th>
-                            <th class="table-col-number">Сумма</th>
-                            <th class="table-col-status">Версии</th>
-                            <th class="table-action-col-lg">Корректировка</th>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col" class="table-col-date">Дата</th>
+                            <th scope="col" class="table-col-short">Учет</th>
+                            <th scope="col" class="table-col-short">Счет</th>
+                            <th scope="col" class="table-col-article">Статья ДДС</th>
+                            <th scope="col" class="table-col-counterparty">Контрагент</th>
+                            <th scope="col" class="table-col-doc">Договор</th>
+                            <th scope="col" class="table-col-number">Сумма</th>
+                            <th scope="col" class="table-col-status">Версии</th>
+                            <th scope="col" class="table-action-col">Действие</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -139,32 +118,16 @@
                                 <td class="table-col-date">{{ row.fact.date|date:"d.m.Y" }}</td>
                                 <td class="table-col-short">{{ row.fact.get_accounting_kind_display }}</td>
                                 <td class="table-col-short">{{ row.fact.account }}</td>
-                                <td class="table-col-article">
-                                    {{ row.fact.article.code }} · {{ row.fact.article.name }}
-                                    {% if row.fact.article.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
-                                </td>
+                                <td class="table-col-article">{{ row.fact.article.code }} · {{ row.fact.article.name }}</td>
                                 <td class="table-col-counterparty">{{ row.fact.counterparty.name }}</td>
                                 <td class="table-col-doc">{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
                                 <td class="table-col-number">{{ row.fact.amount|ru_number }} {{ row.fact.currency.code }}</td>
                                 <td class="table-col-status">
-                                    {% if row.versions %}
-                                        <span class="badge">v{{ row.latest_version }}</span>
-                                        <span class="muted-text">({{ row.versions }})</span>
-                                    {% else %}
-                                        <span class="badge">база</span>
-                                    {% endif %}
+                                    {% if row.versions %}<span class="badge">v{{ row.latest_version }}</span>{% else %}<span class="badge">база</span>{% endif %}
                                 </td>
-                                <td class="table-action-col-lg">
+                                <td class="table-action-col">
                                     {% if can_edit_payment_facts %}
-                                        <form method="post" class="inline-form-row">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="adjust">
-                                            <input type="hidden" name="fact_id" value="{{ row.fact.id }}">
-                                            <input class="field-control inline-input-120" name="new_amount" value="{{ row.fact.amount }}">
-                                            <input class="field-control inline-input-132" name="new_comment" value="{{ row.fact.comment }}" placeholder="Комментарий">
-                                            <input class="field-control inline-input-132" name="reason" value="" placeholder="Причина">
-                                            <button class="command-button-primary" type="submit">Записать</button>
-                                        </form>
+                                        <a class="command-button" href="/payments/facts/wizard/?fact_id={{ row.fact.id }}">Корректировать</a>
                                     {% else %}
                                         <span class="badge">Просмотр</span>
                                     {% endif %}
@@ -175,10 +138,6 @@
                         {% endfor %}
                     </tbody>
                 </table>
-            </div>
-            <div class="summary-line">
-                <span>Режим работы</span>
-                <span class="summary-value">Корректировка с версиями</span>
             </div>
         </section>
     </div>

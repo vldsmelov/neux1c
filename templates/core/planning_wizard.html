@@ -1,0 +1,555 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Первичный ввод · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab" href="/planning/adjustments/wizard/">Корректировка</a>
+{% endblock %}
+
+{% block content %}
+    <style>
+        .wizard-shell {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .wizard-stepper {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 1px;
+            background: var(--app-border);
+            border-bottom: 1px solid var(--app-border);
+        }
+
+        .wizard-step-button {
+            border: 0;
+            background: var(--app-surface);
+            color: var(--app-muted);
+            cursor: pointer;
+            font: inherit;
+            min-height: 56px;
+            padding: 10px 12px;
+            text-align: left;
+        }
+
+        .wizard-step-button.is-active {
+            background: var(--app-toolbar);
+            color: var(--app-text);
+            box-shadow: inset 0 -2px 0 var(--app-primary);
+        }
+
+        .wizard-step-number {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .wizard-step {
+            display: none;
+            padding: 20px;
+        }
+
+        .wizard-step.is-active {
+            display: block;
+        }
+
+        .wizard-actions {
+            align-items: center;
+            border-top: 1px solid var(--app-border);
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+            padding: 14px 20px;
+        }
+
+        .wizard-review-grid {
+            display: grid;
+            gap: 12px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .wizard-review-cell {
+            border: 1px solid var(--app-border);
+            border-radius: 8px;
+            padding: 12px;
+        }
+
+        .wizard-review-label {
+            color: var(--app-muted);
+            font-size: 12px;
+            margin-bottom: 6px;
+        }
+
+        .wizard-review-value {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .wizard-month-grid {
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(6, minmax(92px, 1fr));
+        }
+
+        .wizard-limit-tools {
+            align-items: center;
+            display: flex;
+            gap: 8px;
+            justify-content: space-between;
+        }
+
+        @media (max-width: 900px) {
+            .wizard-stepper,
+            .wizard-review-grid,
+            .wizard-month-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Первичный ввод бюджета и лимитов</h1>
+            <p class="app-subtitle">Заполните годовой бюджет и связанные лимиты одним документом. После отправки бюджет и лимиты будут ожидать утверждения.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/planning/budgets/">Бюджеты</a>
+            <a class="command-button" href="/planning/limits/">Лимиты</a>
+        </div>
+    </div>
+
+    {% if can_create_package %}
+        <form id="primary-budget-wizard" method="post" class="stack" data-wizard-form>
+            {% csrf_token %}
+            <section class="data-panel wizard-shell">
+                <div class="wizard-stepper" aria-label="Шаги первичного ввода">
+                    <button class="wizard-step-button is-active" type="button" data-wizard-target="0" aria-current="step">
+                        <span class="wizard-step-number">Шаг 1</span>
+                        Параметры
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="1">
+                        <span class="wizard-step-number">Шаг 2</span>
+                        Бюджет
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="2">
+                        <span class="wizard-step-number">Шаг 3</span>
+                        Лимиты
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="3">
+                        <span class="wizard-step-number">Шаг 4</span>
+                        Месяцы
+                    </button>
+                    <button class="wizard-step-button" type="button" data-wizard-target="4">
+                        <span class="wizard-step-number">Шаг 5</span>
+                        Проверка
+                    </button>
+                </div>
+
+                <section class="wizard-step is-active" data-wizard-step>
+                    <div class="form-stack form-grid form-grid-2">
+                        <div>
+                            <label class="field-label" for="budget_year">Год бюджета</label>
+                            <input class="field-control is-focused" id="budget_year" name="budget_year" value="{{ current_year }}" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="field-label">Компания</label>
+                            <div class="field-control">{{ working_organization.name }}</div>
+                        </div>
+                        <div>
+                            <label class="field-label" for="periodicity">Периодичность</label>
+                            <select class="field-control-select" id="periodicity" name="periodicity" disabled>
+                                <option value="{{ periodicity.YEAR }}">Год</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="scope">Вид бюджета</label>
+                            <select class="field-control-select" id="scope" name="scope" data-budget-scope>
+                                <option value="{{ scope.OVERALL }}">Общий бюджет</option>
+                                <option value="{{ scope.BY_DEPARTMENT }}">Бюджет по ЦФО</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="currency_id">Валюта</label>
+                            <select class="field-control-select" id="currency_id" name="currency_id">
+                                {% for currency in currencies %}
+                                    <option value="{{ currency.id }}">{{ currency.code }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="approver_id">Утверждающий</label>
+                            <select class="field-control-select" id="approver_id" name="approver_id" required>
+                                {% for approver in approvers %}
+                                    <option value="{{ approver.id }}">{{ approver.get_full_name|default:approver.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="comment">Комментарий к документу</label>
+                            <input class="field-control" id="comment" name="comment" value="">
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div data-budget-overall>
+                            <label class="field-label" for="total_amount">Сумма общего бюджета</label>
+                            <input class="field-control" id="total_amount" name="total_amount" value="1200000.00" inputmode="decimal">
+                        </div>
+
+                        <div data-budget-departments hidden>
+                            <div class="table-toolbar">
+                                <span class="table-toolbar-note">Итого по ЦФО: <strong data-budget-department-total>0.00</strong></span>
+                            </div>
+                            <div class="data-table-wrap">
+                                <table class="data-table table-narrow">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">ЦФО</th>
+                                            <th scope="col">Бюджет</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for department in departments %}
+                                            <tr>
+                                                <td>{{ department.code }} · {{ department.name }}</td>
+                                                <td>
+                                                    <input
+                                                        class="field-control"
+                                                        name="department_budget_{{ department.id }}"
+                                                        value=""
+                                                        inputmode="decimal"
+                                                        data-budget-department-amount
+                                                        aria-label="Бюджет ЦФО {{ department.name }}"
+                                                    >
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div class="wizard-limit-tools">
+                            <span class="table-toolbar-note">Заполните ЦФО, статью и годовую сумму для каждой строки лимита.</span>
+                            <button class="command-button" type="button" data-add-limit-row>Добавить строку</button>
+                        </div>
+                        <div class="data-table-wrap desktop-scroll">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="table-col-short">#</th>
+                                        <th scope="col">ЦФО</th>
+                                        <th scope="col">Статья ДДС</th>
+                                        <th scope="col" class="table-col-number">Годовой лимит</th>
+                                        <th scope="col">Комментарий</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for row in wizard_limit_rows %}
+                                        <tr data-limit-row="{{ row.index }}"{% if row.hidden %} hidden{% endif %}>
+                                            <td class="table-col-short">{{ row.index }}</td>
+                                            <td>
+                                                <select class="field-control-select" name="limit_{{ row.index }}_department_id" data-limit-department>
+                                                    <option value="">Не выбрано</option>
+                                                    {% for department in departments %}
+                                                        <option value="{{ department.id }}">{{ department.code }} · {{ department.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <select class="field-control-select" name="limit_{{ row.index }}_article_id" data-limit-article>
+                                                    <option value="">Не выбрано</option>
+                                                    {% for article in articles %}
+                                                        <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </td>
+                                            <td>
+                                                <input
+                                                    class="field-control"
+                                                    name="limit_{{ row.index }}_annual_amount"
+                                                    value=""
+                                                    inputmode="decimal"
+                                                    data-limit-amount
+                                                    aria-label="Годовой лимит строки {{ row.index }}"
+                                                >
+                                            </td>
+                                            <td>
+                                                <input
+                                                    class="field-control"
+                                                    name="limit_{{ row.index }}_comment"
+                                                    value=""
+                                                    aria-label="Комментарий к лимиту {{ row.index }}"
+                                                >
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <p class="section-subtitle">Оставьте месяцы пустыми, если лимит нужно распределить равномерно. Если вводите месяцы вручную, заполните все 12 значений выбранной строки.</p>
+                        {% for row in wizard_limit_rows %}
+                            <details class="form-section" data-limit-month-row="{{ row.index }}"{% if row.hidden %} hidden{% endif %}>
+                                <summary>Строка лимита {{ row.index }}</summary>
+                                <div class="form-section-content form-stack">
+                                    <div class="table-toolbar">
+                                        <span class="table-toolbar-note">Сумма месяцев проверяется при отправке документа.</span>
+                                        <button class="command-button" type="button" data-split-months="{{ row.index }}">Разделить годовой лимит</button>
+                                    </div>
+                                    <div class="wizard-month-grid">
+                                        {% for month in months %}
+                                            <div>
+                                                <label class="field-label" for="limit_{{ row.index }}_month_{{ month.number }}">{{ month.label }}</label>
+                                                <input
+                                                    class="field-control"
+                                                    id="limit_{{ row.index }}_month_{{ month.number }}"
+                                                    name="limit_{{ row.index }}_month_{{ month.number }}"
+                                                    value=""
+                                                    inputmode="decimal"
+                                                    data-month-input="{{ row.index }}"
+                                                >
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </details>
+                        {% endfor %}
+                    </div>
+                </section>
+
+                <section class="wizard-step" data-wizard-step>
+                    <div class="form-stack">
+                        <div class="wizard-review-grid">
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Период</div>
+                                <div class="wizard-review-value" data-summary-year>{{ current_year }}</div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Бюджет</div>
+                                <div class="wizard-review-value" data-summary-budget>0.00</div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Лимиты</div>
+                                <div class="wizard-review-value" data-summary-limits>0.00</div>
+                            </div>
+                            <div class="wizard-review-cell">
+                                <div class="wizard-review-label">Резерв</div>
+                                <div class="wizard-review-value" data-summary-reserve>0.00</div>
+                            </div>
+                        </div>
+                        <div class="data-table-wrap">
+                            <table class="data-table table-narrow">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Параметр</th>
+                                        <th scope="col">Значение</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Вид бюджета</td>
+                                        <td data-summary-scope>Общий бюджет</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Валюта</td>
+                                        <td data-summary-currency></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Утверждающий</td>
+                                        <td data-summary-approver></td>
+                                    </tr>
+                                    <tr>
+                                        <td>Строк лимитов</td>
+                                        <td data-summary-limit-count>0</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <div class="wizard-actions">
+                    <button class="command-button" type="button" data-wizard-prev disabled>Назад</button>
+                    <button class="command-button-primary" type="button" data-wizard-next>Далее</button>
+                    <button class="command-button-primary" type="submit" data-wizard-submit hidden>Отправить на утверждение</button>
+                </div>
+            </section>
+        </form>
+    {% else %}
+        <section class="data-panel">
+            <div class="empty-state">
+                <h2>Нет прав на первичный ввод</h2>
+                <p>Для создания пакета нужны права на создание бюджета, создание лимитов и отправку лимитов на утверждение.</p>
+            </div>
+        </section>
+    {% endif %}
+
+    <script>
+        (() => {
+            const form = document.querySelector("[data-wizard-form]");
+            if (!form) {
+                return;
+            }
+
+            const steps = Array.from(form.querySelectorAll("[data-wizard-step]"));
+            const stepButtons = Array.from(form.querySelectorAll("[data-wizard-target]"));
+            const prevButton = form.querySelector("[data-wizard-prev]");
+            const nextButton = form.querySelector("[data-wizard-next]");
+            const submitButton = form.querySelector("[data-wizard-submit]");
+            let activeStep = 0;
+
+            const parseNumber = (value) => Number((value || "0").replace(/\s/g, "").replace(",", ".")) || 0;
+            const formatNumber = (value) => value.toLocaleString("ru-RU", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+            });
+            const selectedText = (select) => select?.selectedOptions?.[0]?.textContent?.trim() || "";
+
+            const scopeSelect = form.querySelector("[data-budget-scope]");
+            const overallBlock = form.querySelector("[data-budget-overall]");
+            const departmentsBlock = form.querySelector("[data-budget-departments]");
+            const departmentInputs = Array.from(form.querySelectorAll("[data-budget-department-amount]"));
+            const departmentTotal = form.querySelector("[data-budget-department-total]");
+            const totalAmountInput = form.querySelector("#total_amount");
+            const limitRows = Array.from(form.querySelectorAll("[data-limit-row]"));
+            const monthRows = Array.from(form.querySelectorAll("[data-limit-month-row]"));
+            const limitAmountInputs = Array.from(form.querySelectorAll("[data-limit-amount]"));
+
+            const setStep = (stepIndex) => {
+                activeStep = Math.max(0, Math.min(steps.length - 1, stepIndex));
+                steps.forEach((step, index) => step.classList.toggle("is-active", index === activeStep));
+                stepButtons.forEach((button, index) => {
+                    button.classList.toggle("is-active", index === activeStep);
+                    if (index === activeStep) {
+                        button.setAttribute("aria-current", "step");
+                    } else {
+                        button.removeAttribute("aria-current");
+                    }
+                });
+                prevButton.disabled = activeStep === 0;
+                nextButton.hidden = activeStep === steps.length - 1;
+                submitButton.hidden = activeStep !== steps.length - 1;
+                updateSummary();
+            };
+
+            const updateBudgetBlocks = () => {
+                const byDepartment = scopeSelect?.value === "{{ scope.BY_DEPARTMENT }}";
+                if (overallBlock) {
+                    overallBlock.hidden = byDepartment;
+                }
+                if (departmentsBlock) {
+                    departmentsBlock.hidden = !byDepartment;
+                }
+                updateSummary();
+            };
+
+            const budgetAmount = () => {
+                if (scopeSelect?.value === "{{ scope.BY_DEPARTMENT }}") {
+                    return departmentInputs.reduce((sum, input) => sum + parseNumber(input.value), 0);
+                }
+                return parseNumber(totalAmountInput?.value);
+            };
+
+            const limitAmount = () => limitAmountInputs.reduce((sum, input) => sum + parseNumber(input.value), 0);
+            const visibleLimitCount = () => limitRows.filter((row) => !row.hidden && row.querySelector("[data-limit-amount]")?.value.trim()).length;
+
+            const updateSummary = () => {
+                const departmentBudgetTotal = departmentInputs.reduce((sum, input) => sum + parseNumber(input.value), 0);
+                if (departmentTotal) {
+                    departmentTotal.textContent = formatNumber(departmentBudgetTotal);
+                }
+
+                const budget = budgetAmount();
+                const limits = limitAmount();
+                const reserve = budget - limits;
+
+                const yearInput = form.querySelector("#budget_year");
+                const currencySelect = form.querySelector("#currency_id");
+                const approverSelect = form.querySelector("#approver_id");
+
+                const summaryValues = {
+                    "[data-summary-year]": yearInput?.value || "",
+                    "[data-summary-budget]": formatNumber(budget),
+                    "[data-summary-limits]": formatNumber(limits),
+                    "[data-summary-reserve]": formatNumber(reserve),
+                    "[data-summary-scope]": selectedText(scopeSelect),
+                    "[data-summary-currency]": selectedText(currencySelect),
+                    "[data-summary-approver]": selectedText(approverSelect),
+                    "[data-summary-limit-count]": String(visibleLimitCount()),
+                };
+
+                Object.entries(summaryValues).forEach(([selector, value]) => {
+                    const node = form.querySelector(selector);
+                    if (node) {
+                        node.textContent = value;
+                    }
+                });
+            };
+
+            const revealLimitRow = () => {
+                const hiddenLimitRow = limitRows.find((row) => row.hidden);
+                if (!hiddenLimitRow) {
+                    return;
+                }
+                hiddenLimitRow.hidden = false;
+                const index = hiddenLimitRow.dataset.limitRow;
+                const monthRow = monthRows.find((row) => row.dataset.limitMonthRow === index);
+                if (monthRow) {
+                    monthRow.hidden = false;
+                }
+                updateSummary();
+            };
+
+            const splitMonths = (index) => {
+                const annualInput = form.querySelector(`[name="limit_${index}_annual_amount"]`);
+                const annualCents = Math.round(parseNumber(annualInput?.value) * 100);
+                if (!annualCents) {
+                    return;
+                }
+                const base = Math.floor(annualCents / 12);
+                let remainder = annualCents - base * 12;
+                for (let month = 1; month <= 12; month += 1) {
+                    const cents = base + (remainder > 0 ? 1 : 0);
+                    remainder -= remainder > 0 ? 1 : 0;
+                    const input = form.querySelector(`[name="limit_${index}_month_${month}"]`);
+                    if (input) {
+                        input.value = (cents / 100).toFixed(2);
+                    }
+                }
+            };
+
+            stepButtons.forEach((button) => {
+                button.addEventListener("click", () => setStep(Number(button.dataset.wizardTarget)));
+            });
+            prevButton?.addEventListener("click", () => setStep(activeStep - 1));
+            nextButton?.addEventListener("click", () => setStep(activeStep + 1));
+            form.querySelector("[data-add-limit-row]")?.addEventListener("click", revealLimitRow);
+            form.querySelectorAll("[data-split-months]").forEach((button) => {
+                button.addEventListener("click", () => splitMonths(button.dataset.splitMonths));
+            });
+            form.querySelectorAll("input, select").forEach((control) => {
+                control.addEventListener("input", updateSummary);
+                control.addEventListener("change", updateSummary);
+            });
+            scopeSelect?.addEventListener("change", updateBudgetBlocks);
+
+            updateBudgetBlocks();
+            setStep(0);
+        })();
+    </script>
+{% endblock %}

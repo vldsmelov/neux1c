@@ -8,8 +8,9 @@
 
 NE UX закрывает сквозной контур:
 
-1. Планирование лимитов (год + месяцы).
-2. Корректировки лимитов с версионированием.
+1. Планирование бюджетов: общий бюджет или распределение по ЦФО.
+2. Назначение лимитов в рамках бюджета, с опциональной помесячной разбивкой.
+3. Корректировки лимитов с версионированием.
 3. Договоры и резервирование.
 4. Заявки на оплату и согласование.
 5. Факт оплат БУ/НУ.
@@ -25,7 +26,7 @@ NE UX закрывает сквозной контур:
 ### Вход и роли
 ![Вход в систему](docs/user-guide/images/annotated/01_login.png)
 
-### Планирование лимитов (экономист)
+### Бюджеты и лимиты (экономист)
 ![Планы и лимиты](docs/user-guide/images/annotated/02_economist_planning_limits.png)
 
 ### Заявки на оплату (экономист)
@@ -91,7 +92,8 @@ NE UX закрывает сквозной контур:
 ## 5. Основные разделы
 
 - Рабочее место: `http://localhost:8000/`
-- Планы/лимиты: `http://localhost:8000/planning/limits/`
+- Бюджеты: `http://localhost:8000/planning/budgets/`
+- Лимиты: `http://localhost:8000/planning/limits/`
 - Заявки на оплату: `http://localhost:8000/payments/requests/`
 - Факт оплат БДДС: `http://localhost:8000/payments/facts/`
 - Договоры/резерв: `http://localhost:8000/contracts/reservations/`
@@ -140,8 +142,11 @@ docker compose exec web python manage.py sync_mock_1c
 
 ```powershell
 docker compose exec web python manage.py check
+docker compose exec web python manage.py check --deploy
 docker compose exec web python manage.py test core
 ```
+
+Расширенный production/quality baseline описан в `docs/QUALITY_AND_PRODUCTION.md`.
 
 ---
 
@@ -196,4 +201,3 @@ git push -u origin develop
 - Docker / Docker Compose
 - HTML/CSS/JS (server-side templates)
 - Role-based access (RBAC) на базе Django auth/groups + profile
-

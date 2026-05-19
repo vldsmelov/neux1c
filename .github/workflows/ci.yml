@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: ["main", "develop", "feature/**", "fix/**", "release/**"]
+  pull_request:
+
+jobs:
+  django:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ne_ux
+          POSTGRES_USER: ne_ux
+          POSTGRES_PASSWORD: ne_ux
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ne_ux -d ne_ux"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DJANGO_SECRET_KEY: ci-only-secret-key-for-automated-checks-2026-change-outside-ci
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1
+      POSTGRES_DB: ne_ux
+      POSTGRES_USER: ne_ux
+      POSTGRES_PASSWORD: ne_ux
+      POSTGRES_HOST: 127.0.0.1
+      POSTGRES_PORT: "5432"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Static quality checks
+        run: |
+          ruff check .
+          pip-audit -r requirements.txt
+
+      - name: Django checks
+        run: |
+          python manage.py check
+          python manage.py check --deploy
+
+      - name: Test
+        run: |
+          coverage run manage.py test core
+          coverage report

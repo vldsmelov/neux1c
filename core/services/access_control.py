@@ -7,15 +7,18 @@ from django.contrib.contenttypes.models import ContentType
 from core.models import (
     AdditionalAgreement,
     AuditLog,
+    BudgetDepartmentAllocation,
     BudgetLimitAdjustment,
     BudgetLimitAdjustmentMonth,
     BudgetLimitMonth,
     BudgetLimitPlan,
+    BudgetPlan,
     CashFlowArticle,
     Contract,
     Counterparty,
     Currency,
     Department,
+    DocumentSequence,
     ExternalPaymentDocument,
     IntegrationRequest,
     Nomenclature,
@@ -52,6 +55,8 @@ REFERENCE_MODELS = [
     PaymentFact,
     PaymentFactAdjustment,
     PaymentFactControlSettings,
+    BudgetPlan,
+    BudgetDepartmentAllocation,
     BudgetLimitPlan,
     BudgetLimitMonth,
     BudgetLimitAdjustment,
@@ -151,4 +156,4 @@ def _permission_codenames(model, mode: str) -> list[str]:
 
 
 def _all_core_models():
-    return REFERENCE_MODELS + [UiThemeSettings, UserProfile, AuditLog]
+    return REFERENCE_MODELS + [DocumentSequence, UiThemeSettings, UserProfile, AuditLog]
