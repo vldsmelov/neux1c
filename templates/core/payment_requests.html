@@ -25,7 +25,7 @@
         </div>
     </div>
 
-    <section class="data-panel stack">
+    <section class="data-panel stack" data-tab-scope>
         <div class="metric-strip">
             <div class="metric-cell">
                 <div class="metric-value">{{ requests|length }}</div>
@@ -45,82 +45,89 @@
             </div>
         </div>
 
-        <div class="table-toolbar">
-            <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
-            <input
-                class="field-control field-control-sm table-search-input"
-                type="search"
-                placeholder="Поиск по заявкам"
-                data-table-search="#payment-requests-table"
-                data-table-count="#payment-requests-table-count"
-            >
-        </div>
-        <div class="data-table-wrap desktop-scroll">
-            <table id="payment-requests-table" class="data-table payment-requests-table">
-                <thead>
-                    <tr>
-                        <th scope="col" class="checkbox-cell"></th>
-                        <th scope="col" class="table-col-doc">Номер</th>
-                        <th scope="col" class="table-col-short">Тип</th>
-                        <th scope="col" class="table-col-counterparty">Контрагент</th>
-                        <th scope="col" class="table-col-doc">Договор / счет</th>
-                        <th scope="col" class="table-col-number">Сумма</th>
-                        <th scope="col" class="table-col-limit">Лимит до/после</th>
-                        <th scope="col" class="table-col-status">Статус</th>
-                        <th scope="col" class="table-action-col-lg">Действие</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for request_row in requests %}
-                        <tr>
-                            <td><span class="fake-checkbox"></span></td>
-                            <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
-                            <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
-                            <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
-                            <td class="table-col-doc">
-                                {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
-                                {% if request_row.additional_agreement %}{% if request_row.contract %} · {% endif %}{{ request_row.additional_agreement.number }}{% endif %}
-                                {% if request_row.invoice_number %}{% if request_row.contract or request_row.additional_agreement %} · {% endif %}{{ request_row.invoice_number }}{% endif %}
-                                {% if request_row.invoice_date %} · {{ request_row.invoice_date|date:"d.m.Y" }}{% endif %}
-                            </td>
-                            <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
-                            <td class="table-col-limit table-cell-nowrap">
-                                {{ request_row.limit_remaining_before_rub|ru_number }} → {{ request_row.limit_remaining_after_rub|ru_number }}
-                                {% if request_row.limit_exceeded %}<span class="badge badge-danger">превышение</span>{% endif %}
-                            </td>
-                            <td class="table-col-status">
-                                <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
-                                    {{ request_row.get_status_display }}
-                                </span>
-                            </td>
-                            <td class="table-action-col-lg">
-                                {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
-                                    <div class="form-stack-compact">
-                                        <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Редактировать</a>
-                                        <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'submit' %}">На согласование</a>
-                                    </div>
-                                {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
-                                    <div class="form-stack-compact">
-                                        <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'approve' %}">Согласовать</a>
-                                        <a class="command-button" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'reject' %}">Отклонить</a>
-                                    </div>
-                                {% elif request_row.status == status.REJECTED and can_manage_payment_requests %}
-                                    <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Исправить</a>
-                                {% elif request_row.status == status.APPROVED and can_manage_payment_requests %}
-                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'transfer' %}">Передать в 1С:ДО</a>
-                                {% else %}
-                                    <span class="badge">{% if request_row.do_external_id %}{{ request_row.do_external_id }}{% else %}Открыть{% endif %}</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы журнала заявок">
+            <button class="section-tab is-active" type="button" data-tab-target="requests">Заявки <span class="section-tab-count">{{ requests|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="control">Контроль</button>
         </div>
 
-        <div class="summary-line">
+        <div class="section-tab-panel" data-tab-panel="requests">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
+                <input
+                    class="field-control field-control-sm table-search-input"
+                    type="search"
+                    placeholder="Поиск по заявкам"
+                    data-table-search="#payment-requests-table"
+                    data-table-count="#payment-requests-table-count"
+                >
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="payment-requests-table" class="data-table payment-requests-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col" class="table-col-doc">Номер</th>
+                            <th scope="col" class="table-col-short">Тип</th>
+                            <th scope="col" class="table-col-counterparty">Контрагент</th>
+                            <th scope="col" class="table-col-doc">Договор / счет</th>
+                            <th scope="col" class="table-col-number">Сумма</th>
+                            <th scope="col" class="table-col-limit">Лимит до/после</th>
+                            <th scope="col" class="table-col-status">Статус</th>
+                            <th scope="col" class="table-action-col-lg">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request_row in requests %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
+                                <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
+                                <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
+                                <td class="table-col-doc">
+                                    {% if request_row.contract %}{{ request_row.contract.number }}{% endif %}
+                                    {% if request_row.additional_agreement %}{% if request_row.contract %} · {% endif %}{{ request_row.additional_agreement.number }}{% endif %}
+                                    {% if request_row.invoice_number %}{% if request_row.contract or request_row.additional_agreement %} · {% endif %}{{ request_row.invoice_number }}{% endif %}
+                                    {% if request_row.invoice_date %} · {{ request_row.invoice_date|date:"d.m.Y" }}{% endif %}
+                                </td>
+                                <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
+                                <td class="table-col-limit table-cell-nowrap">
+                                    {{ request_row.limit_remaining_before_rub|ru_number }} → {{ request_row.limit_remaining_after_rub|ru_number }}
+                                    {% if request_row.limit_exceeded %}<span class="badge badge-danger">превышение</span>{% endif %}
+                                </td>
+                                <td class="table-col-status">
+                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
+                                        {{ request_row.get_status_display }}
+                                    </span>
+                                </td>
+                                <td class="table-action-col-lg">
+                                    {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
+                                        <div class="form-stack-compact">
+                                            <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Редактировать</a>
+                                            <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'submit' %}">На согласование</a>
+                                        </div>
+                                    {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
+                                        <div class="form-stack-compact">
+                                            <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'approve' %}">Согласовать</a>
+                                            <a class="command-button" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'reject' %}">Отклонить</a>
+                                        </div>
+                                    {% elif request_row.status == status.REJECTED and can_manage_payment_requests %}
+                                        <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Исправить</a>
+                                    {% elif request_row.status == status.APPROVED and can_manage_payment_requests %}
+                                        <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'transfer' %}">Передать в 1С:ДО</a>
+                                    {% else %}
+                                        <span class="badge">{% if request_row.do_external_id %}{{ request_row.do_external_id }}{% else %}Открыть{% endif %}</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="summary-line section-tab-panel" data-tab-panel="control" hidden>
             <span>Контроль лимита</span>
             <span class="summary-value">{{ limit_control_mode_label }}</span>
         </div>

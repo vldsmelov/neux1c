@@ -4,6 +4,7 @@
 {% block title %}Дерево договоров · NE UX{% endblock %}
 
 {% block tabs %}
+    <a class="app-tab" href="/contracts/register/">Реестр договоров</a>
     <a class="app-tab" href="/contracts/reservations/">Договоры / резерв</a>
     <a class="app-tab is-active" href="/contracts/tree/">Дерево договоров</a>
 {% endblock %}
@@ -15,7 +16,8 @@
             <p class="app-subtitle">Иерархия: доходный договор → договор поставщика → допсоглашения, с расчетом сумм и остатков на каждом уровне.</p>
         </div>
         <div class="command-bar">
-            <a class="command-button-primary" href="/contracts/reservations/">К реестру резервов</a>
+            <a class="command-button-primary" href="/contracts/register/">Реестр договоров</a>
+            <a class="command-button" href="/contracts/reservations/">К реестру резервов</a>
             <a class="command-button" href="/planning/limits/">Планы / лимиты</a>
             <span class="command-spacer"></span>
             <button class="icon-button" type="button" aria-label="Поиск" title="Поиск">⌕</button>
@@ -94,60 +96,74 @@
             </details>
         </aside>
 
-        <section class="data-panel stack">
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Строк в дереве: <strong id="contracts-tree-table-count">{{ rows|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по дереву договоров"
-                    data-table-search="#contracts-tree-table"
-                    data-table-count="#contracts-tree-table-count"
-                >
+        <section class="data-panel stack" data-tab-scope>
+            <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы дерева договоров">
+                <button class="section-tab is-active" type="button" data-tab-target="tree-list">Дерево <span class="section-tab-count">{{ rows|length }}</span></button>
+                <button class="section-tab" type="button" data-tab-target="tree-summary">Сводка</button>
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="contracts-tree-table" class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="checkbox-cell"></th>
-                            <th scope="col" class="table-col-short">Вид</th>
-                            <th scope="col" class="table-col-article">Иерархия</th>
-                            <th scope="col" class="table-col-date">Дата</th>
-                            <th scope="col" class="table-col-counterparty">Контрагент</th>
-                            <th scope="col" class="table-col-short">Вал.</th>
-                            <th scope="col" class="table-col-number">Сумма (вал.)</th>
-                            <th scope="col" class="table-col-number">Оплачено (вал.)</th>
-                            <th scope="col" class="table-col-number">Остаток (вал.)</th>
-                            <th scope="col" class="table-col-number">Резерв, руб.</th>
-                            <th scope="col" class="table-col-number">Оплачено, руб.</th>
-                            <th scope="col" class="table-col-number">Остаток, руб.</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
+
+            <div class="section-tab-panel" data-tab-panel="tree-list">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Строк в дереве: <strong id="contracts-tree-table-count">{{ rows|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по дереву договоров"
+                        data-table-search="#contracts-tree-table"
+                        data-table-count="#contracts-tree-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="contracts-tree-table" class="data-table">
+                        <thead>
                             <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td class="table-col-short"><span class="badge">{{ row.kind_label }}</span></td>
-                                <td class="table-col-article"><span class="tree-indent" style="--indent: {{ row.indent_px }}px;">{{ row.display_name }}</span></td>
-                                <td class="table-col-date">{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
-                                <td class="table-col-counterparty">{{ row.counterparty_name }}</td>
-                                <td class="table-col-short">{{ row.currency_code }}</td>
-                                <td class="table-col-number">{% if row.reserved_native is not None %}{{ row.reserved_native|ru_number }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{% if row.paid_native is not None %}{{ row.paid_native|ru_number }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{% if row.remaining_native is not None %}{{ row.remaining_native|ru_number }}{% else %}—{% endif %}</td>
-                                <td class="table-col-number">{{ row.reserved_rub|ru_number }}</td>
-                                <td class="table-col-number">{{ row.paid_rub|ru_number }}</td>
-                                <td class="table-col-number">{{ row.remaining_rub|ru_number }}</td>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-short">Вид</th>
+                                <th scope="col" class="table-col-article">Иерархия</th>
+                                <th scope="col" class="table-col-date">Дата</th>
+                                <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                <th scope="col" class="table-col-short">Вал.</th>
+                                <th scope="col" class="table-col-number">Сумма (вал.)</th>
+                                <th scope="col" class="table-col-number">Оплачено (вал.)</th>
+                                <th scope="col" class="table-col-number">Остаток (вал.)</th>
+                                <th scope="col" class="table-col-number">Резерв, руб.</th>
+                                <th scope="col" class="table-col-number">Оплачено, руб.</th>
+                                <th scope="col" class="table-col-number">Остаток, руб.</th>
                             </tr>
-                        {% empty %}
-                            <tr><td colspan="12">Нет данных для выбранных фильтров.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td><span class="fake-checkbox"></span></td>
+                                    <td class="table-col-short"><span class="badge">{{ row.kind_label }}</span></td>
+                                    <td class="table-col-article"><span class="tree-indent" style="--indent: {{ row.indent_px }}px;">{{ row.display_name }}</span></td>
+                                    <td class="table-col-date">{% if row.date %}{{ row.date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                                    <td class="table-col-counterparty">{{ row.counterparty_name }}</td>
+                                    <td class="table-col-short">{{ row.currency_code }}</td>
+                                    <td class="table-col-number">{% if row.reserved_native is not None %}{{ row.reserved_native|ru_number }}{% else %}—{% endif %}</td>
+                                    <td class="table-col-number">{% if row.paid_native is not None %}{{ row.paid_native|ru_number }}{% else %}—{% endif %}</td>
+                                    <td class="table-col-number">{% if row.remaining_native is not None %}{{ row.remaining_native|ru_number }}{% else %}—{% endif %}</td>
+                                    <td class="table-col-number">{{ row.reserved_rub|ru_number }}</td>
+                                    <td class="table-col-number">{{ row.paid_rub|ru_number }}</td>
+                                    <td class="table-col-number">{{ row.remaining_rub|ru_number }}</td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="12">Нет данных для выбранных фильтров.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="summary-line">
-                <span>Контроль</span>
-                <span class="summary-value">остатки пересчитаны</span>
+
+            <div class="stack-section section-tab-panel" data-tab-panel="tree-summary" hidden>
+                <h2 class="section-title">Сводка дерева</h2>
+                <div class="summary-line"><span>Доходных договоров</span><span class="summary-value">{{ summary.customers }}</span></div>
+                <div class="summary-line"><span>Договоров поставщиков</span><span class="summary-value">{{ summary.suppliers }}</span></div>
+                <div class="summary-line"><span>Допсоглашений</span><span class="summary-value">{{ summary.agreements }}</span></div>
+                <div class="summary-line"><span>Резерв, руб.</span><span class="summary-value">{{ summary.total_reserved_rub|ru_number }}</span></div>
+                <div class="summary-line"><span>Оплачено, руб.</span><span class="summary-value">{{ summary.total_paid_rub|ru_number }}</span></div>
+                <div class="summary-line"><span>Остаток, руб.</span><span class="summary-value">{{ summary.total_remaining_rub|ru_number }}</span></div>
+                <div class="summary-line"><span>Контроль</span><span class="summary-value">остатки пересчитаны</span></div>
             </div>
         </section>
     </div>

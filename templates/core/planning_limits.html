@@ -35,101 +35,112 @@
             <div class="metric-cell"><div class="metric-value">≤ бюджет</div><div class="metric-label">Контроль</div></div>
         </div>
 
-        <div class="table-toolbar">
-            <span class="table-toolbar-note">Лимитов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
-            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по лимитам" data-table-search="#plans-table" data-table-count="#plans-table-count">
-        </div>
-        <div class="data-table-wrap desktop-scroll">
-            <table id="plans-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th scope="col" class="checkbox-cell"></th>
-                        <th scope="col" class="table-col-doc">Номер</th>
-                        <th scope="col" class="table-col-doc">Бюджет</th>
-                        <th scope="col">Компания</th>
-                        <th scope="col" class="table-col-short">Год</th>
-                        <th scope="col" class="table-col-counterparty">ЦФО</th>
-                        <th scope="col" class="table-col-article">Статья</th>
-                        <th scope="col" class="table-col-number">Сумма</th>
-                        <th scope="col" class="table-col-status">Статус</th>
-                        <th scope="col" class="table-action-col">Действие</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for plan in plans %}
-                        <tr>
-                            <td><span class="fake-checkbox"></span></td>
-                            <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
-                            <td class="table-col-doc table-cell-nowrap">{% if plan.budget %}{{ plan.budget.number }}{% else %}—{% endif %}</td>
-                            <td>{{ plan.organization.name }}</td>
-                            <td class="table-col-short">{{ plan.planning_year }}</td>
-                            <td class="table-col-counterparty">{{ plan.department.name }}</td>
-                            <td class="table-col-article">{{ plan.article.name }}</td>
-                            <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
-                            <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span></td>
-                            <td class="table-action-col">
-                                {% if plan.status == status.DRAFT and can_edit_plans %}
-                                    <a class="command-button" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
-                                {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
-                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit' plan.id 'approve' %}">Утвердить</a>
-                                {% elif plan.status == status.APPROVED and can_create_limit_adjustments %}
-                                    <a class="command-button" href="/planning/adjustments/wizard/">Корректировать</a>
-                                {% else %}
-                                    <span class="badge">Открыть</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr><td colspan="10">Лимитов пока нет. Запустите первичный ввод через wizard.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        <div data-tab-scope class="stack">
+            <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы журнала лимитов">
+                <button class="section-tab is-active" type="button" data-tab-target="limits">Лимиты <span class="section-tab-count">{{ plans|length }}</span></button>
+                <button class="section-tab" type="button" data-tab-target="adjustments">Корректировки <span class="section-tab-count">{{ adjustments|length }}</span></button>
+            </div>
 
-        <h2 class="section-title">Корректировки лимитов</h2>
-        <div class="table-toolbar">
-            <span class="table-toolbar-note">Корректировок: <strong id="adjustments-table-count">{{ adjustments|length }}</strong></span>
-            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по корректировкам" data-table-search="#adjustments-table" data-table-count="#adjustments-table-count">
-        </div>
-        <div class="data-table-wrap desktop-scroll">
-            <table id="adjustments-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th scope="col" class="checkbox-cell"></th>
-                        <th scope="col" class="table-col-doc">Номер</th>
-                        <th scope="col" class="table-col-doc">Базовый лимит</th>
-                        <th scope="col">Перенос</th>
-                        <th scope="col" class="table-col-number">Новая сумма</th>
-                        <th scope="col" class="table-col-short">Версия</th>
-                        <th scope="col" class="table-col-status">Статус</th>
-                        <th scope="col" class="table-action-col">Действие</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for adjustment in adjustments %}
-                        <tr>
-                            <td><span class="fake-checkbox"></span></td>
-                            <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
-                            <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
-                            <td>{% if adjustment.target_organization %}→ {{ adjustment.target_organization.name }}{% else %}Внутри компании{% endif %}</td>
-                            <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
-                            <td class="table-col-short">v{{ adjustment.version }}</td>
-                            <td class="table-col-status"><span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span></td>
-                            <td class="table-action-col">
-                                {% if adjustment.status == status.DRAFT and can_edit_plans %}
-                                    <a class="command-button" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'submit' %}">На утверждение</a>
-                                {% elif adjustment.status == status.PENDING_APPROVAL and can_approve_plans %}
-                                    <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'approve' %}">Утвердить</a>
-                                {% else %}
-                                    <span class="badge">Открыть</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% empty %}
-                        <tr><td colspan="8">Корректировок пока нет.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="section-tab-panel" data-tab-panel="limits">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Лимитов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
+                    <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по лимитам" data-table-search="#plans-table" data-table-count="#plans-table-count">
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="plans-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-doc">Номер</th>
+                                <th scope="col" class="table-col-doc">Бюджет</th>
+                                <th scope="col">Компания</th>
+                                <th scope="col" class="table-col-short">Год</th>
+                                <th scope="col" class="table-col-counterparty">ЦФО</th>
+                                <th scope="col" class="table-col-article">Статья</th>
+                                <th scope="col" class="table-col-number">Сумма</th>
+                                <th scope="col" class="table-col-status">Статус</th>
+                                <th scope="col" class="table-action-col">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for plan in plans %}
+                                <tr>
+                                    <td><span class="fake-checkbox"></span></td>
+                                    <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
+                                    <td class="table-col-doc table-cell-nowrap">{% if plan.budget %}{{ plan.budget.number }}{% else %}—{% endif %}</td>
+                                    <td>{{ plan.organization.name }}</td>
+                                    <td class="table-col-short">{{ plan.planning_year }}</td>
+                                    <td class="table-col-counterparty">{{ plan.department.name }}</td>
+                                    <td class="table-col-article">{{ plan.article.name }}</td>
+                                    <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
+                                    <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span></td>
+                                    <td class="table-action-col">
+                                        {% if plan.status == status.DRAFT and can_edit_plans %}
+                                            <a class="command-button" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
+                                        {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                            <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit' plan.id 'approve' %}">Утвердить</a>
+                                        {% elif plan.status == status.APPROVED and can_create_limit_adjustments %}
+                                            <a class="command-button" href="/planning/adjustments/wizard/">Корректировать</a>
+                                        {% else %}
+                                            <span class="badge">Открыть</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="10">Лимитов пока нет. Запустите первичный ввод через wizard.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="section-tab-panel" data-tab-panel="adjustments" hidden>
+                <h2 class="section-title">Корректировки лимитов</h2>
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Корректировок: <strong id="adjustments-table-count">{{ adjustments|length }}</strong></span>
+                    <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по корректировкам" data-table-search="#adjustments-table" data-table-count="#adjustments-table-count">
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="adjustments-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-doc">Номер</th>
+                                <th scope="col" class="table-col-doc">Базовый лимит</th>
+                                <th scope="col">Перенос</th>
+                                <th scope="col" class="table-col-number">Новая сумма</th>
+                                <th scope="col" class="table-col-short">Версия</th>
+                                <th scope="col" class="table-col-status">Статус</th>
+                                <th scope="col" class="table-action-col">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for adjustment in adjustments %}
+                                <tr>
+                                    <td><span class="fake-checkbox"></span></td>
+                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.number }}</td>
+                                    <td class="table-col-doc table-cell-nowrap">{{ adjustment.base_plan.number }}</td>
+                                    <td>{% if adjustment.target_organization %}→ {{ adjustment.target_organization.name }}{% else %}Внутри компании{% endif %}</td>
+                                    <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
+                                    <td class="table-col-short">v{{ adjustment.version }}</td>
+                                    <td class="table-col-status"><span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span></td>
+                                    <td class="table-action-col">
+                                        {% if adjustment.status == status.DRAFT and can_edit_plans %}
+                                            <a class="command-button" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'submit' %}">На утверждение</a>
+                                        {% elif adjustment.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                            <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'approve' %}">Утвердить</a>
+                                        {% else %}
+                                            <span class="badge">Открыть</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="8">Корректировок пока нет.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </section>
 {% endblock %}

@@ -48,8 +48,14 @@
         </div>
     </div>
 
-    <div class="stack">
-        <div class="stack-section">
+    <div class="stack" data-tab-scope>
+        <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы дашборда">
+            <button class="section-tab is-active" type="button" data-tab-target="limits">Остатки <span class="section-tab-count">{{ limit_residuals|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="overruns">Превышения <span class="section-tab-count">{{ top_overruns|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="statuses">Статусы <span class="section-tab-count">{{ status_rows|length }}</span></button>
+        </div>
+
+        <div class="stack-section section-tab-panel" data-tab-panel="limits">
             <h2 class="section-title">Остатки лимитов по статьям (БУ)</h2>
             <p class="section-subtitle">Контроль ключевых статей с учетом планов, резервов и фактических оплат.</p>
             <div class="table-toolbar">
@@ -103,7 +109,7 @@
             </div>
         </div>
 
-        <div class="stack-section">
+        <div class="stack-section section-tab-panel" data-tab-panel="overruns" hidden>
             <h2 class="section-title">Топ превышений лимита</h2>
             <p class="section-subtitle">Самые рискованные позиции в приоритетном порядке для быстрого реагирования.</p>
             <div class="table-toolbar">
@@ -144,7 +150,7 @@
             </div>
         </div>
 
-        <div class="stack-section">
+        <div class="stack-section section-tab-panel" data-tab-panel="statuses" hidden>
             <h2 class="section-title">Статусы заявок на оплату</h2>
             <p class="section-subtitle">Текущая стадия заявок для контроля SLA согласования.</p>
             <div class="table-toolbar">

@@ -71,7 +71,57 @@
 
         .app-sidebar-primary {
             display: grid;
-            gap: 4px;
+            gap: 6px;
+        }
+
+        .app-nav-group {
+            display: grid;
+            gap: 3px;
+            border: 1px solid transparent;
+            border-radius: var(--app-radius);
+        }
+
+        .app-nav-group-title {
+            align-items: center;
+            color: var(--app-muted);
+            cursor: pointer;
+            display: grid;
+            font-size: 11px;
+            font-weight: 700;
+            grid-template-columns: minmax(0, 1fr) 14px;
+            letter-spacing: 0;
+            line-height: 1.2;
+            list-style: none;
+            min-height: 30px;
+            padding: 7px 8px;
+            text-transform: uppercase;
+        }
+
+        .app-nav-group-title::-webkit-details-marker {
+            display: none;
+        }
+
+        .app-nav-group-title::after {
+            content: "›";
+            display: grid;
+            font-size: 14px;
+            place-items: center;
+            transform: rotate(90deg);
+            transition: transform 0.15s ease;
+        }
+
+        .app-nav-group[open] {
+            background: rgba(255, 255, 255, 0.55);
+            border-color: rgba(175, 196, 220, 0.45);
+            padding-bottom: 4px;
+        }
+
+        .app-nav-group[open] > .app-nav-group-title::after {
+            transform: rotate(-90deg);
+        }
+
+        .app-nav-group:not([open]) > .app-nav-link {
+            display: none;
         }
 
         .app-sidebar-secondary {
@@ -456,6 +506,31 @@
             gap: 10px;
         }
 
+        .form-link-row {
+            align-items: center;
+            border: 1px solid var(--app-border);
+            border-radius: 7px;
+            color: var(--app-text);
+            display: flex;
+            gap: 10px;
+            justify-content: space-between;
+            min-height: 46px;
+            padding: 8px 10px;
+        }
+
+        .form-link-row:hover {
+            border-color: var(--app-primary);
+            background: var(--app-primary-soft);
+        }
+
+        .form-link-row small {
+            color: var(--app-muted);
+            display: block;
+            font-size: 12px;
+            line-height: 1.25;
+            margin-top: 2px;
+        }
+
         .form-section + .form-section {
             margin-top: 10px;
         }
@@ -670,6 +745,61 @@
             border-bottom: 1px solid rgba(175, 196, 220, 0.5);
         }
 
+        .section-tabs {
+            align-items: center;
+            background: var(--app-toolbar);
+            border: 1px solid var(--app-border);
+            border-radius: var(--app-radius);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            padding: 6px;
+        }
+
+        .section-tab {
+            align-items: center;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 7px;
+            color: var(--app-muted);
+            cursor: pointer;
+            display: inline-flex;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 700;
+            gap: 8px;
+            min-height: 34px;
+            padding: 7px 10px;
+            text-decoration: none;
+        }
+
+        .section-tab:hover {
+            background: var(--app-surface);
+            border-color: var(--app-border);
+            color: var(--app-text);
+        }
+
+        .section-tab.is-active {
+            background: var(--app-surface);
+            border-color: rgba(27, 117, 208, 0.32);
+            color: var(--app-accent);
+            box-shadow: 0 1px 4px rgba(24, 78, 129, 0.08);
+        }
+
+        .section-tab-count {
+            background: rgba(27, 117, 208, 0.1);
+            border-radius: 999px;
+            color: var(--app-accent);
+            font-size: 12px;
+            min-width: 22px;
+            padding: 2px 7px;
+            text-align: center;
+        }
+
+        .section-tab-panel[hidden] {
+            display: none !important;
+        }
+
         .action-hub {
             display: grid;
             gap: 12px;
@@ -754,6 +884,44 @@
             color: var(--app-muted);
             font-size: 13px;
             line-height: 1.35;
+        }
+
+        .contract-register-summary {
+            align-items: center;
+            cursor: pointer;
+            display: flex;
+            gap: 12px;
+            justify-content: space-between;
+            list-style: none;
+        }
+
+        .contract-register-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .contract-register-summary > span:first-child {
+            display: grid;
+            gap: 3px;
+            min-width: 0;
+        }
+
+        .contract-register-metrics {
+            align-items: center;
+            color: var(--app-muted);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: flex-end;
+            text-align: right;
+        }
+
+        .contract-register-head {
+            border-top: 1px solid var(--app-border);
+            display: grid;
+            gap: 10px;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            margin-top: 10px;
+            padding-top: 10px;
         }
 
         .wizard-shell {
@@ -1586,24 +1754,31 @@
             .report-summary-grid {
                 grid-template-columns: 1fr;
             }
+
+            .contract-register-summary,
+            .contract-register-metrics {
+                align-items: flex-start;
+                display: grid;
+                justify-content: stretch;
+                text-align: left;
+            }
+
+            .contract-register-head {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
     <div class="mobile-nav">
         <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
-        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">Ввод</a>
-        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/budgets/">Бюджеты</a>
-        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">Лимиты</a>
-        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">Новая</a>
-        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">Заявки</a>
-        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/facts/">Факт</a>
+        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">Планирование</a>
+        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">Платежи</a>
+        <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/register/">Договоры</a>
         <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">Отчеты</a>
-        <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">Договоры</a>
         <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
-        <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">Инструкция</a>
         <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">Настройки</a>
-        <a class="app-tab" href="/admin/">Администрирование</a>
+        <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">Помощь</a>
     </div>
     <div class="app-shell">
         <aside class="app-sidebar">
@@ -1612,67 +1787,117 @@
                 <span class="app-logo-text">NE UX<br>пилот</span>
             </a>
             <nav class="app-nav app-sidebar-primary" aria-label="Рабочие разделы">
-                <a class="app-nav-link {% if active_section == 'workspace' %}is-active{% endif %}" href="/">
-                    <span class="app-nav-icon">⌂</span><span>Главное</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/budgets/">
-                    <span class="app-nav-icon">▤</span><span>Бюджеты</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">
-                    <span class="app-nav-icon">＋</span><span>Первичный ввод</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/adjustments/wizard/">
-                    <span class="app-nav-icon">±</span><span>Корректировка лимита</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/limits/">
-                    <span class="app-nav-icon">▥</span><span>Лимиты</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">
-                    <span class="app-nav-icon">+</span><span>Новая заявка</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/">
-                    <span class="app-nav-icon">✉</span><span>Заявки на оплату</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/facts/wizard/">
-                    <span class="app-nav-icon">∆</span><span>Корректировка факта</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/facts/">
-                    <span class="app-nav-icon">⎚</span><span>Факт оплат БДДС</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">
-                    <span class="app-nav-icon">▦</span><span>Дашборд руководителя</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/plan-fact/">
-                    <span class="app-nav-icon">▩</span><span>План-факт БДДС</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">
-                    <span class="app-nav-icon">□</span><span>НСИ</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/reservations/">
-                    <span class="app-nav-icon">⌘</span><span>Договоры</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">
-                    <span class="app-nav-icon">₽</span><span>Внешняя 1С:БП</span><span>›</span>
-                </a>
-                <a class="app-nav-link {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/payment-wizard/">
-                    <span class="app-nav-icon">₽</span><span>Платеж</span><span>›</span>
-                </a>
+                <details class="app-nav-group" {% if active_section == 'workspace' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Рабочий день</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'workspace' %}is-active{% endif %}" href="/">
+                        <span class="app-nav-icon">⌂</span><span>Главное</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'planning' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Бюджеты и лимиты</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'planning_wizard' %}is-active{% endif %}" href="/planning/wizard/">
+                        <span class="app-nav-icon">＋</span><span>Первичный ввод</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'planning_budgets' %}is-active{% endif %}" href="/planning/budgets/">
+                        <span class="app-nav-icon">▤</span><span>Бюджеты</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'planning_limits' %}is-active{% endif %}" href="/planning/limits/">
+                        <span class="app-nav-icon">▥</span><span>Лимиты</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'limit_adjustment_wizard' %}is-active{% endif %}" href="/planning/adjustments/wizard/">
+                        <span class="app-nav-icon">±</span><span>Корректировка лимита</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'payments' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Платежи</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'payment_request_wizard' %}is-active{% endif %}" href="/payments/requests/wizard/">
+                        <span class="app-nav-icon">+</span><span>Новая заявка</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'payment_requests' %}is-active{% endif %}" href="/payments/requests/">
+                        <span class="app-nav-icon">✉</span><span>Заявки на оплату</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'payment_facts' %}is-active{% endif %}" href="/payments/facts/">
+                        <span class="app-nav-icon">⎚</span><span>Факт оплат БДДС</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'payment_fact_adjustment_wizard' %}is-active{% endif %}" href="/payments/facts/wizard/">
+                        <span class="app-nav-icon">∆</span><span>Корректировка факта</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'contracts' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Договоры</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'contracts_register' %}is-active{% endif %}" href="/contracts/register/">
+                        <span class="app-nav-icon">⌘</span><span>Реестр договоров</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'contracts_reservations' %}is-active{% endif %}" href="/contracts/reservations/">
+                        <span class="app-nav-icon">▧</span><span>Резервы договоров</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'contracts_tree' %}is-active{% endif %}" href="/contracts/tree/">
+                        <span class="app-nav-icon">↳</span><span>Дерево договоров</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'reports' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Отчеты</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'manager_dashboard' %}is-active{% endif %}" href="/reports/manager/">
+                        <span class="app-nav-icon">▦</span><span>Дашборд руководителя</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'plan_fact_report' %}is-active{% endif %}" href="/reports/plan-fact/">
+                        <span class="app-nav-icon">▩</span><span>План-факт БДДС</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'nsi' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Справочники</summary>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'organizations' %}is-active{% endif %}" href="/nsi/organizations/">
+                        <span class="app-nav-icon">◫</span><span>Компании</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'departments' %}is-active{% endif %}" href="/nsi/departments/">
+                        <span class="app-nav-icon">◧</span><span>ЦФО</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'articles' %}is-active{% endif %}" href="/nsi/articles/">
+                        <span class="app-nav-icon">≡</span><span>Статьи ДДС</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'counterparties' %}is-active{% endif %}" href="/nsi/counterparties/">
+                        <span class="app-nav-icon">◇</span><span>Контрагенты</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'nomenclature' %}is-active{% endif %}" href="/nsi/nomenclature/">
+                        <span class="app-nav-icon">▣</span><span>Номенклатура</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.kwargs.directory == 'currencies' %}is-active{% endif %}" href="/nsi/currencies/">
+                        <span class="app-nav-icon">¤</span><span>Валюты</span><span>›</span>
+                    </a>
+                </details>
+
+                <details class="app-nav-group" {% if active_section == 'external_accounting' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Внешний контур</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">
+                        <span class="app-nav-icon">₽</span><span>Внешняя 1С:БП</span><span>›</span>
+                    </a>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'external_payment_wizard' %}is-active{% endif %}" href="/external/accounting/payment-wizard/">
+                        <span class="app-nav-icon">₽</span><span>Платеж в 1С:БП</span><span>›</span>
+                    </a>
+                </details>
             </nav>
             <div class="app-sidebar-secondary">
-                <div class="app-sidebar-secondary-title">Сервисные разделы</div>
                 <nav class="app-nav" aria-label="Сервисные разделы">
-                    <a class="app-nav-link {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">
+                    <details class="app-nav-group" {% if active_section == 'settings' or active_section == 'instruction' %}open{% endif %}>
+                        <summary class="app-nav-group-title">Сервис</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'instruction' %}is-active{% endif %}" href="/instruction/">
                         <span class="app-nav-icon">☰</span><span>Инструкция</span><span>›</span>
                     </a>
-                    <a class="app-nav-link {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'integration_requests' %}is-active{% endif %}" href="/settings/integration-requests/">
                         <span class="app-nav-icon">⚙</span><span>Настройки</span><span>›</span>
                     </a>
-                    <a class="app-nav-link {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/wizard/">
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'integration_request_wizard' %}is-active{% endif %}" href="/settings/integration-requests/wizard/">
                         <span class="app-nav-icon">+</span><span>Заявка на интеграцию</span><span>›</span>
                     </a>
                     <a class="app-nav-link" href="/admin/">
                         <span class="app-nav-icon">◎</span><span>Администрирование</span><span>›</span>
                     </a>
+                    </details>
                 </nav>
             </div>
         </aside>
@@ -1765,7 +1990,10 @@
                 if (!table) {
                     return;
                 }
-                const rows = Array.from(table.querySelectorAll("tbody tr"));
+                let rows = Array.from(table.querySelectorAll("tbody tr"));
+                if (!rows.length) {
+                    rows = Array.from(table.querySelectorAll(":scope > details, :scope > .stack-section"));
+                }
                 const countNodeSelector = input.dataset.tableCount;
                 const countNode = countNodeSelector ? document.querySelector(countNodeSelector) : null;
 
@@ -1788,6 +2016,32 @@
             };
 
             document.querySelectorAll("[data-table-search]").forEach(bindTableSearch);
+            document.querySelectorAll("[data-section-tabs]").forEach((tabs) => {
+                const buttons = Array.from(tabs.querySelectorAll("[data-tab-target]"));
+                const scope = tabs.closest("[data-tab-scope]") || tabs.parentElement;
+                const panels = scope ? Array.from(scope.querySelectorAll("[data-tab-panel]")) : [];
+                const activate = (target) => {
+                    buttons.forEach((button) => {
+                        const isActive = button.dataset.tabTarget === target;
+                        button.classList.toggle("is-active", isActive);
+                        button.setAttribute("aria-selected", isActive ? "true" : "false");
+                    });
+                    panels.forEach((panel) => {
+                        panel.hidden = panel.dataset.tabPanel !== target;
+                    });
+                };
+                buttons.forEach((button) => {
+                    button.setAttribute("role", "tab");
+                    button.addEventListener("click", () => activate(button.dataset.tabTarget));
+                });
+                const hashTarget = window.location.hash ? window.location.hash.slice(1) : "";
+                const initial = buttons.find((button) => button.dataset.tabTarget === hashTarget)
+                    || buttons.find((button) => button.classList.contains("is-active"))
+                    || buttons[0];
+                if (initial) {
+                    activate(initial.dataset.tabTarget);
+                }
+            });
             document.querySelectorAll("[data-table-density]").forEach((button) => {
                 button.addEventListener("click", () => applyTableDensity(button.dataset.tableDensity));
             });

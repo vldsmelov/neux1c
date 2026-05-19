@@ -21,7 +21,7 @@
         </div>
     </div>
 
-    <section class="data-panel stack">
+    <section class="data-panel stack" data-tab-scope>
         <div class="metric-strip">
             <div class="metric-cell"><div class="metric-value">{{ rows|length }}</div><div class="metric-label">Договоров</div></div>
             <div class="metric-cell"><div class="metric-value">{{ payments_total|ru_number }}</div><div class="metric-label">Оплачено</div></div>
@@ -29,45 +29,60 @@
             <div class="metric-cell"><div class="metric-value">Mock</div><div class="metric-label">Контур</div></div>
         </div>
 
-        <div class="table-toolbar">
-            <span class="table-toolbar-note">Договоров к оплате: <strong id="external-payments-table-count">{{ rows|length }}</strong></span>
-            <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по договору или контрагенту" data-table-search="#external-payments-table" data-table-count="#external-payments-table-count">
+        <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы внешнего контура">
+            <button class="section-tab is-active" type="button" data-tab-target="contracts">Договоры <span class="section-tab-count">{{ rows|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="external-summary">Сводка</button>
         </div>
-        <div class="data-table-wrap desktop-scroll">
-            <table id="external-payments-table" class="data-table">
-                <thead>
-                    <tr>
-                        <th scope="col" class="checkbox-cell"></th>
-                        <th scope="col" class="table-col-doc">Договор</th>
-                        <th scope="col" class="table-col-counterparty">Контрагент</th>
-                        <th scope="col" class="table-col-number">К оплате</th>
-                        <th scope="col" class="table-col-number">Оплачено</th>
-                        <th scope="col" class="table-col-number">Остаток</th>
-                        <th scope="col" class="table-action-col">Действие</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for row in rows %}
+
+        <div class="section-tab-panel" data-tab-panel="contracts">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Договоров к оплате: <strong id="external-payments-table-count">{{ rows|length }}</strong></span>
+                <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по договору или контрагенту" data-table-search="#external-payments-table" data-table-count="#external-payments-table-count">
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="external-payments-table" class="data-table">
+                    <thead>
                         <tr>
-                            <td><span class="fake-checkbox"></span></td>
-                            <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
-                            <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
-                            <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                            <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                            <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                            <td class="table-action-col">
-                                {% if row.remaining_amount > 0 %}
-                                    <a class="command-button" href="/external/accounting/payment-wizard/">Оплатить</a>
-                                {% else %}
-                                    <span class="badge">Оплачено</span>
-                                {% endif %}
-                            </td>
+                            <th scope="col" class="checkbox-cell"></th>
+                            <th scope="col" class="table-col-doc">Договор</th>
+                            <th scope="col" class="table-col-counterparty">Контрагент</th>
+                            <th scope="col" class="table-col-number">К оплате</th>
+                            <th scope="col" class="table-col-number">Оплачено</th>
+                            <th scope="col" class="table-col-number">Остаток</th>
+                            <th scope="col" class="table-action-col">Действие</th>
                         </tr>
-                    {% empty %}
-                        <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1С.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for row in rows %}
+                            <tr>
+                                <td><span class="fake-checkbox"></span></td>
+                                <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                                <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
+                                <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                <td class="table-action-col">
+                                    {% if row.remaining_amount > 0 %}
+                                        <a class="command-button" href="/external/accounting/payment-wizard/">Оплатить</a>
+                                    {% else %}
+                                        <span class="badge">Оплачено</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="7">Нет договоров. Запустите синхронизацию Mock-1С.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="stack-section section-tab-panel" data-tab-panel="external-summary" hidden>
+            <h2 class="section-title">Сводка внешнего контура</h2>
+            <div class="summary-line"><span>Договоров</span><span class="summary-value">{{ rows|length }}</span></div>
+            <div class="summary-line"><span>Оплачено</span><span class="summary-value">{{ payments_total|ru_number }}</span></div>
+            <div class="summary-line"><span>Платеж</span><span class="summary-value">через wizard</span></div>
+            <div class="summary-line"><span>Контур</span><span class="summary-value">Mock 1С:БП</span></div>
         </div>
     </section>
 {% endblock %}

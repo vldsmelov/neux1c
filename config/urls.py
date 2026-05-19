@@ -4,6 +4,7 @@ from django.urls import path
 
 from core.views import (
     RoleAwareLoginView,
+    contracts_register,
     contracts_reservations,
     contracts_tree,
     document_action_wizard,
@@ -18,6 +19,7 @@ from core.views import (
     limit_adjustment_wizard,
     manager_dashboard,
     nsi_dashboard,
+    nsi_directory,
     payment_fact_adjustment_wizard,
     payment_facts,
     payment_request_edit_wizard,
@@ -51,9 +53,11 @@ urlpatterns = [
     path("payments/facts/", payment_facts, name="payment_facts"),
     path("reports/manager/", manager_dashboard, name="manager_dashboard"),
     path("reports/plan-fact/", plan_fact_report, name="plan_fact_report"),
+    path("contracts/register/", contracts_register, name="contracts_register"),
     path("contracts/reservations/", contracts_reservations, name="contracts_reservations"),
     path("contracts/tree/", contracts_tree, name="contracts_tree"),
     path("nsi/", nsi_dashboard, name="nsi_dashboard"),
+    path("nsi/<str:directory>/", nsi_directory, name="nsi_directory"),
     path("external/accounting/", external_accounting, name="external_accounting"),
     path("external/accounting/payment-wizard/", external_payment_wizard, name="external_payment_wizard"),
     path("instruction/", instruction, name="instruction"),

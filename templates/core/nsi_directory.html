@@ -1,0 +1,148 @@
+{% extends "core/base.html" %}
+
+{% block title %}{{ directory.label }} · НСИ · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="{% url 'nsi_directory' directory_key %}">НСИ</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">{{ directory.label }}</h1>
+            <p class="app-subtitle">{{ directory.description }}</p>
+        </div>
+        <form class="command-bar" method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="sync">
+            <input type="hidden" name="directory" value="{{ directory_key }}">
+            <button class="command-button" type="submit">Синхронизировать Mock-1С</button>
+        </form>
+    </div>
+
+    <section class="data-panel stack">
+        <nav class="section-tabs" aria-label="Справочники НСИ">
+            {% for item in managed_directories %}
+                <a class="section-tab {% if item.key == directory_key %}is-active{% endif %}" href="{% url 'nsi_directory' item.key %}">
+                    {{ item.label }} <span class="section-tab-count">{{ item.count }}</span>
+                </a>
+            {% endfor %}
+        </nav>
+
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">
+                Источник: Mock-1С ·
+                {% if latest_sync %}последний обмен {{ latest_sync.finished_at|date:"d.m.Y H:i" }}{% else %}обмен еще не выполнялся{% endif %}
+            </span>
+            <span class="table-toolbar-note">{{ directory.label }}: {{ directory_rows|length }}</span>
+        </div>
+
+        {% if can_create_nsi %}
+            <details class="stack-section">
+                <summary>Создать {{ directory.singular }}</summary>
+                <form class="form-grid form-grid-3 table-wrap-top" method="post">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="create">
+                    <input type="hidden" name="directory" value="{{ directory_key }}">
+                    {% for field in directory.fields %}
+                        {% if field.kind == "checkbox" %}
+                            <label class="inline-form-row">
+                                <input type="checkbox" name="{{ field.name }}" value="1" {% if field.default %}checked{% endif %}>
+                                <span>{{ field.label }}</span>
+                            </label>
+                        {% else %}
+                            <label>
+                                <span class="field-label">{{ field.label }}</span>
+                                <input class="field-control" name="{{ field.name }}" placeholder="{{ field.placeholder }}" {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %} {% if field.required %}required{% endif %}>
+                            </label>
+                        {% endif %}
+                    {% endfor %}
+                    <div class="form-grid-span-full inline-form-row">
+                        <button class="command-button-primary" type="submit">Создать</button>
+                    </div>
+                </form>
+            </details>
+        {% endif %}
+
+        <div class="stack-section">
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">Записей: <strong id="nsi-directory-count">{{ directory_rows|length }}</strong></span>
+                <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск" data-table-search="#nsi-directory-table" data-table-count="#nsi-directory-count">
+            </div>
+            <div class="data-table-wrap desktop-scroll">
+                <table id="nsi-directory-table" class="data-table">
+                    <thead>
+                        <tr>
+                            {% for field in directory.fields %}
+                                <th scope="col">{{ field.label }}</th>
+                            {% endfor %}
+                            <th scope="col" class="table-col-status">Источник</th>
+                            {% if can_update_nsi or can_delete_nsi %}
+                                <th scope="col" class="table-col-actions">Действия</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in directory_rows %}
+                            <tr>
+                                {% if can_update_nsi %}
+                                    <td hidden>
+                                        <form id="nsi-edit-{{ row.id }}" method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="update">
+                                            <input type="hidden" name="directory" value="{{ directory_key }}">
+                                            <input type="hidden" name="item_id" value="{{ row.id }}">
+                                        </form>
+                                    </td>
+                                {% endif %}
+                                {% for field in row.fields %}
+                                    <td>
+                                        {% if can_update_nsi %}
+                                            {% if field.kind == "checkbox" %}
+                                                <label class="inline-form-row">
+                                                    <input form="nsi-edit-{{ row.id }}" type="checkbox" name="{{ field.name }}" value="1" {% if field.checked %}checked{% endif %}>
+                                                    <span>{% if field.checked %}Да{% else %}Нет{% endif %}</span>
+                                                </label>
+                                            {% else %}
+                                                <input form="nsi-edit-{{ row.id }}" class="field-control field-control-sm" name="{{ field.name }}" value="{{ field.input_value }}" {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %} {% if field.required %}required{% endif %}>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if field.kind == "checkbox" %}
+                                                {% if field.checked %}<span class="badge">Да</span>{% else %}<span class="badge badge-muted">Нет</span>{% endif %}
+                                            {% else %}
+                                                {{ field.value|default:"--" }}
+                                            {% endif %}
+                                        {% endif %}
+                                    </td>
+                                {% endfor %}
+                                <td class="table-col-status"><span class="badge">{{ row.source }}</span></td>
+                                {% if can_update_nsi or can_delete_nsi %}
+                                    <td class="table-col-actions">
+                                        <div class="inline-form-row">
+                                            {% if can_update_nsi %}
+                                                <button class="command-button" type="submit" form="nsi-edit-{{ row.id }}">Сохранить</button>
+                                            {% endif %}
+                                            {% if can_delete_nsi %}
+                                                <form method="post" onsubmit="return confirm('Удалить запись НСИ?');">
+                                                    {% csrf_token %}
+                                                    <input type="hidden" name="action" value="delete">
+                                                    <input type="hidden" name="directory" value="{{ directory_key }}">
+                                                    <input type="hidden" name="item_id" value="{{ row.id }}">
+                                                    <button class="command-button-danger" type="submit">Удалить</button>
+                                                </form>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                {% endif %}
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="99">Нет данных</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+{% endblock %}

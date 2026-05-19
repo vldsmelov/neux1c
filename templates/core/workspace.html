@@ -16,8 +16,15 @@
         </div>
     </div>
 
-    <section class="stack">
-        <section class="data-panel stack-section">
+    <section class="stack" data-tab-scope>
+        <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы рабочего места">
+            <button class="section-tab is-active" type="button" data-tab-target="workday">Рабочий день <span class="section-tab-count">{{ workday.task_count }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="actions">Действия</button>
+            <button class="section-tab" type="button" data-tab-target="process">Процесс</button>
+            <button class="section-tab" type="button" data-tab-target="overview">Сводка</button>
+        </div>
+
+        <section class="data-panel stack-section section-tab-panel" data-tab-panel="workday">
             <div class="app-page-head">
                 <div>
                     <h2 class="section-title">Мой рабочий день</h2>
@@ -95,7 +102,7 @@
             </div>
         </section>
 
-        <div class="action-hub">
+        <div class="action-hub section-tab-panel" data-tab-panel="actions" hidden>
             <article class="action-card action-card-primary">
                 <div class="action-card-head">
                     <h2 class="action-card-title">Первичный бюджет</h2>
@@ -169,7 +176,7 @@
             </article>
         </div>
 
-        <section class="data-panel stack-section">
+        <section class="data-panel stack-section section-tab-panel" data-tab-panel="process" hidden>
             <h2 class="section-title">Логика процесса</h2>
             <p class="section-subtitle">Ввод отделен от контроля: wizard помогает заполнить документ, журнал помогает управлять статусом.</p>
             <div class="process-flow">
@@ -196,7 +203,7 @@
             </div>
         </section>
 
-        <section class="data-panel stack-section">
+        <section class="data-panel stack-section section-tab-panel" data-tab-panel="overview" hidden>
             <div class="metric-strip">
                 <div class="metric-cell">
                     <div class="metric-value">{{ counts.articles|default:"0" }}</div>

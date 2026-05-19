@@ -4,6 +4,7 @@
 {% block title %}Договоры и резервирование · NE UX{% endblock %}
 
 {% block tabs %}
+    <a class="app-tab" href="/contracts/register/">Реестр договоров</a>
     <a class="app-tab is-active" href="/contracts/reservations/">Договоры / резерв</a>
     <a class="app-tab" href="/contracts/tree/">Дерево договоров</a>
 {% endblock %}
@@ -15,6 +16,7 @@
             <p class="app-subtitle">Резерв по договору учитывает сумму договора и допсоглашений. Доступный лимит считается от утвержденных планов.</p>
         </div>
         <div class="command-bar">
+            <a class="command-button-primary" href="/contracts/register/">Реестр договоров</a>
             <a class="command-button-primary" href="/external/accounting/">Перейти к оплате</a>
             <a class="command-button" href="/contracts/tree/">Открыть дерево</a>
             <a class="command-button" href="/planning/limits/">Планы / лимиты</a>
@@ -56,72 +58,85 @@
             </details>
         </aside>
 
-        <section class="data-panel stack">
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Договоров в реестре: <strong id="contracts-reserve-table-count">{{ rows|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по договорам"
-                    data-table-search="#contracts-reserve-table"
-                    data-table-count="#contracts-reserve-table-count"
-                >
+        <section class="data-panel stack" data-tab-scope>
+            <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы резервов">
+                <button class="section-tab is-active" type="button" data-tab-target="reserve-list">Резервы <span class="section-tab-count">{{ rows|length }}</span></button>
+                <button class="section-tab" type="button" data-tab-target="reserve-summary">Сводка</button>
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="contracts-reserve-table" class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="checkbox-cell"></th>
-                            <th scope="col" class="table-col-doc">Договор</th>
-                            <th scope="col" class="table-col-counterparty">Контрагент</th>
-                            <th scope="col" class="table-col-article">Статья ДДС</th>
-                            <th scope="col" class="table-col-number">Резерв</th>
-                            <th scope="col" class="table-col-number">Оплачено</th>
-                            <th scope="col" class="table-col-number">К оплате</th>
-                            <th scope="col" class="table-col-number">Лимит (утв.)</th>
-                            <th scope="col" class="table-col-number">Лимит после резерва</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for row in rows %}
+
+            <div class="section-tab-panel" data-tab-panel="reserve-list">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Договоров в реестре: <strong id="contracts-reserve-table-count">{{ rows|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по договорам"
+                        data-table-search="#contracts-reserve-table"
+                        data-table-count="#contracts-reserve-table-count"
+                    >
+                </div>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="contracts-reserve-table" class="data-table">
+                        <thead>
                             <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
-                                <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
-                                <td class="table-col-article">
-                                    {% if row.article %}
-                                        {{ row.article.code }} · {{ row.article.name }}
-                                    {% else %}
-                                        <span class="badge">Не определена</span>
-                                    {% endif %}
-                                </td>
-                                <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
-                                <td class="table-col-number">
-                                    {% if row.approved_limit is not None %}
-                                        {{ row.approved_limit|ru_number }} {{ row.contract.currency.code }}
-                                    {% else %}
-                                        <span class="badge badge-danger">Нет лимита</span>
-                                    {% endif %}
-                                </td>
-                                <td class="table-col-number">
-                                    {% if row.available_limit_after_reserve is not None %}
-                                        {{ row.available_limit_after_reserve|ru_number }} {{ row.contract.currency.code }}
-                                    {% else %}
-                                        <span class="badge">—</span>
-                                    {% endif %}
-                                </td>
+                                <th scope="col" class="checkbox-cell"></th>
+                                <th scope="col" class="table-col-doc">Договор</th>
+                                <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                <th scope="col" class="table-col-article">Статья ДДС</th>
+                                <th scope="col" class="table-col-number">Резерв</th>
+                                <th scope="col" class="table-col-number">Оплачено</th>
+                                <th scope="col" class="table-col-number">К оплате</th>
+                                <th scope="col" class="table-col-number">Лимит (утв.)</th>
+                                <th scope="col" class="table-col-number">Лимит после резерва</th>
                             </tr>
-                        {% empty %}
-                            <tr><td colspan="9">Нет договоров. Загрузите демо-данные Mock-1С.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody>
+                            {% for row in rows %}
+                                <tr>
+                                    <td><span class="fake-checkbox"></span></td>
+                                    <td class="table-col-doc">{{ row.contract.number }} от {{ row.contract.date|date:"d.m.Y" }}</td>
+                                    <td class="table-col-counterparty">{{ row.contract.counterparty.name }}</td>
+                                    <td class="table-col-article">
+                                        {% if row.article %}
+                                            {{ row.article.code }} · {{ row.article.name }}
+                                        {% else %}
+                                            <span class="badge">Не определена</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ row.paid_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}</td>
+                                    <td class="table-col-number">
+                                        {% if row.approved_limit is not None %}
+                                            {{ row.approved_limit|ru_number }} {{ row.contract.currency.code }}
+                                        {% else %}
+                                            <span class="badge badge-danger">Нет лимита</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="table-col-number">
+                                        {% if row.available_limit_after_reserve is not None %}
+                                            {{ row.available_limit_after_reserve|ru_number }} {{ row.contract.currency.code }}
+                                        {% else %}
+                                            <span class="badge">—</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr><td colspan="9">Нет договоров. Загрузите демо-данные Mock-1С.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="summary-line">
-                <span>Контроль</span>
-                <span class="summary-value">резерв уменьшает лимит</span>
+
+            <div class="stack-section section-tab-panel" data-tab-panel="reserve-summary" hidden>
+                <h2 class="section-title">Сводка резервирования</h2>
+                <div class="summary-line"><span>Договоров в реестре</span><span class="summary-value">{{ summary.contracts }}</span></div>
+                <div class="summary-line"><span>Общий резерв</span><span class="summary-value">{{ summary.total_reserved|ru_number }} руб.</span></div>
+                <div class="summary-line"><span>Оплачено</span><span class="summary-value">{{ summary.total_paid|ru_number }} руб.</span></div>
+                <div class="summary-line"><span>Остаток к оплате</span><span class="summary-value">{{ summary.total_remaining|ru_number }} руб.</span></div>
+                <div class="summary-line"><span>Без привязки к статье ДДС</span><span class="summary-value">{{ summary.contracts_without_article }}</span></div>
+                <div class="summary-line"><span>Контроль</span><span class="summary-value">резерв уменьшает лимит</span></div>
             </div>
         </section>
     </div>

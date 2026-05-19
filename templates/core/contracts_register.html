@@ -1,0 +1,244 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Реестр договоров · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/contracts/register/">Реестр договоров</a>
+    <a class="app-tab" href="/contracts/reservations/">Резервы</a>
+    <a class="app-tab" href="/contracts/tree/">Дерево</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Реестр договоров</h1>
+            <p class="app-subtitle">Доходный договор как точка входа: все расходные договоры, ДС, оплаты и остатки собраны в одной раскрываемой строке.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button-primary" href="/external/accounting/payment-wizard/">Создать оплату</a>
+            <a class="command-button" href="/contracts/tree/">Открыть дерево</a>
+            <a class="command-button" href="/contracts/reservations/">Резервы</a>
+        </div>
+    </div>
+
+    <div class="document-grid document-grid-priority-data">
+        <aside class="form-panel">
+            <details class="form-section" open>
+                <summary>Быстрый отбор</summary>
+                <div class="form-section-content">
+                    <form method="get" class="form-stack form-grid form-grid-2">
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="customer_contract_id">Доходный договор</label>
+                            <select class="field-control-select" id="customer_contract_id" name="customer_contract_id">
+                                <option value="">Все доходные договоры</option>
+                                {% for contract in customer_contracts %}
+                                    <option value="{{ contract.id }}" {% if selected_customer_contract_id == contract.id %}selected{% endif %}>
+                                        {{ contract.number }} · {{ contract.counterparty.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="counterparty_id">Контрагент</label>
+                            <select class="field-control-select" id="counterparty_id" name="counterparty_id">
+                                <option value="">Все</option>
+                                {% for counterparty in counterparties %}
+                                    <option value="{{ counterparty.id }}" {% if selected_counterparty_id == counterparty.id %}selected{% endif %}>
+                                        {{ counterparty.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="contract">Номер или название</label>
+                            <input class="field-control" id="contract" name="contract" value="{{ selected_contract }}" placeholder="ДП-2026 или аренда">
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_from">Дата с</label>
+                            <input class="field-control" id="date_from" type="text" name="date_from" value="{{ selected_date_from }}" placeholder="дд.мм.гггг">
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_to">Дата по</label>
+                            <input class="field-control" id="date_to" type="text" name="date_to" value="{{ selected_date_to }}" placeholder="дд.мм.гггг">
+                        </div>
+                        <div class="form-grid-span-full inline-form-row">
+                            <button class="command-button-primary" type="submit">Применить</button>
+                            <a class="command-button" href="/contracts/register/">Сбросить</a>
+                        </div>
+                    </form>
+                </div>
+            </details>
+
+            <details class="form-section" open>
+                <summary>Сводка</summary>
+                <div class="form-section-content">
+                    <div>
+                        <div class="field-label">Доходных договоров</div>
+                        <div class="field-control is-focused">{{ summary.customers }}</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Расходных договоров</div>
+                        <div class="field-control">{{ summary.suppliers }}</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Допсоглашений</div>
+                        <div class="field-control">{{ summary.agreements }}</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Резерв расхода</div>
+                        <div class="field-control">{{ summary.total_reserved_rub|ru_number }} руб.</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Оплачено</div>
+                        <div class="field-control">{{ summary.total_paid_rub|ru_number }} руб.</div>
+                    </div>
+                    <div>
+                        <div class="field-label">Остаток</div>
+                        <div class="field-control">{{ summary.total_remaining_rub|ru_number }} руб.</div>
+                    </div>
+                </div>
+            </details>
+        </aside>
+
+        <section class="data-panel stack" data-tab-scope>
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ summary.customers }}</div>
+                    <div class="metric-label">Доходные</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ summary.suppliers }}</div>
+                    <div class="metric-label">Расходные</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ summary.total_paid_rub|ru_number }}</div>
+                    <div class="metric-label">Оплачено, руб.</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ summary.total_remaining_rub|ru_number }}</div>
+                    <div class="metric-label">Остаток, руб.</div>
+                </div>
+            </div>
+
+            <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы реестра договоров">
+                <button class="section-tab is-active" type="button" data-tab-target="register">Реестр <span class="section-tab-count">{{ rows|length }}</span></button>
+                <button class="section-tab" type="button" data-tab-target="summary">Сводка</button>
+            </div>
+
+            <div class="section-tab-panel stack" data-tab-panel="register">
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">Доходных документов: <strong id="contracts-register-count">{{ rows|length }}</strong></span>
+                    <input
+                        class="field-control field-control-sm table-search-input"
+                        type="search"
+                        placeholder="Поиск по реестру"
+                        data-table-search="#contracts-register-list"
+                        data-table-count="#contracts-register-count"
+                    >
+                </div>
+
+                <div id="contracts-register-list" class="stack">
+                    {% for row in rows %}
+                    <details class="stack-section"{% if forloop.first %} open{% endif %}>
+                        <summary class="contract-register-summary">
+                            <span>
+                                <strong>{{ row.customer_number }}</strong>
+                                <span>{{ row.customer_name }}</span>
+                            </span>
+                            <span class="contract-register-metrics">
+                                <span class="badge">{{ row.supplier_count }} расход.</span>
+                                <span>{{ row.reserved_rub|ru_number }} руб.</span>
+                                <span>{{ row.remaining_rub|ru_number }} руб. остаток</span>
+                            </span>
+                        </summary>
+                        <div class="contract-register-head">
+                            <div>
+                                <div class="field-label">Заказчик / доходный контрагент</div>
+                                <div>{{ row.counterparty_name }}</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Дата доходного договора</div>
+                                <div>{% if row.customer_date %}{{ row.customer_date|date:"d.m.Y" }}{% else %}--{% endif %}</div>
+                            </div>
+                            <div>
+                                <div class="field-label">ДС по расходным</div>
+                                <div>{{ row.agreement_count }}</div>
+                            </div>
+                            <div>
+                                <div class="field-label">Оплачено</div>
+                                <div>{{ row.paid_rub|ru_number }} руб.</div>
+                            </div>
+                        </div>
+
+                        <div class="data-table-wrap desktop-scroll table-wrap-top">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col" class="table-col-doc">Расходный договор</th>
+                                        <th scope="col" class="table-col-counterparty">Поставщик</th>
+                                        <th scope="col" class="table-col-short">ДС</th>
+                                        <th scope="col" class="table-col-number">Резерв</th>
+                                        <th scope="col" class="table-col-number">Оплачено</th>
+                                        <th scope="col" class="table-col-number">Остаток</th>
+                                        <th scope="col" class="table-col-number">Резерв, руб.</th>
+                                        <th scope="col" class="table-col-number">Остаток, руб.</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for supplier in row.supplier_rows %}
+                                        <tr>
+                                            <td class="table-col-doc">
+                                                {{ supplier.contract.number }} от {{ supplier.contract.date|date:"d.m.Y" }}
+                                                <div class="muted-text">{{ supplier.contract.name }}</div>
+                                            </td>
+                                            <td class="table-col-counterparty">{{ supplier.contract.counterparty.name }}</td>
+                                            <td class="table-col-short">
+                                                {% if supplier.agreement_count %}
+                                                    <details>
+                                                        <summary>{{ supplier.agreement_count }}</summary>
+                                                        <div class="form-stack-compact">
+                                                            {% for agreement in supplier.agreements %}
+                                                                <span>{{ agreement.number }} от {{ agreement.date|date:"d.m.Y" }} · {{ agreement.amount|ru_number }} {{ agreement.currency.code }}</span>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </details>
+                                                {% else %}
+                                                    <span class="badge">нет</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="table-col-number">{{ supplier.reserved_native|ru_number }} {{ supplier.contract.currency.code }}</td>
+                                            <td class="table-col-number">{{ supplier.paid_native|ru_number }} {{ supplier.contract.currency.code }}</td>
+                                            <td class="table-col-number">{{ supplier.remaining_native|ru_number }} {{ supplier.contract.currency.code }}</td>
+                                            <td class="table-col-number">{{ supplier.reserved_rub|ru_number }}</td>
+                                            <td class="table-col-number">{{ supplier.remaining_rub|ru_number }}</td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr><td colspan="8">К доходному договору пока не привязаны расходные документы.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </details>
+                    {% empty %}
+                        <div class="stack-section">
+                            <h2 class="section-title">Нет данных</h2>
+                            <p class="section-subtitle">Загрузите договоры из Mock-1С или измените фильтры.</p>
+                            <a class="command-button-primary" href="/nsi/">Открыть НСИ</a>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="stack-section section-tab-panel" data-tab-panel="summary" hidden>
+                <h2 class="section-title">Сводка по выборке</h2>
+                <div class="summary-line"><span>Доходных договоров</span><span class="summary-value">{{ summary.customers }}</span></div>
+                <div class="summary-line"><span>Расходных договоров</span><span class="summary-value">{{ summary.suppliers }}</span></div>
+                <div class="summary-line"><span>Допсоглашений</span><span class="summary-value">{{ summary.agreements }}</span></div>
+                <div class="summary-line"><span>Резерв расхода</span><span class="summary-value">{{ summary.total_reserved_rub|ru_number }} руб.</span></div>
+                <div class="summary-line"><span>Оплачено</span><span class="summary-value">{{ summary.total_paid_rub|ru_number }} руб.</span></div>
+                <div class="summary-line"><span>Остаток</span><span class="summary-value">{{ summary.total_remaining_rub|ru_number }} руб.</span></div>
+            </div>
+        </section>
+    </div>
+{% endblock %}

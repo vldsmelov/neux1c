@@ -21,10 +21,12 @@ from core.models import (
     Contract,
     ContractKind,
     Currency,
+    Department,
     ExternalPaymentDocument,
     Organization,
     PaymentFact,
     PaymentRequest,
+    SourceSystem,
     UiThemeMode,
     UiThemeSettings,
     UserProfile,
@@ -128,8 +130,116 @@ class AccessControlTests(TestCase):
 
         response = self.client.get(reverse("nsi_dashboard"))
 
+        self.assertRedirects(response, reverse("nsi_directory", kwargs={"directory": "organizations"}), fetch_redirect_response=False)
+
+    def test_economist_can_create_manual_department_from_nsi(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.post(
+            reverse("nsi_dashboard"),
+            {
+                "action": "create",
+                "directory": "departments",
+                "code": "CFO-777",
+                "name": "Проектный офис",
+            },
+        )
+
+        self.assertRedirects(response, reverse("nsi_directory", kwargs={"directory": "departments"}), fetch_redirect_response=False)
+        department = Department.objects.get(code="CFO-777")
+        self.assertEqual(department.name, "Проектный офис")
+        self.assertEqual(department.source_system, SourceSystem.MANUAL)
+        self.assertTrue(
+            AuditLog.objects.filter(
+                user__username="economist",
+                action=AuditAction.CREATE,
+                object_type="Department",
+                object_id=str(department.id),
+            ).exists()
+        )
+
+    def test_economist_can_manage_department_from_nsi_directory(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.get(reverse("nsi_directory", kwargs={"directory": "departments"}))
+
         self.assertEqual(response.status_code, 200)
-        self.assertTrue(AuditLog.objects.filter(user__username="economist", action=AuditAction.VIEW, path="/nsi/").exists())
+        self.assertContains(response, "ЦФО")
+
+        create_response = self.client.post(
+            reverse("nsi_directory", kwargs={"directory": "departments"}),
+            {
+                "action": "create",
+                "directory": "departments",
+                "code": "CFO-778",
+                "name": "Команда внедрения",
+            },
+        )
+
+        self.assertRedirects(create_response, reverse("nsi_directory", kwargs={"directory": "departments"}))
+        department = Department.objects.get(code="CFO-778")
+
+        update_response = self.client.post(
+            reverse("nsi_directory", kwargs={"directory": "departments"}),
+            {
+                "action": "update",
+                "directory": "departments",
+                "item_id": department.id,
+                "code": "CFO-778",
+                "name": "Проектная команда",
+            },
+        )
+
+        self.assertRedirects(update_response, reverse("nsi_directory", kwargs={"directory": "departments"}))
+        department.refresh_from_db()
+        self.assertEqual(department.name, "Проектная команда")
+        self.assertTrue(
+            AuditLog.objects.filter(
+                user__username="economist",
+                action=AuditAction.UPDATE,
+                object_type="Department",
+                object_id=str(department.id),
+            ).exists()
+        )
+
+    def test_admin_can_delete_unused_nsi_item_from_directory(self):
+        currency = Currency.objects.create(code="AED", name="Дирхам ОАЭ", source_system=SourceSystem.MANUAL)
+        self.client.login(username="admin", password="demo12345")
+
+        response = self.client.post(
+            reverse("nsi_directory", kwargs={"directory": "currencies"}),
+            {
+                "action": "delete",
+                "directory": "currencies",
+                "item_id": currency.id,
+            },
+        )
+
+        self.assertRedirects(response, reverse("nsi_directory", kwargs={"directory": "currencies"}))
+        self.assertFalse(Currency.objects.filter(code="AED").exists())
+        self.assertTrue(
+            AuditLog.objects.filter(
+                user__username="admin",
+                action=AuditAction.DELETE,
+                object_type="Currency",
+                object_id=str(currency.id),
+            ).exists()
+        )
+
+    def test_economist_can_sync_mock_from_nsi(self):
+        self.client.login(username="economist", password="demo12345")
+
+        response = self.client.post(
+            reverse("nsi_dashboard"),
+            {
+                "action": "sync",
+                "directory": "departments",
+            },
+        )
+
+        self.assertRedirects(response, reverse("nsi_directory", kwargs={"directory": "departments"}), fetch_redirect_response=False)
+        self.assertTrue(Organization.objects.filter(name='ООО "Гладиолус"').exists())
+        self.assertTrue(Department.objects.filter(code="CFO-001").exists())
 
     def test_manager_can_open_workspace_but_not_nsi(self):
         self.client.login(username="manager", password="demo12345")
@@ -198,10 +308,39 @@ class AccessControlTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
+    def test_manager_can_open_contract_register(self):
+        sync_one_c_dataset(MockOneCProvider())
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(reverse("contracts_register"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ДП-2026-001")
+        self.assertContains(response, "ЕП-2026-014")
+        self.assertContains(response, "ЕП-2026-022")
+
+    def test_contract_register_can_filter_by_customer_contract(self):
+        sync_one_c_dataset(MockOneCProvider())
+        customer_contract = Contract.objects.get(kind=ContractKind.CUSTOMER, number="ДП-2026-001")
+        self.client.login(username="manager", password="demo12345")
+
+        response = self.client.get(reverse("contracts_register"), {"customer_contract_id": customer_contract.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "ДП-2026-001")
+        self.assertContains(response, "Расходных договоров")
+
     def test_accountant_cannot_open_contract_reservations(self):
         self.client.login(username="accountant", password="demo12345")
 
         response = self.client.get(reverse("contracts_reservations"))
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_accountant_cannot_open_contract_register(self):
+        self.client.login(username="accountant", password="demo12345")
+
+        response = self.client.get(reverse("contracts_register"))
 
         self.assertEqual(response.status_code, 403)
 
@@ -354,9 +493,10 @@ class AccessControlTests(TestCase):
             "payment_facts": reverse("payment_facts"),
             "manager_dashboard": reverse("manager_dashboard"),
             "plan_fact_report": reverse("plan_fact_report"),
+            "contracts_register": reverse("contracts_register"),
             "contracts_reservations": reverse("contracts_reservations"),
             "contracts_tree": reverse("contracts_tree"),
-            "nsi_dashboard": reverse("nsi_dashboard"),
+            "nsi_directory": reverse("nsi_directory", kwargs={"directory": "organizations"}),
             "integration_requests": reverse("integration_requests"),
             "instruction": reverse("instruction"),
             "external_accounting": reverse("external_accounting"),
@@ -369,9 +509,10 @@ class AccessControlTests(TestCase):
                 "payment_facts": 200,
                 "manager_dashboard": 200,
                 "plan_fact_report": 200,
+                "contracts_register": 200,
                 "contracts_reservations": 200,
                 "contracts_tree": 200,
-                "nsi_dashboard": 200,
+                "nsi_directory": 200,
                 "integration_requests": 200,
                 "instruction": 200,
                 "external_accounting": 200,
@@ -383,9 +524,10 @@ class AccessControlTests(TestCase):
                 "payment_facts": 200,
                 "manager_dashboard": 200,
                 "plan_fact_report": 200,
+                "contracts_register": 200,
                 "contracts_reservations": 200,
                 "contracts_tree": 200,
-                "nsi_dashboard": 200,
+                "nsi_directory": 200,
                 "integration_requests": 200,
                 "instruction": 200,
                 "external_accounting": 403,
@@ -397,9 +539,10 @@ class AccessControlTests(TestCase):
                 "payment_facts": 200,
                 "manager_dashboard": 200,
                 "plan_fact_report": 200,
+                "contracts_register": 200,
                 "contracts_reservations": 200,
                 "contracts_tree": 200,
-                "nsi_dashboard": 403,
+                "nsi_directory": 403,
                 "integration_requests": 200,
                 "instruction": 200,
                 "external_accounting": 403,
@@ -411,9 +554,10 @@ class AccessControlTests(TestCase):
                 "payment_facts": 403,
                 "manager_dashboard": 403,
                 "plan_fact_report": 403,
+                "contracts_register": 403,
                 "contracts_reservations": 403,
                 "contracts_tree": 403,
-                "nsi_dashboard": 403,
+                "nsi_directory": 403,
                 "integration_requests": 403,
                 "instruction": 200,
                 "external_accounting": 200,

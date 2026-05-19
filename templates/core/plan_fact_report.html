@@ -24,7 +24,14 @@
         </div>
     </div>
 
-    <div class="wide-layout report-layout">
+    <div class="wide-layout report-layout" data-tab-scope>
+        <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы отчета">
+            <button class="section-tab is-active" type="button" data-tab-target="table">Отчет <span class="section-tab-count">{{ rows|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="summary">Сводка</button>
+            <button class="section-tab" type="button" data-tab-target="filters">Фильтры и шаблоны</button>
+        </div>
+
+        <div class="section-tab-panel stack" data-tab-panel="filters" hidden>
         {% if report_templates or can_manage_report_templates %}
             <section class="report-panel report-panel-compact">
                 <details class="report-templates-details"{% if not report_templates or selected_template_id %} open{% endif %}>
@@ -171,8 +178,9 @@
                 </div>
             </form>
         </section>
+        </div>
 
-        <section class="report-summary-grid">
+        <section class="report-summary-grid section-tab-panel" data-tab-panel="summary" hidden>
             <div class="report-summary-cell">
                 <div class="report-summary-value">{{ rows|length }}</div>
                 <div class="report-summary-label">Строк в отчете</div>
@@ -203,7 +211,7 @@
             </div>
         </section>
 
-        <section class="data-panel stack">
+        <section class="data-panel stack section-tab-panel" data-tab-panel="table">
             <div class="table-toolbar">
                 <span class="table-toolbar-note">Строк в отчете: <strong id="plan-fact-table-count">{{ rows|length }}</strong></span>
                 <input
