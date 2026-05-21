@@ -81,9 +81,12 @@ class DemoUserSpec:
 
 
 DEMO_USERS = [
+    # Только администратор имеет доступ к Django admin: granular permissions
+    # для economist/manager создавали риск редактирования сырых моделей в обход
+    # бизнес-логики (резервы, статусы, версионирование лимитов, аудит).
     DemoUserSpec("admin", "admin@example.local", UserRole.ADMINISTRATOR, is_staff=True, is_superuser=True),
-    DemoUserSpec("economist", "economist@example.local", UserRole.ECONOMIST, is_staff=True),
-    DemoUserSpec("manager", "manager@example.local", UserRole.MANAGER, is_staff=True),
+    DemoUserSpec("economist", "economist@example.local", UserRole.ECONOMIST, is_staff=False),
+    DemoUserSpec("manager", "manager@example.local", UserRole.MANAGER, is_staff=False),
     DemoUserSpec("accountant", "accountant@example.local", UserRole.ACCOUNTANT, is_staff=False, app_access=False),
 ]
 
