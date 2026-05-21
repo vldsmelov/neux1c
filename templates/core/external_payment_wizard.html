@@ -43,7 +43,7 @@
                     <label class="field-label" for="contract_id">Договор к оплате</label>
                     <select class="field-control-select is-focused" id="contract_id" name="contract_id" data-contract>
                         {% for row in rows %}
-                            <option value="{{ row.contract.id }}" data-number="{{ row.contract.number }}" data-counterparty="{{ row.contract.counterparty.name }}" data-remaining="{{ row.remaining_amount }}" data-currency="{{ row.contract.currency.code }}">
+                            <option value="{{ row.contract.id }}" data-number="{{ row.contract.number }}" data-counterparty="{{ row.contract.counterparty.name }}" data-remaining="{{ row.remaining_amount }}" data-currency="{{ row.contract.currency.code }}" {% if submitted.contract_id == row.contract.id|stringformat:"s" %}selected{% endif %}>
                                 {{ row.contract.number }} · {{ row.contract.counterparty.name }} · остаток {{ row.remaining_amount|ru_number }} {{ row.contract.currency.code }}
                             </option>
                         {% endfor %}
@@ -51,7 +51,7 @@
                 </section>
                 <section class="wizard-step" data-wizard-step>
                     <label class="field-label" for="amount">Сумма оплаты</label>
-                    <input class="field-control" id="amount" name="amount" value="" inputmode="decimal" data-amount>
+                    <input class="field-control" id="amount" name="amount" value="{{ submitted.amount|default:'' }}" inputmode="decimal" data-amount>
                 </section>
                 <section class="wizard-step" data-wizard-step>
                     <div class="data-table-wrap">

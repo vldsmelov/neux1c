@@ -48,7 +48,7 @@
                         </div>
                         <div>
                             <label class="field-label" for="comment">{{ comment_label }}</label>
-                            <textarea class="field-control" id="comment" name="comment" rows="4" placeholder="{{ comment_placeholder }}" {% if comment_required %}required{% endif %}></textarea>
+                            <textarea class="field-control" id="comment" name="comment" rows="4" placeholder="{{ comment_placeholder }}" {% if comment_required %}required{% endif %}>{{ submitted.comment|default:'' }}</textarea>
                         </div>
                     </div>
                 </section>

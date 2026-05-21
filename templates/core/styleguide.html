@@ -1,0 +1,225 @@
+{% extends "core/base.html" %}
+
+{% block title %}Дизайн-система · NE UX{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Дизайн-система NE UX</h1>
+            <p class="app-subtitle">Визуальный каталог компонентов: токены, типографика, кнопки, поля, таблицы, бейджи, модалки, тосты.</p>
+        </div>
+    </div>
+
+    {# ---------- Tokens ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Цветовые токены</h2>
+        <div class="sg-swatch">
+            {% for label, color, var_name in swatches %}
+                <div class="sg-color">
+                    <div class="sg-color-chip" style="background: {{ color }}"></div>
+                    <div class="sg-color-meta"><b>{{ label }}</b><span class="sg-code">{{ var_name }}</span></div>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    {# ---------- Typography ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Типографика</h2>
+        <div class="data-panel" style="display:grid; gap: var(--space-3);">
+            <div><span class="sg-code">--text-2xl / 26px</span><h1 class="app-title" style="margin:6px 0 0">Заголовок страницы</h1></div>
+            <div><span class="sg-code">--text-lg / 18px</span><h2 class="section-title" style="margin:6px 0 0">Заголовок раздела</h2></div>
+            <div><span class="sg-code">--text-md / 15px</span><p class="section-subtitle" style="margin:6px 0 0">Подзаголовок и пояснения</p></div>
+            <div><span class="sg-code">--text-base / 14px</span><p style="margin:6px 0 0">Основной текст приложения.</p></div>
+            <div><span class="sg-code">--text-sm / 12px · muted</span><p style="margin:6px 0 0; color: var(--color-text-muted)">Подписи, мета-данные, плейсхолдеры.</p></div>
+        </div>
+    </section>
+
+    {# ---------- Buttons ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Кнопки</h2>
+        <div class="sg-row">
+            <span class="sg-row-label">Default</span>
+            <button class="command-button is-sm" type="button">Small</button>
+            <button class="command-button" type="button">Medium</button>
+            <button class="command-button is-lg" type="button">Large</button>
+            <button class="command-button" type="button" disabled>Disabled</button>
+        </div>
+        <div class="sg-row">
+            <span class="sg-row-label">Primary</span>
+            <button class="command-button-primary is-sm" type="button">Small</button>
+            <button class="command-button-primary" type="button">Medium</button>
+            <button class="command-button-primary is-lg" type="button">Large</button>
+        </div>
+        <div class="sg-row">
+            <span class="sg-row-label">Danger</span>
+            <button class="command-button is-danger" type="button">Удалить</button>
+        </div>
+    </section>
+
+    {# ---------- Form fields ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Поля формы</h2>
+        <div class="data-panel form-grid form-grid-2">
+            <div>
+                <label class="field-label" for="sg-input">Текстовое поле</label>
+                <input class="field-control" id="sg-input" value="ООО «Гладиолус»">
+            </div>
+            <div>
+                <label class="field-label" for="sg-select">Селект</label>
+                <select class="field-control-select" id="sg-select">
+                    <option>Опция А</option>
+                    <option>Опция Б</option>
+                </select>
+            </div>
+            <div>
+                <label class="field-label" for="sg-textarea">Многострочное</label>
+                <textarea class="field-control" id="sg-textarea" rows="3">Длинный комментарий с переносом строк.</textarea>
+            </div>
+            <div>
+                <label class="field-label" for="sg-disabled">Readonly</label>
+                <input class="field-control" id="sg-disabled" value="Только чтение" readonly>
+                <small class="field-hint">Подсказка под полем</small>
+            </div>
+        </div>
+    </section>
+
+    {# ---------- Badges ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Бейджи</h2>
+        <div class="sg-row">
+            <span class="sg-row-label">Статусы</span>
+            <span class="badge">Черновик</span>
+            <span class="badge badge-mark">В работе</span>
+            <span class="badge badge-info">На согласовании</span>
+            <span class="badge badge-success">Утверждён</span>
+            <span class="badge badge-warning">Превышение</span>
+            <span class="badge badge-danger">Отклонён</span>
+        </div>
+    </section>
+
+    {# ---------- Tabs ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Вкладки</h2>
+        <div class="data-panel" style="display:grid; gap: var(--space-3);">
+            <div class="section-tabs">
+                <button class="section-tab is-active" type="button">Активная <span class="section-tab-count">12</span></button>
+                <button class="section-tab" type="button">Заявки <span class="section-tab-count">3</span></button>
+                <button class="section-tab" type="button">Договоры</button>
+            </div>
+        </div>
+    </section>
+
+    {# ---------- Table ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Таблица</h2>
+        <div class="data-panel">
+            <div class="data-table-wrap">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">№</th>
+                            <th scope="col">Документ</th>
+                            <th scope="col">Контрагент</th>
+                            <th scope="col">Статус</th>
+                            <th scope="col" class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>1</td><td>ЗП-001</td><td>ООО «Поставщик А»</td><td><span class="badge badge-success">Утверждена</span></td><td class="table-action-col"><a class="command-button is-sm" href="#">Открыть</a></td></tr>
+                        <tr><td>2</td><td>ЗП-002</td><td>ИП Иванов</td><td><span class="badge badge-info">На согласовании</span></td><td class="table-action-col"><a class="command-button is-sm" href="#">Открыть</a></td></tr>
+                        <tr><td>3</td><td>ЗП-003</td><td>ООО «Подрядчик»</td><td><span class="badge badge-danger">Отклонена</span></td><td class="table-action-col"><a class="command-button is-sm" href="#">Открыть</a></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    {# ---------- Cards ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Карточки</h2>
+        <div class="metric-strip">
+            <div class="metric-cell"><div class="metric-value">128</div><div class="metric-label">Активных</div></div>
+            <div class="metric-cell"><div class="metric-value">9.2 М ₽</div><div class="metric-label">Сумма</div></div>
+            <div class="metric-cell"><div class="metric-value">3</div><div class="metric-label">Срочно</div></div>
+        </div>
+        <div class="action-hub" style="margin-top: var(--space-3);">
+            <article class="action-card action-card-primary">
+                <div class="action-card-head"><h3 class="action-card-title">Primary action</h3><span class="badge">Wizard</span></div>
+                <p class="action-card-text">Карточка с акцентным градиентом — ведёт пользователя к ключевому действию.</p>
+                <div class="action-card-footer"><span class="table-toolbar-note">Шаг 1 → 4</span><button class="command-button-primary" type="button">Открыть</button></div>
+            </article>
+            <article class="action-card">
+                <div class="action-card-head"><h3 class="action-card-title">Secondary action</h3><span class="badge">Журнал</span></div>
+                <p class="action-card-text">Обычная карточка действия — переход в журнал или вторичный сценарий.</p>
+                <div class="action-card-footer"><button class="command-button" type="button">Открыть</button></div>
+            </article>
+        </div>
+    </section>
+
+    {# ---------- Modal & Toast (interactive) ---------- #}
+    <section class="sg-section">
+        <h2 class="sg-section-title">Модалка и тосты</h2>
+        <div class="sg-row">
+            <span class="sg-row-label">Демо</span>
+            <button class="command-button-primary" type="button" data-sg-open-modal>Показать модалку</button>
+            <button class="command-button" type="button" data-sg-toast="info">Тост · info</button>
+            <button class="command-button" type="button" data-sg-toast="success">Тост · success</button>
+            <button class="command-button" type="button" data-sg-toast="warning">Тост · warning</button>
+            <button class="command-button is-danger" type="button" data-sg-toast="danger">Тост · danger</button>
+        </div>
+
+        <dialog class="modal" data-sg-modal>
+            <div class="modal-card">
+                <div class="modal-head">
+                    <h3 class="modal-title">Подтвердите действие</h3>
+                    <button class="modal-close" type="button" data-sg-close-modal aria-label="Закрыть">×</button>
+                </div>
+                <div class="modal-body">
+                    <p>Это модальное окно использует нативный <code class="sg-code">&lt;dialog&gt;</code> с собственным оформлением.</p>
+                    <p style="color: var(--color-text-muted); margin-bottom: 0;">Backdrop стилизован через <code class="sg-code">::backdrop</code>, фокус-trap обеспечивает браузер.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="command-button" type="button" data-sg-close-modal>Отмена</button>
+                    <button class="command-button-primary" type="button" data-sg-close-modal>Подтвердить</button>
+                </div>
+            </div>
+        </dialog>
+    </section>
+
+    <div class="toast-stack" data-sg-toast-stack aria-live="polite" aria-atomic="false"></div>
+
+    <script>
+        (() => {
+            const modal = document.querySelector("[data-sg-modal]");
+            document.querySelector("[data-sg-open-modal]")?.addEventListener("click", () => modal?.showModal());
+            document.querySelectorAll("[data-sg-close-modal]").forEach((b) => b.addEventListener("click", () => modal?.close()));
+
+            const stack = document.querySelector("[data-sg-toast-stack]");
+            const messages = {
+                info:    { title: "Информация",     text: "Это пример informational-тоста." },
+                success: { title: "Готово",         text: "Документ успешно сохранён." },
+                warning: { title: "Внимание",       text: "Превышение лимита по статье ДДС." },
+                danger:  { title: "Ошибка",         text: "Не удалось отправить заявку." },
+            };
+            document.querySelectorAll("[data-sg-toast]").forEach((btn) => {
+                btn.addEventListener("click", () => {
+                    const kind = btn.dataset.sgToast;
+                    const conf = messages[kind] || messages.info;
+                    const el = document.createElement("div");
+                    el.className = "toast" + (kind === "info" ? "" : " is-" + kind);
+                    el.setAttribute("role", "status");
+                    el.innerHTML =
+                        '<div><p class="toast-title"></p><p class="toast-text"></p></div>' +
+                        '<button class="toast-close" type="button" aria-label="Закрыть">×</button>';
+                    el.querySelector(".toast-title").textContent = conf.title;
+                    el.querySelector(".toast-text").textContent = conf.text;
+                    const close = () => el.remove();
+                    el.querySelector(".toast-close").addEventListener("click", close);
+                    stack.appendChild(el);
+                    setTimeout(close, 4000);
+                });
+            });
+        })();
+    </script>
+{% endblock %}

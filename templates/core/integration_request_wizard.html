@@ -41,17 +41,17 @@
                 <div class="form-stack form-grid form-grid-2">
                     <div>
                         <label class="field-label" for="integration_name">Название интеграции</label>
-                        <input class="field-control is-focused" id="integration_name" name="integration_name" value="" required>
+                        <input class="field-control is-focused" id="integration_name" name="integration_name" value="{{ submitted.integration_name|default:'' }}" required>
                     </div>
                     <div>
                         <label class="field-label" for="target_system">Целевая система</label>
-                        <input class="field-control" id="target_system" name="target_system" value="" placeholder="1С:ERP, API, банк..." required>
+                        <input class="field-control" id="target_system" name="target_system" value="{{ submitted.target_system|default:'' }}" placeholder="1С:ERP, API, банк..." required>
                     </div>
                 </div>
             </section>
             <section class="wizard-step" data-wizard-step>
                 <label class="field-label" for="description">Описание потребности</label>
-                <textarea class="field-control" id="description" name="description" rows="7" required></textarea>
+                <textarea class="field-control" id="description" name="description" rows="7" required>{{ submitted.description|default:'' }}</textarea>
             </section>
             <section class="wizard-step" data-wizard-step>
                 <div class="data-table-wrap">

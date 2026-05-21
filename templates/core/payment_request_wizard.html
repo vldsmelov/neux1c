@@ -51,16 +51,16 @@
                         <div>
                             <label class="field-label" for="request_kind">Тип заявки</label>
                             <select class="field-control-select is-focused" id="request_kind" name="request_kind" data-request-kind>
-                                <option value="{{ request_kind.BY_CONTRACT }}">По договору</option>
-                                <option value="{{ request_kind.BY_INVOICE }}">По счету</option>
-                                <option value="{{ request_kind.WITHOUT_CONTRACT }}">Без договора</option>
+                                <option value="{{ request_kind.BY_CONTRACT }}" {% if submitted.request_kind == request_kind.BY_CONTRACT|stringformat:"s" %}selected{% endif %}>По договору</option>
+                                <option value="{{ request_kind.BY_INVOICE }}" {% if submitted.request_kind == request_kind.BY_INVOICE|stringformat:"s" %}selected{% endif %}>По счету</option>
+                                <option value="{{ request_kind.WITHOUT_CONTRACT }}" {% if submitted.request_kind == request_kind.WITHOUT_CONTRACT|stringformat:"s" %}selected{% endif %}>Без договора</option>
                             </select>
                         </div>
                         <div>
                             <label class="field-label" for="organization_id">Организация</label>
                             <select class="field-control-select" id="organization_id" name="organization_id">
                                 {% for organization in organizations %}
-                                    <option value="{{ organization.id }}" {% if working_organization and working_organization.id == organization.id %}selected{% endif %}>{{ organization.name }}</option>
+                                    <option value="{{ organization.id }}" {% if submitted.organization_id == organization.id|stringformat:"s" %}selected{% elif not submitted and working_organization and working_organization.id == organization.id %}selected{% endif %}>{{ organization.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -69,7 +69,7 @@
                             <select class="field-control-select" id="contract_id" name="contract_id" data-contract>
                                 <option value="">Не выбран</option>
                                 {% for contract in contracts %}
-                                    <option value="{{ contract.id }}">{{ contract.number }} · {{ contract.counterparty.name }}</option>
+                                    <option value="{{ contract.id }}" {% if submitted.contract_id == contract.id|stringformat:"s" %}selected{% endif %}>{{ contract.number }} · {{ contract.counterparty.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -78,7 +78,7 @@
                             <select class="field-control-select" id="additional_agreement_id" name="additional_agreement_id" data-agreement>
                                 <option value="">Не выбрано</option>
                                 {% for agreement in agreements %}
-                                    <option value="{{ agreement.id }}" data-contract-id="{{ agreement.contract_id }}">{{ agreement.number }} · {{ agreement.contract.number }}</option>
+                                    <option value="{{ agreement.id }}" data-contract-id="{{ agreement.contract_id }}" {% if submitted.additional_agreement_id == agreement.id|stringformat:"s" %}selected{% endif %}>{{ agreement.number }} · {{ agreement.contract.number }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -86,7 +86,7 @@
                             <label class="field-label" for="counterparty_id">Контрагент</label>
                             <select class="field-control-select" id="counterparty_id" name="counterparty_id">
                                 {% for counterparty in counterparties %}
-                                    <option value="{{ counterparty.id }}">{{ counterparty.name }}</option>
+                                    <option value="{{ counterparty.id }}" {% if submitted.counterparty_id == counterparty.id|stringformat:"s" %}selected{% endif %}>{{ counterparty.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -94,7 +94,7 @@
                             <label class="field-label" for="article_id">Статья ДДС</label>
                             <select class="field-control-select" id="article_id" name="article_id">
                                 {% for article in articles %}
-                                    <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                                    <option value="{{ article.id }}" {% if submitted.article_id == article.id|stringformat:"s" %}selected{% endif %}>{{ article.code }} · {{ article.name }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -105,25 +105,25 @@
                     <div class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="amount">Сумма</label>
-                            <input class="field-control" id="amount" name="amount" value="100000.00" inputmode="decimal" data-summary-field>
+                            <input class="field-control" id="amount" name="amount" value="{{ submitted.amount|default:'100000.00' }}" inputmode="decimal" data-summary-field>
                         </div>
                         <div>
                             <label class="field-label" for="currency_id">Валюта</label>
                             <select class="field-control-select" id="currency_id" name="currency_id">
                                 {% for currency in currencies %}
-                                    <option value="{{ currency.id }}">{{ currency.code }}</option>
+                                    <option value="{{ currency.id }}" {% if submitted.currency_id == currency.id|stringformat:"s" %}selected{% endif %}>{{ currency.code }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div>
                             <label class="field-label" for="manual_exchange_rate">Курс к RUB</label>
-                            <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="1.0000" inputmode="decimal">
+                            <input class="field-control" id="manual_exchange_rate" name="manual_exchange_rate" value="{{ submitted.manual_exchange_rate|default:'1.0000' }}" inputmode="decimal">
                         </div>
                         <div>
                             <label class="field-label" for="approver_id">Согласующий</label>
                             <select class="field-control-select" id="approver_id" name="approver_id">
                                 {% for approver in approvers %}
-                                    <option value="{{ approver.id }}">{{ approver.get_full_name|default:approver.username }}</option>
+                                    <option value="{{ approver.id }}" {% if submitted.approver_id == approver.id|stringformat:"s" %}selected{% endif %}>{{ approver.get_full_name|default:approver.username }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -134,27 +134,28 @@
                     <div class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="invoice_number">Номер счета</label>
-                            <input class="field-control" id="invoice_number" name="invoice_number" value="">
+                            <input class="field-control" id="invoice_number" name="invoice_number" value="{{ submitted.invoice_number|default:'' }}">
                         </div>
                         <div>
                             <label class="field-label" for="invoice_date">Дата счета</label>
-                            <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="" placeholder="дд.мм.гггг">
+                            <input class="field-control" id="invoice_date" name="invoice_date" type="text" value="{{ submitted.invoice_date|default:'' }}" placeholder="дд.мм.гггг">
                         </div>
                         <div class="form-grid-span-full">
                             <label class="field-label" for="payment_purpose">Назначение платежа</label>
-                            <input class="field-control" id="payment_purpose" name="payment_purpose" value="" required>
+                            <input class="field-control" id="payment_purpose" name="payment_purpose" value="{{ submitted.payment_purpose|default:'' }}" required>
                         </div>
                         <div class="form-grid-span-full">
                             <label class="field-label" for="justification_text">Обоснование</label>
-                            <textarea class="field-control" id="justification_text" name="justification_text" rows="4"></textarea>
+                            <textarea class="field-control" id="justification_text" name="justification_text" rows="4">{{ submitted.justification_text|default:'' }}</textarea>
                         </div>
                         <div>
                             <label class="field-label" for="justification_file">Файл обоснования</label>
                             <input class="field-control" id="justification_file" name="justification_file" type="file">
+                            {% if submitted %}<small class="field-hint">После исправления ошибки прикрепите файл заново.</small>{% endif %}
                         </div>
                         <div>
                             <label class="field-label" for="comment">Комментарий</label>
-                            <input class="field-control" id="comment" name="comment" value="">
+                            <input class="field-control" id="comment" name="comment" value="{{ submitted.comment|default:'' }}">
                         </div>
                     </div>
                 </section>

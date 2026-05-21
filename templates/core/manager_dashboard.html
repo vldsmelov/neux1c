@@ -30,21 +30,25 @@
     </div>
 
     <div class="metric-strip">
-        <div class="metric-cell">
+        <div class="metric-cell {% if summary.total_balance_bu < 0 %}is-danger{% endif %}">
             <div class="metric-value">{{ summary.total_balance_bu|ru_number }}</div>
             <div class="metric-label">Остаток лимитов (БУ), руб.</div>
+            <div class="metric-delta">{% if summary.total_balance_bu < 0 %}Превышение{% else %}Свободно{% endif %}</div>
         </div>
-        <div class="metric-cell">
+        <div class="metric-cell {% if summary.overrun_articles %}is-danger{% endif %}">
             <div class="metric-value">{{ summary.overrun_articles }}</div>
             <div class="metric-label">Статей с превышением</div>
+            <div class="metric-delta">{% if summary.overrun_articles %}Требует внимания{% else %}В норме{% endif %}</div>
         </div>
         <div class="metric-cell">
             <div class="metric-value">{{ requests_total }}</div>
             <div class="metric-label">Заявок в периоде</div>
+            <div class="metric-delta">за {{ selected_year }}</div>
         </div>
         <div class="metric-cell">
             <div class="metric-value">{{ summary.total_fact_bu|ru_number }}</div>
             <div class="metric-label">Факт оплат БУ, руб.</div>
+            <div class="metric-delta">накопительно</div>
         </div>
     </div>
 
@@ -80,6 +84,7 @@
                             <th scope="col" class="table-col-number">Заявлено</th>
                             <th scope="col" class="table-col-number">Факт БУ</th>
                             <th scope="col" class="table-col-number">Остаток БУ</th>
+                            <th scope="col">Использование</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -100,9 +105,18 @@
                                     {{ row.balance_bu|ru_number }}
                                     {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
+                                <td>
+                                    <div class="usage-bar is-{{ row.usage_level }}" style="--usage: {{ row.usage_pct }}%;">
+                                        <div class="usage-bar-meta">
+                                            <span><b>{{ row.usage_pct|stringformat:'g' }}%</b> использовано</span>
+                                            {% if row.overrun_pct %}<span>+{{ row.overrun_pct|stringformat:'g' }}% сверх</span>{% endif %}
+                                        </div>
+                                        <div class="usage-bar-track"><div class="usage-bar-fill"></div></div>
+                                    </div>
+                                </td>
                             </tr>
                         {% empty %}
-                            <tr><td colspan="8">Нет данных за выбранный период.</td></tr>
+                            <tr><td colspan="9">Нет данных за выбранный период.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -151,37 +165,32 @@
         </div>
 
         <div class="stack-section section-tab-panel" data-tab-panel="statuses" hidden>
-            <h2 class="section-title">Статусы заявок на оплату</h2>
-            <p class="section-subtitle">Текущая стадия заявок для контроля SLA согласования.</p>
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Статусов в разделе: <strong id="manager-statuses-table-count">{{ status_rows|length }}</strong></span>
-                <input
-                    class="field-control field-control-sm table-search-input"
-                    type="search"
-                    placeholder="Поиск по статусам"
-                    data-table-search="#manager-statuses-table"
-                    data-table-count="#manager-statuses-table-count"
-                >
+            <div class="dashboard-section-headline">
+                <div>
+                    <h2 class="section-title">Статусы заявок на оплату</h2>
+                    <p class="section-subtitle">Распределение заявок по стадии согласования за {{ selected_year }}.</p>
+                </div>
+                <span class="badge badge-info">Всего: {{ requests_total }}</span>
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="manager-statuses-table" class="data-table">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="checkbox-cell"></th>
-                            <th scope="col">Статус</th>
-                            <th scope="col">Количество</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="data-panel">
+                {% if requests_total %}
+                    <div class="status-bar-list">
                         {% for status_row in status_rows %}
-                            <tr>
-                                <td><span class="fake-checkbox"></span></td>
-                                <td>{{ status_row.label }}</td>
-                                <td>{{ status_row.total }}</td>
-                            </tr>
+                            <div class="status-bar-row is-{{ status_row.kind }}" style="--share: {{ status_row.share_pct }}%;">
+                                <div class="status-bar-head">
+                                    <span>{{ status_row.label }} · <span class="status-bar-total">{{ status_row.total }}</span></span>
+                                    <span class="status-bar-share">{{ status_row.share_pct|stringformat:'g' }}%</span>
+                                </div>
+                                <div class="status-bar-track"><div class="status-bar-fill"></div></div>
+                            </div>
                         {% endfor %}
-                    </tbody>
-                </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h2>Заявок пока нет</h2>
+                        <p>В выбранном периоде не было создано ни одной заявки на оплату.</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
     </div>

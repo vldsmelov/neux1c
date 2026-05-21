@@ -100,7 +100,7 @@
                                         {% if row.article %}
                                             {{ row.article.code }} · {{ row.article.name }}
                                         {% else %}
-                                            <span class="badge">Не определена</span>
+                                            <span class="badge badge-warning">Не определена</span>
                                         {% endif %}
                                     </td>
                                     <td class="table-col-number">{{ row.reserved_amount|ru_number }} {{ row.contract.currency.code }}</td>

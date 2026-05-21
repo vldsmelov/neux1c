@@ -153,7 +153,7 @@
                     <div class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="budget_year">Год бюджета</label>
-                            <input class="field-control is-focused" id="budget_year" name="budget_year" value="{{ current_year }}" inputmode="numeric">
+                            <input class="field-control is-focused" id="budget_year" name="budget_year" value="{{ submitted.budget_year|default:current_year }}" inputmode="numeric">
                         </div>
                         <div>
                             <label class="field-label">Компания</label>
@@ -168,15 +168,15 @@
                         <div>
                             <label class="field-label" for="scope">Вид бюджета</label>
                             <select class="field-control-select" id="scope" name="scope" data-budget-scope>
-                                <option value="{{ scope.OVERALL }}">Общий бюджет</option>
-                                <option value="{{ scope.BY_DEPARTMENT }}">Бюджет по ЦФО</option>
+                                <option value="{{ scope.OVERALL }}" {% if submitted.scope == scope.OVERALL|stringformat:"s" %}selected{% endif %}>Общий бюджет</option>
+                                <option value="{{ scope.BY_DEPARTMENT }}" {% if submitted.scope == scope.BY_DEPARTMENT|stringformat:"s" %}selected{% endif %}>Бюджет по ЦФО</option>
                             </select>
                         </div>
                         <div>
                             <label class="field-label" for="currency_id">Валюта</label>
                             <select class="field-control-select" id="currency_id" name="currency_id">
                                 {% for currency in currencies %}
-                                    <option value="{{ currency.id }}">{{ currency.code }}</option>
+                                    <option value="{{ currency.id }}" {% if submitted.currency_id == currency.id|stringformat:"s" %}selected{% endif %}>{{ currency.code }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -184,13 +184,13 @@
                             <label class="field-label" for="approver_id">Утверждающий</label>
                             <select class="field-control-select" id="approver_id" name="approver_id" required>
                                 {% for approver in approvers %}
-                                    <option value="{{ approver.id }}">{{ approver.get_full_name|default:approver.username }}</option>
+                                    <option value="{{ approver.id }}" {% if submitted.approver_id == approver.id|stringformat:"s" %}selected{% endif %}>{{ approver.get_full_name|default:approver.username }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div>
                             <label class="field-label" for="comment">Комментарий к документу</label>
-                            <input class="field-control" id="comment" name="comment" value="">
+                            <input class="field-control" id="comment" name="comment" value="{{ submitted.comment|default:'' }}">
                         </div>
                     </div>
                 </section>
@@ -199,7 +199,7 @@
                     <div class="form-stack">
                         <div data-budget-overall>
                             <label class="field-label" for="total_amount">Сумма общего бюджета</label>
-                            <input class="field-control" id="total_amount" name="total_amount" value="1200000.00" inputmode="decimal">
+                            <input class="field-control" id="total_amount" name="total_amount" value="{{ submitted.total_amount|default:'1200000.00' }}" inputmode="decimal">
                         </div>
 
                         <div data-budget-departments hidden>
@@ -222,7 +222,7 @@
                                                     <input
                                                         class="field-control"
                                                         name="department_budget_{{ department.id }}"
-                                                        value=""
+                                                        value="{% post_value submitted 'department_budget_' department.id %}"
                                                         inputmode="decimal"
                                                         data-budget-department-amount
                                                         aria-label="Бюджет ЦФО {{ department.name }}"
@@ -262,7 +262,7 @@
                                                 <select class="field-control-select" name="limit_{{ row.index }}_department_id" data-limit-department>
                                                     <option value="">Не выбрано</option>
                                                     {% for department in departments %}
-                                                        <option value="{{ department.id }}">{{ department.code }} · {{ department.name }}</option>
+                                                        <option value="{{ department.id }}" {% post_equals submitted department.id 'limit_' row.index '_department_id' as is_dept %}{% if is_dept %}selected{% endif %}>{{ department.code }} · {{ department.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -270,7 +270,7 @@
                                                 <select class="field-control-select" name="limit_{{ row.index }}_article_id" data-limit-article>
                                                     <option value="">Не выбрано</option>
                                                     {% for article in articles %}
-                                                        <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                                                        <option value="{{ article.id }}" {% post_equals submitted article.id 'limit_' row.index '_article_id' as is_art %}{% if is_art %}selected{% endif %}>{{ article.code }} · {{ article.name }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -278,7 +278,7 @@
                                                 <input
                                                     class="field-control"
                                                     name="limit_{{ row.index }}_annual_amount"
-                                                    value=""
+                                                    value="{% post_value submitted 'limit_' row.index '_annual_amount' %}"
                                                     inputmode="decimal"
                                                     data-limit-amount
                                                     aria-label="Годовой лимит строки {{ row.index }}"
@@ -288,7 +288,7 @@
                                                 <input
                                                     class="field-control"
                                                     name="limit_{{ row.index }}_comment"
-                                                    value=""
+                                                    value="{% post_value submitted 'limit_' row.index '_comment' %}"
                                                     aria-label="Комментарий к лимиту {{ row.index }}"
                                                 >
                                             </td>
@@ -319,7 +319,7 @@
                                                     class="field-control"
                                                     id="limit_{{ row.index }}_month_{{ month.number }}"
                                                     name="limit_{{ row.index }}_month_{{ month.number }}"
-                                                    value=""
+                                                    value="{% post_value submitted 'limit_' row.index '_month_' month.number %}"
                                                     inputmode="decimal"
                                                     data-month-input="{{ row.index }}"
                                                 >

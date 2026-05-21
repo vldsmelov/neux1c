@@ -12,12 +12,14 @@
             <h1 class="app-title">{{ directory.label }}</h1>
             <p class="app-subtitle">{{ directory.description }}</p>
         </div>
-        <form class="command-bar" method="post">
-            {% csrf_token %}
-            <input type="hidden" name="action" value="sync">
-            <input type="hidden" name="directory" value="{{ directory_key }}">
-            <button class="command-button" type="submit">Синхронизировать Mock-1С</button>
-        </form>
+        {% if can_sync_mock_1c %}
+            <form class="command-bar" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="sync">
+                <input type="hidden" name="directory" value="{{ directory_key }}">
+                <button class="command-button" type="submit">Синхронизировать Mock-1С</button>
+            </form>
+        {% endif %}
     </div>
 
     <section class="data-panel stack">
@@ -115,7 +117,7 @@
                                         {% endif %}
                                     </td>
                                 {% endfor %}
-                                <td class="table-col-status"><span class="badge">{{ row.source }}</span></td>
+                                <td class="table-col-status"><span class="badge {% if row.source_code == 'manual' %}badge-info{% else %}badge-muted{% endif %}">{{ row.source }}</span></td>
                                 {% if can_update_nsi or can_delete_nsi %}
                                     <td class="table-col-actions">
                                         <div class="inline-form-row">

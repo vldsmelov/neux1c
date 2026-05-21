@@ -123,7 +123,7 @@
                                 <td class="table-col-doc">{% if row.fact.contract %}{{ row.fact.contract.number }}{% else %}—{% endif %}</td>
                                 <td class="table-col-number">{{ row.fact.amount|ru_number }} {{ row.fact.currency.code }}</td>
                                 <td class="table-col-status">
-                                    {% if row.versions %}<span class="badge">v{{ row.latest_version }}</span>{% else %}<span class="badge">база</span>{% endif %}
+                                    {% if row.versions %}<span class="badge badge-info">v{{ row.latest_version }}</span>{% else %}<span class="badge">база</span>{% endif %}
                                 </td>
                                 <td class="table-action-col">
                                     {% if can_edit_payment_facts %}

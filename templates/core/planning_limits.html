@@ -73,7 +73,7 @@
                                     <td class="table-col-counterparty">{{ plan.department.name }}</td>
                                     <td class="table-col-article">{{ plan.article.name }}</td>
                                     <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
-                                    <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-mark{% endif %}">{{ plan.get_status_display }}</span></td>
+                                    <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-success{% elif plan.status == status.PENDING_APPROVAL %}badge-info{% endif %}">{{ plan.get_status_display }}</span></td>
                                     <td class="table-action-col">
                                         {% if plan.status == status.DRAFT and can_edit_plans %}
                                             <a class="command-button" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
@@ -123,7 +123,7 @@
                                     <td>{% if adjustment.target_organization %}→ {{ adjustment.target_organization.name }}{% else %}Внутри компании{% endif %}</td>
                                     <td class="table-col-number">{{ adjustment.new_annual_amount|ru_number }} {{ adjustment.base_plan.currency.code }}</td>
                                     <td class="table-col-short">v{{ adjustment.version }}</td>
-                                    <td class="table-col-status"><span class="badge {% if adjustment.status == status.APPROVED %}badge-mark{% endif %}">{{ adjustment.get_status_display }}</span></td>
+                                    <td class="table-col-status"><span class="badge {% if adjustment.status == status.APPROVED %}badge-success{% elif adjustment.status == status.PENDING_APPROVAL %}badge-info{% elif adjustment.status == status.REJECTED %}badge-danger{% endif %}">{{ adjustment.get_status_display }}</span></td>
                                     <td class="table-action-col">
                                         {% if adjustment.status == status.DRAFT and can_edit_plans %}
                                             <a class="command-button" href="{% url 'document_action_wizard' 'limit-adjustment' adjustment.id 'submit' %}">На утверждение</a>

@@ -80,7 +80,7 @@
                             <td>{{ item.integration_name }}</td>
                             <td>{{ item.target_system }}</td>
                             <td>{{ item.description|truncatechars:90 }}</td>
-                            <td><span class="badge">{{ item.get_status_display }}</span></td>
+                            <td><span class="badge {% if item.status == 'completed' %}badge-success{% elif item.status == 'in_progress' %}badge-info{% elif item.status == 'rejected' %}badge-danger{% endif %}">{{ item.get_status_display }}</span></td>
                             <td>{% if item.admin_comment %}{{ item.admin_comment|truncatechars:70 }}{% else %}—{% endif %}</td>
                             <td>
                                 {% if can_manage_integration_requests %}

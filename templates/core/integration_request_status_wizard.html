@@ -64,13 +64,13 @@
                             <label class="field-label" for="status">Новый статус</label>
                             <select class="field-control-select is-focused" id="status" name="status">
                                 {% for value, label in status_choices %}
-                                    <option value="{{ value }}" {% if value == item.status %}selected{% endif %}>{{ label }}</option>
+                                    <option value="{{ value }}" {% if submitted.status == value %}selected{% elif not submitted and value == item.status %}selected{% endif %}>{{ label }}</option>
                                 {% endfor %}
                             </select>
                         </div>
                         <div class="form-grid-span-full">
                             <label class="field-label" for="admin_comment">Комментарий администратора</label>
-                            <textarea class="field-control" id="admin_comment" name="admin_comment" rows="5">{{ item.admin_comment }}</textarea>
+                            <textarea class="field-control" id="admin_comment" name="admin_comment" rows="5">{% if submitted %}{{ submitted.admin_comment|default:'' }}{% else %}{{ item.admin_comment }}{% endif %}</textarea>
                         </div>
                     </div>
                 </section>

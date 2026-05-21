@@ -157,6 +157,7 @@
                                         {% for month in plan.months.all %}
                                             data-month-{{ month.month }}="{{ month.amount }}"
                                         {% endfor %}
+                                        {% if submitted.base_plan_id == plan.id|stringformat:"s" %}selected{% endif %}
                                     >
                                         {{ plan.number }} · {{ plan.department.name }} · {{ plan.article.name }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}
                                     </option>
@@ -203,7 +204,7 @@
                     <div class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="new_annual_amount">Новая годовая сумма</label>
-                            <input class="field-control" id="new_annual_amount" name="new_annual_amount" value="" inputmode="decimal" data-new-amount>
+                            <input class="field-control" id="new_annual_amount" name="new_annual_amount" value="{{ submitted.new_annual_amount|default:'' }}" inputmode="decimal" data-new-amount>
                         </div>
                         <div>
                             <label class="field-label">Текущая сумма</label>
@@ -212,9 +213,9 @@
                         <div class="form-grid-span-full">
                             <label class="field-label" for="target_plan_id">Целевой лимит другой компании</label>
                             <select class="field-control-select" id="target_plan_id" name="target_plan_id" data-target-plan>
-                                <option value="">Не переносить между компаниями</option>
+                                <option value="" {% if submitted and not submitted.target_plan_id %}selected{% endif %}>Не переносить между компаниями</option>
                                 {% for plan in target_plans %}
-                                    <option value="{{ plan.id }}">
+                                    <option value="{{ plan.id }}" {% if submitted.target_plan_id == plan.id|stringformat:"s" %}selected{% endif %}>
                                         {{ plan.organization.name }} · {{ plan.number }} · {{ plan.department.name }} · {{ plan.article.name }} · {{ plan.annual_amount|ru_number }} {{ plan.currency.code }}
                                     </option>
                                 {% endfor %}
@@ -222,7 +223,7 @@
                         </div>
                         <div class="form-grid-span-full">
                             <label class="field-label" for="reason">Причина корректировки</label>
-                            <textarea class="field-control" id="reason" name="reason" rows="4" required></textarea>
+                            <textarea class="field-control" id="reason" name="reason" rows="4" required>{{ submitted.reason|default:'' }}</textarea>
                         </div>
                     </div>
                 </section>
@@ -244,7 +245,7 @@
                                         class="field-control"
                                         id="adjustment_month_{{ month.number }}"
                                         name="adjustment_month_{{ month.number }}"
-                                        value=""
+                                        value="{% post_value submitted 'adjustment_month_' month.number %}"
                                         inputmode="decimal"
                                         data-month-input="{{ month.number }}"
                                     >

@@ -54,7 +54,7 @@
                                 data-amount="{{ fact.amount }}"
                                 data-currency="{{ fact.currency.code }}"
                                 data-comment="{{ fact.comment }}"
-                                {% if selected_fact_id == fact.id %}selected{% endif %}
+                                {% if submitted.fact_id == fact.id|stringformat:"s" %}selected{% elif not submitted and selected_fact_id == fact.id %}selected{% endif %}
                             >
                                 {{ fact.date|date:"d.m.Y" }} · {{ fact.counterparty.name }} · {{ fact.amount|ru_number }} {{ fact.currency.code }}
                             </option>
@@ -75,15 +75,15 @@
                     <div class="form-stack form-grid form-grid-2">
                         <div>
                             <label class="field-label" for="new_amount">Новая сумма</label>
-                            <input class="field-control" id="new_amount" name="new_amount" value="" inputmode="decimal" data-new-amount>
+                            <input class="field-control" id="new_amount" name="new_amount" value="{{ submitted.new_amount|default:'' }}" inputmode="decimal" data-new-amount>
                         </div>
                         <div>
                             <label class="field-label" for="new_comment">Новый комментарий</label>
-                            <input class="field-control" id="new_comment" name="new_comment" value="" data-new-comment>
+                            <input class="field-control" id="new_comment" name="new_comment" value="{{ submitted.new_comment|default:'' }}" data-new-comment>
                         </div>
                         <div class="form-grid-span-full">
                             <label class="field-label" for="reason">Причина</label>
-                            <textarea class="field-control" id="reason" name="reason" rows="4" required></textarea>
+                            <textarea class="field-control" id="reason" name="reason" rows="4" required>{{ submitted.reason|default:'' }}</textarea>
                         </div>
                     </div>
                 </section>

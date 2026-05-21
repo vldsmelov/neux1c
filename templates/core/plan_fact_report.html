@@ -256,7 +256,7 @@
                                 <td>
                                     {% if row.missing_in_one_c %}<span class="badge badge-danger">нет в 1С</span>{% endif %}
                                     {% if row.is_internal_turnover %}<span class="badge badge-mark">ВГО</span>{% endif %}
-                                    {% if not row.missing_in_one_c and not row.is_internal_turnover %}<span class="badge">из 1С</span>{% endif %}
+                                    {% if not row.missing_in_one_c and not row.is_internal_turnover %}<span class="badge badge-muted">из 1С</span>{% endif %}
                                 </td>
                                 <td class="num-col">{{ row.plan }}</td>
                                 <td class="num-col">{{ row.adjustments }}</td>

@@ -1,45 +1,243 @@
-{% extends "core/base.html" %}
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Вход · NE UX</title>
+    <style>
+        :root {
+            --bg-grad-a: #eef3fb;
+            --bg-grad-b: #e3ecf8;
+            --surface: #ffffff;
+            --text: #0f172a;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --accent: #1b75d0;
+            --accent-hover: #155fa9;
+            --accent-soft: #e7f2ff;
+            --danger: #d92d20;
+            --danger-bg: #fef3f2;
+            --radius: 12px;
+            --shadow-card: 0 20px 50px -20px rgba(15, 23, 42, 0.18), 0 8px 16px -8px rgba(15, 23, 42, 0.08);
+        }
 
-{% block title %}Вход · NE UX{% endblock %}
+        * { box-sizing: border-box; }
+        html, body { height: 100%; }
 
-{% block content %}
-    <div class="app-page-head">
-        <div>
-            <h1 class="app-title">Вход в систему</h1>
-            <p class="app-subtitle">Экономисты и руководители входят в основную систему, бухгалтеры — во внешний контур оплаты договоров.</p>
-        </div>
-    </div>
+        body {
+            margin: 0;
+            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-size: 15px;
+            line-height: 1.45;
+            background:
+                radial-gradient(1200px 600px at 10% -10%, var(--accent-soft), transparent 50%),
+                radial-gradient(900px 500px at 100% 110%, #dbe7f7, transparent 55%),
+                linear-gradient(180deg, var(--bg-grad-a), var(--bg-grad-b));
+            display: grid;
+            place-items: center;
+            padding: 24px;
+        }
 
-    <div class="document-grid document-grid-compact">
-        <aside class="form-panel">
-            <div class="form-stack">
-                <div>
-                    <div class="field-label">Пилот</div>
-                    <div class="field-control">ООО "Гладиолус"</div>
-                </div>
-                <div>
-                    <div class="field-label">Контур бухгалтера</div>
-                    <div class="field-control"><span><span class="status-dot"></span>Внешняя 1С:БП</span></div>
-                </div>
+        .login-shell {
+            width: 100%;
+            max-width: 420px;
+            display: grid;
+            gap: 24px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .brand-mark {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), #2c8de0);
+            display: grid;
+            place-items: center;
+            color: #fff;
+            font-weight: 700;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+            box-shadow: 0 6px 16px -6px rgba(27, 117, 208, 0.55);
+        }
+
+        .brand-name { font-weight: 700; font-size: 18px; letter-spacing: 0.2px; }
+        .brand-sub  { color: var(--muted); font-size: 12px; margin-top: 2px; }
+
+        .card {
+            background: var(--surface);
+            border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-card);
+            padding: 28px 28px 24px;
+        }
+
+        .card-title { margin: 0 0 4px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
+        .card-sub   { margin: 0 0 22px; color: var(--muted); font-size: 14px; }
+
+        .form-grid { display: grid; gap: 14px; }
+
+        .field { display: grid; gap: 6px; }
+        .field-label { font-size: 13px; font-weight: 500; color: var(--text); }
+
+        .field-input {
+            display: block;
+            width: 100%;
+            padding: 11px 13px;
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            background: #fff;
+            color: var(--text);
+            font: inherit;
+            transition: border-color 120ms ease, box-shadow 120ms ease;
+        }
+        .field-input:hover { border-color: #cbd5e1; }
+        .field-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px rgba(27, 117, 208, 0.15);
+        }
+
+        .submit {
+            margin-top: 6px;
+            width: 100%;
+            padding: 12px 14px;
+            border: 0;
+            border-radius: 9px;
+            background: var(--accent);
+            color: #fff;
+            font: inherit;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 120ms ease, transform 60ms ease;
+        }
+        .submit:hover  { background: var(--accent-hover); }
+        .submit:active { transform: translateY(1px); }
+        .submit:focus-visible { outline: none; box-shadow: 0 0 0 4px rgba(27, 117, 208, 0.3); }
+
+        .alert {
+            padding: 10px 12px;
+            border-radius: 9px;
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid #fecdca;
+            font-size: 13px;
+        }
+
+        .roles {
+            margin-top: 18px;
+            padding-top: 18px;
+            border-top: 1px solid var(--border);
+            display: grid;
+            gap: 6px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+        .roles-title {
+            font-weight: 600;
+            color: var(--text);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 4px;
+        }
+        .roles-list {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 4px 12px;
+            font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+            font-size: 12px;
+        }
+        .roles-list b { color: var(--text); font-weight: 600; }
+        .roles-pass { margin-top: 6px; }
+        .roles-pass code {
+            background: var(--accent-soft);
+            color: var(--accent-hover);
+            padding: 1px 6px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+
+        .footer-note { text-align: center; color: var(--muted); font-size: 12px; }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-grad-a: #0f172a;
+                --bg-grad-b: #0b1220;
+                --surface: #111a2e;
+                --text: #e2e8f0;
+                --muted: #94a3b8;
+                --border: #1f2a44;
+                --accent-soft: rgba(27, 117, 208, 0.18);
+                --danger-bg: rgba(217, 45, 32, 0.12);
+            }
+            .field-input { background: #0d162a; }
+            .field-input:hover { border-color: #2d3a5c; }
+        }
+    </style>
+</head>
+<body>
+    <main class="login-shell" role="main">
+        <div class="brand">
+            <div class="brand-mark" aria-hidden="true">NE</div>
+            <div>
+                <div class="brand-name">NE UX</div>
+                <div class="brand-sub">Бюджетный контроль · пилот ООО «Гладиолус»</div>
             </div>
-        </aside>
+        </div>
 
-        <section class="data-panel">
-            <form method="post" class="form-stack login-form">
+        <section class="card" aria-labelledby="login-title">
+            <h1 class="card-title" id="login-title">Вход в систему</h1>
+            <p class="card-sub">Экономисты и руководители — в основную систему, бухгалтеры — во внешний контур оплаты.</p>
+
+            <form method="post" class="form-grid" novalidate>
                 {% csrf_token %}
                 {% if form.errors %}
-                    <div class="badge badge-danger">Неверный логин или пароль</div>
+                    <div class="alert" role="alert">Неверный логин или пароль</div>
                 {% endif %}
-                <div>
-                    <label class="field-label" for="{{ form.username.id_for_label }}">Пользователь</label>
-                    <input class="field-control" id="{{ form.username.id_for_label }}" name="{{ form.username.html_name }}" type="text" autofocus>
-                </div>
-                <div>
-                    <label class="field-label" for="{{ form.password.id_for_label }}">Пароль</label>
-                    <input class="field-control" id="{{ form.password.id_for_label }}" name="{{ form.password.html_name }}" type="password">
-                </div>
-                <button class="command-button-primary" type="submit">Войти</button>
+                <label class="field">
+                    <span class="field-label">Пользователь</span>
+                    <input class="field-input"
+                           id="{{ form.username.id_for_label }}"
+                           name="{{ form.username.html_name }}"
+                           type="text"
+                           autocomplete="username"
+                           autocapitalize="none"
+                           spellcheck="false"
+                           required
+                           autofocus>
+                </label>
+                <label class="field">
+                    <span class="field-label">Пароль</span>
+                    <input class="field-input"
+                           id="{{ form.password.id_for_label }}"
+                           name="{{ form.password.html_name }}"
+                           type="password"
+                           autocomplete="current-password"
+                           required>
+                </label>
+                <button class="submit" type="submit">Войти</button>
             </form>
+
+            <div class="roles" aria-label="Демо-учётные записи">
+                <div class="roles-title">Демо-учётные записи</div>
+                <div class="roles-list">
+                    <b>admin</b><span>полный доступ</span>
+                    <b>economist</b><span>планирование, заявки, факт</span>
+                    <b>manager</b><span>согласование, отчёты</span>
+                    <b>accountant</b><span>внешний контур 1С:БП</span>
+                </div>
+                <div class="roles-pass">Пароль для всех: <code>demo12345</code></div>
+            </div>
         </section>
-    </div>
-{% endblock %}
+
+        <div class="footer-note">by модуль «Цифровизация проектных задач»</div>
+    </main>
+</body>
+</html>

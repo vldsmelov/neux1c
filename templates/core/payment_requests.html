@@ -88,6 +88,9 @@
                                     {% if request_row.additional_agreement %}{% if request_row.contract %} · {% endif %}{{ request_row.additional_agreement.number }}{% endif %}
                                     {% if request_row.invoice_number %}{% if request_row.contract or request_row.additional_agreement %} · {% endif %}{{ request_row.invoice_number }}{% endif %}
                                     {% if request_row.invoice_date %} · {{ request_row.invoice_date|date:"d.m.Y" }}{% endif %}
+                                    {% if request_row.justification_file %}
+                                        · <a class="muted-text" href="{% url 'payment_request_justification_download' request_row.id %}" title="Скачать обоснование">📎 обоснование</a>
+                                    {% endif %}
                                 </td>
                                 <td class="table-col-number">{{ request_row.amount|ru_number }} {{ request_row.currency.code }}</td>
                                 <td class="table-col-limit table-cell-nowrap">
@@ -95,7 +98,7 @@
                                     {% if request_row.limit_exceeded %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
                                 <td class="table-col-status">
-                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-mark{% endif %}">
+                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-success{% elif request_row.status == status.PENDING_APPROVAL %}badge-info{% elif request_row.status == status.REJECTED %}badge-danger{% endif %}">
                                         {{ request_row.get_status_display }}
                                     </span>
                                 </td>
