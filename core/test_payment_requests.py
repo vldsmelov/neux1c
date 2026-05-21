@@ -23,6 +23,13 @@ from core.services.one_c_sync import sync_one_c_dataset
 from core.services.payment_requests import create_payment_request, submit_payment_request
 
 
+def _fake_av_reject(uploaded_file):
+    """Test stub used by override_settings to simulate an AV-scanner finding malware."""
+    from django.core.exceptions import ValidationError
+
+    raise ValidationError("AV-сканер обнаружил угрозу")
+
+
 class PaymentRequestWorkflowTests(TestCase):
     def setUp(self):
         call_command("setup_access_roles", "--with-users", verbosity=0)
@@ -295,6 +302,118 @@ class PaymentRequestWorkflowTests(TestCase):
                 action=AuditAction.UPDATE,
             ).exists()
         )
+
+    def test_payment_request_wizard_prefills_on_validation_error(self):
+        from core.models import Currency, Organization
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("payment_request_wizard"),
+            {
+                "request_kind": PaymentRequestKind.BY_INVOICE,
+                "organization_id": Organization.objects.first().id,
+                "article_id": self.article.id,
+                "counterparty_id": self.contract.counterparty_id,
+                "currency_id": Currency.objects.get(code="RUB").id,
+                "amount": "777777.77",
+                "manual_exchange_rate": "1.0000",
+                "approver_id": self.manager.id,
+                "payment_purpose": "Тестовое назначение",
+                "comment": "Должно остаться в форме",
+                # invoice_number / invoice_date намеренно пропущены — это валидационная ошибка для BY_INVOICE
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode("utf-8")
+        self.assertIn("777777.77", content)
+        self.assertIn("Тестовое назначение", content)
+        self.assertIn("Должно остаться в форме", content)
+        # Сообщение об ошибке должно быть в messages
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any(msgs), "Ожидаем сообщение об ошибке валидации")
+
+    def test_justification_download_is_access_controlled(self):
+        """Author, approver и administrator получают файл; посторонний → 403; чужой/без файла → 404."""
+        from django.contrib.auth.models import Group
+        from core.models import Currency, Organization
+
+        # Создаём заявку с приложенным PDF-файлом
+        payload = SimpleUploadedFile("evidence.pdf", b"%PDF-1.4 fake", content_type="application/pdf")
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Оплата поставки",
+            justification_file=payload,
+        )
+        url = reverse("payment_request_justification_download", args=[payment_request.id])
+
+        # Автор (economist) — 200 + Content-Disposition: attachment
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertIn(payment_request.number, response["Content-Disposition"])
+        # Аудит-лог должен зафиксировать скачивание
+        self.assertTrue(
+            AuditLog.objects.filter(
+                object_type="PaymentRequest.justification_file",
+                object_id=str(payment_request.id),
+                action=AuditAction.VIEW,
+            ).exists()
+        )
+
+        # Согласующий (manager) — 200
+        self.client.logout()
+        self.client.login(username="manager", password="demo12345")
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+        # Администратор — 200 (через is_administrator-проверку)
+        self.client.logout()
+        self.client.login(username="admin", password="demo12345")
+        self.assertEqual(self.client.get(url).status_code, 200)
+
+        # Посторонний пользователь (бухгалтер) — 403
+        self.client.logout()
+        self.client.login(username="accountant", password="demo12345")
+        self.assertEqual(self.client.get(url).status_code, 403)
+
+        # Несуществующая заявка → 404
+        self.client.logout()
+        self.client.login(username="economist", password="demo12345")
+        self.assertEqual(self.client.get(reverse("payment_request_justification_download", args=[99999])).status_code, 404)
+
+    def test_av_scanner_hook_can_reject_upload(self):
+        """Если задан NE_UX_AV_SCANNER, он вызывается и его ValidationError блокирует загрузку."""
+        from django.test import override_settings
+
+        with override_settings(NE_UX_AV_SCANNER="core.test_payment_requests._fake_av_reject"):
+            payload = SimpleUploadedFile("evidence.pdf", b"INFECTED", content_type="application/pdf")
+            with self.assertRaisesMessage(ValueError, "AV-сканер"):
+                from core.models import Currency, Organization
+
+                create_payment_request(
+                    author=self.economist,
+                    request_kind=PaymentRequestKind.BY_CONTRACT,
+                    organization=Organization.objects.first(),
+                    article=self.article,
+                    counterparty=self.contract.counterparty,
+                    contract=self.contract,
+                    currency=Currency.objects.get(code="RUB"),
+                    amount=Decimal("100000.00"),
+                    manual_exchange_rate=Decimal("1.0000"),
+                    approver=self.manager,
+                    payment_purpose="Оплата поставки",
+                    justification_file=payload,
+                )
 
     def _approve_limit_for_article(self, article, amount: Decimal):
         from core.models import Currency, Department

@@ -57,9 +57,19 @@ class PrimaryBudgetWizardTests(TestCase):
             self._payload(total_amount="500000.00", limit_amount="600000.00"),
         )
 
-        self.assertRedirects(response, reverse("planning_wizard"))
+        # On validation error wizard re-renders the form (200) instead of redirecting,
+        # so previously entered values are preserved.
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(BudgetPlan.objects.count(), 0)
         self.assertEqual(BudgetLimitPlan.objects.count(), 0)
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any(msgs), "Должно быть сообщение об ошибке валидации")
+        # Submitted values must be prefilled back in the rendered form.
+        content = response.content.decode("utf-8")
+        self.assertIn('value="500000.00"', content)  # total_amount
+        self.assertIn('value="600000.00"', content)  # limit_1_annual_amount
+        self.assertIn("Первичный ввод", content)     # comment
+        self.assertIn("Первичный лимит", content)    # limit_1_comment
 
     def test_wizard_creates_department_budget_package(self):
         response = self.client.post(

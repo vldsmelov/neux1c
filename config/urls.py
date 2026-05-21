@@ -23,6 +23,7 @@ from core.views import (
     payment_fact_adjustment_wizard,
     payment_facts,
     payment_request_edit_wizard,
+    payment_request_justification_download,
     payment_request_wizard,
     plan_fact_report,
     planning_budgets,
@@ -31,6 +32,7 @@ from core.views import (
     set_theme_mode,
     payment_requests,
     planning_limits,
+    styleguide,
     workspace,
 )
 
@@ -48,6 +50,11 @@ urlpatterns = [
     path("planning/limits/", planning_limits, name="planning_limits"),
     path("payments/requests/wizard/", payment_request_wizard, name="payment_request_wizard"),
     path("payments/requests/<int:request_id>/edit-wizard/", payment_request_edit_wizard, name="payment_request_edit_wizard"),
+    path(
+        "payments/requests/<int:request_id>/justification/",
+        payment_request_justification_download,
+        name="payment_request_justification_download",
+    ),
     path("payments/requests/", payment_requests, name="payment_requests"),
     path("payments/facts/wizard/", payment_fact_adjustment_wizard, name="payment_fact_adjustment_wizard"),
     path("payments/facts/", payment_facts, name="payment_facts"),
@@ -73,6 +80,7 @@ urlpatterns = [
         name="integration_request_status_wizard",
     ),
     path("settings/integration-requests/", integration_requests, name="integration_requests"),
+    path("settings/styleguide/", styleguide, name="styleguide"),
     path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
 ]

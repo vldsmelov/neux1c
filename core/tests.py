@@ -119,6 +119,28 @@ class AccessControlTests(TestCase):
         self.assertEqual(User.objects.filter(username__in=["admin", "economist", "manager", "accountant"]).count(), 4)
         self.assertEqual(UserProfile.objects.get(user__username="accountant").role, UserRole.ACCOUNTANT)
 
+    def test_setup_access_roles_refuses_weak_password_in_production(self):
+        from django.core.management.base import CommandError
+        from django.test import override_settings
+
+        # Simulate production: DEBUG=0 AND not running under the test runner bypass.
+        with override_settings(DEBUG=False, TESTING=False):
+            with self.assertRaisesMessage(CommandError, "дефолтным паролем"):
+                call_command("setup_access_roles", "--with-users", "--password=demo12345", verbosity=0)
+
+    def test_setup_access_roles_accepts_weak_password_with_explicit_flag(self):
+        from django.test import override_settings
+
+        with override_settings(DEBUG=False, TESTING=False):
+            # --allow-weak-password is the documented escape hatch and must keep working.
+            call_command(
+                "setup_access_roles",
+                "--with-users",
+                "--password=demo12345",
+                "--allow-weak-password",
+                verbosity=0,
+            )
+
     def test_workspace_requires_login(self):
         response = self.client.get(reverse("workspace"))
 
@@ -241,23 +263,65 @@ class AccessControlTests(TestCase):
         self.assertTrue(Organization.objects.filter(name='ООО "Гладиолус"').exists())
         self.assertTrue(Department.objects.filter(code="CFO-001").exists())
 
-    def test_manager_can_open_workspace_but_not_nsi(self):
+    def test_manager_can_open_workspace_and_nsi_read_only(self):
         self.client.login(username="manager", password="demo12345")
 
         workspace_response = self.client.get(reverse("workspace"))
         nsi_response = self.client.get(reverse("nsi_dashboard"))
+        nsi_dir_response = self.client.get(reverse("nsi_directory", kwargs={"directory": "organizations"}))
 
         self.assertEqual(workspace_response.status_code, 200)
-        self.assertEqual(nsi_response.status_code, 403)
-        self.assertTrue(AuditLog.objects.filter(user__username="manager", action=AuditAction.DENIED, path="/nsi/").exists())
+        self.assertEqual(nsi_response.status_code, 302)
+        self.assertEqual(nsi_dir_response.status_code, 200)
+        # Manager must not see write or sync actions
+        self.assertFalse(nsi_dir_response.context["can_create_nsi"])
+        self.assertFalse(nsi_dir_response.context["can_update_nsi"])
+        self.assertFalse(nsi_dir_response.context["can_delete_nsi"])
+        self.assertFalse(nsi_dir_response.context["can_sync_mock_1c"])
 
-    def test_accountant_is_blocked_from_app_pages(self):
+    def test_manager_cannot_sync_or_create_nsi_via_post(self):
+        self.client.login(username="manager", password="demo12345")
+        sync_response = self.client.post(
+            reverse("nsi_directory", kwargs={"directory": "organizations"}),
+            {"action": "sync", "directory": "organizations"},
+            follow=True,
+        )
+        self.assertEqual(sync_response.status_code, 200)
+        msgs = [m.message for m in sync_response.context["messages"]]
+        self.assertTrue(any("Недостаточно прав" in m for m in msgs))
+
+    def test_accountant_workspace_redirects_to_external_accounting(self):
         self.client.login(username="accountant", password="demo12345")
 
         response = self.client.get(reverse("workspace"))
 
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse("external_accounting"))
         self.assertFalse(UserProfile.objects.get(user__username="accountant").can_access_app)
+
+    def test_only_administrator_has_django_admin_access(self):
+        """Только администратор должен иметь is_staff=True и доступ к /admin/.
+
+        Доступ economist/manager к Django admin означал бы возможность править
+        сырые модели в обход бизнес-логики (резерв, статусы, версии лимитов).
+        """
+        User = get_user_model()
+        self.assertTrue(User.objects.get(username="admin").is_staff)
+        self.assertFalse(User.objects.get(username="economist").is_staff)
+        self.assertFalse(User.objects.get(username="manager").is_staff)
+        self.assertFalse(User.objects.get(username="accountant").is_staff)
+
+        for username, expected in [
+            ("admin", 200),
+            ("economist", 302),
+            ("manager", 302),
+            ("accountant", 302),
+        ]:
+            with self.subTest(user=username):
+                self.client.logout()
+                self.client.login(username=username, password="demo12345")
+                response = self.client.get("/admin/")
+                self.assertEqual(response.status_code, expected)
 
     def test_accountant_login_redirects_to_external_accounting(self):
         response = self.client.post(
@@ -542,13 +606,13 @@ class AccessControlTests(TestCase):
                 "contracts_register": 200,
                 "contracts_reservations": 200,
                 "contracts_tree": 200,
-                "nsi_directory": 403,
+                "nsi_directory": 200,
                 "integration_requests": 200,
                 "instruction": 200,
                 "external_accounting": 403,
             },
             "accountant": {
-                "workspace": 403,
+                "workspace": 302,
                 "planning_limits": 403,
                 "payment_requests": 403,
                 "payment_facts": 403,
@@ -573,7 +637,7 @@ class AccessControlTests(TestCase):
                     response = self.client.get(path)
                     self.assertEqual(response.status_code, expected_status)
 
-                    expected_action = AuditAction.VIEW if expected_status == 200 else AuditAction.DENIED
+                    expected_action = AuditAction.DENIED if expected_status in (401, 403) else AuditAction.VIEW
                     self.assertTrue(
                         AuditLog.objects.filter(
                             user__username=username,
