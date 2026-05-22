@@ -400,6 +400,119 @@ class PaymentRequestWorkflowTests(TestCase):
         response = self.client.get(reverse("notifications"), {"filter": "unread"})
         self.assertEqual(response.context["page"].paginator.count, 0)
 
+    def test_bulk_approve_processes_eligible_requests_and_skips_others(self):
+        """Manager bulk-approves PENDING_APPROVAL; DRAFT в той же выборке пропускается."""
+        from core.models import Currency, Notification, NotificationKind, Organization
+
+        # 3 заявки разных статусов
+        pending_pairs = []
+        for _ in range(2):
+            pr = create_payment_request(
+                author=self.economist,
+                request_kind=PaymentRequestKind.BY_CONTRACT,
+                organization=Organization.objects.first(),
+                article=self.article,
+                counterparty=self.contract.counterparty,
+                contract=self.contract,
+                currency=Currency.objects.get(code="RUB"),
+                amount=Decimal("100000.00"),
+                manual_exchange_rate=Decimal("1.0000"),
+                approver=self.manager,
+                payment_purpose="Bulk",
+            )
+            submit_payment_request(pr, self.economist)
+            pending_pairs.append(pr)
+        draft_pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Draft",
+        )
+
+        # Меняем working_organization у сессии manager на ту, где живут заявки
+        self.client.login(username="manager", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = Organization.objects.first().id
+        session.save()
+
+        response = self.client.post(
+            reverse("payment_requests"),
+            {
+                "action": "bulk_approve",
+                "request_id": [str(p.id) for p in pending_pairs] + [str(draft_pr.id)],
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+
+        for pr in pending_pairs:
+            pr.refresh_from_db()
+            self.assertEqual(pr.status, PaymentRequestStatus.APPROVED)
+        draft_pr.refresh_from_db()
+        self.assertEqual(draft_pr.status, PaymentRequestStatus.DRAFT)
+        # Каждое успешное согласование создаёт уведомление автору
+        self.assertEqual(
+            Notification.objects.filter(
+                kind=NotificationKind.PAYMENT_APPROVED,
+                payload_object_id__in=[str(p.id) for p in pending_pairs],
+            ).count(),
+            len(pending_pairs),
+        )
+
+    def test_bulk_reject_requires_comment_and_writes_it_to_each_request(self):
+        from core.models import Currency, Organization
+
+        pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Bulk reject",
+        )
+        submit_payment_request(pr, self.economist)
+
+        self.client.login(username="manager", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = Organization.objects.first().id
+        session.save()
+
+        # Без комментария — ошибка
+        response = self.client.post(
+            reverse("payment_requests"),
+            {"action": "bulk_reject", "request_id": [str(pr.id)]},
+            follow=True,
+        )
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("комментар" in m.lower() for m in msgs))
+        pr.refresh_from_db()
+        self.assertEqual(pr.status, PaymentRequestStatus.PENDING_APPROVAL)
+
+        # С комментарием — отклоняется и комментарий записан
+        response = self.client.post(
+            reverse("payment_requests"),
+            {
+                "action": "bulk_reject",
+                "request_id": [str(pr.id)],
+                "approver_comment": "Все плохо, переделать",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        pr.refresh_from_db()
+        self.assertEqual(pr.status, PaymentRequestStatus.REJECTED)
+        self.assertEqual(pr.approver_comment, "Все плохо, переделать")
+
     def test_manager_can_reject_with_comment(self):
         from core.models import Currency, Organization
 

@@ -61,25 +61,33 @@
                     data-table-count="#payment-requests-table-count"
                 >
             </div>
-            <div class="data-table-wrap desktop-scroll">
-                <table id="payment-requests-table" class="data-table payment-requests-table">
-                    <thead>
-                        <tr>
-                            <th scope="col" class="checkbox-cell"></th>
-                            <th scope="col" class="table-col-doc">Номер</th>
-                            <th scope="col" class="table-col-short">Тип</th>
-                            <th scope="col" class="table-col-counterparty">Контрагент</th>
-                            <th scope="col" class="table-col-doc">Договор / счет</th>
-                            <th scope="col" class="table-col-number">Сумма</th>
-                            <th scope="col" class="table-col-limit">Лимит до/после</th>
-                            <th scope="col" class="table-col-status">Статус</th>
-                            <th scope="col" class="table-action-col-lg">Действие</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for request_row in requests %}
+            <form method="post" data-bulk-form>
+                {% csrf_token %}
+                <input type="hidden" name="bulk_action" value="" data-bulk-action-field>
+                <input type="hidden" name="approver_comment" value="" data-bulk-comment-field>
+                <div class="data-table-wrap desktop-scroll">
+                    <table id="payment-requests-table" class="data-table payment-requests-table">
+                        <thead>
                             <tr>
-                                <td><span class="fake-checkbox"></span></td>
+                                <th scope="col" class="checkbox-cell">
+                                    <input type="checkbox" data-bulk-toggle-all aria-label="Выбрать все">
+                                </th>
+                                <th scope="col" class="table-col-doc">Номер</th>
+                                <th scope="col" class="table-col-short">Тип</th>
+                                <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                <th scope="col" class="table-col-doc">Договор / счет</th>
+                                <th scope="col" class="table-col-number">Сумма</th>
+                                <th scope="col" class="table-col-limit">Лимит до/после</th>
+                                <th scope="col" class="table-col-status">Статус</th>
+                                <th scope="col" class="table-action-col-lg">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for request_row in requests %}
+                                <tr data-bulk-row data-status="{{ request_row.status }}">
+                                    <td>
+                                        <input type="checkbox" name="request_id" value="{{ request_row.id }}" data-bulk-target aria-label="Выбрать заявку {{ request_row.number }}">
+                                    </td>
                                 <td class="table-col-doc table-cell-nowrap">{{ request_row.number }}</td>
                                 <td class="table-col-short">{{ request_row.get_request_kind_display }}</td>
                                 <td class="table-col-counterparty">{{ request_row.counterparty.name }}</td>
@@ -122,12 +130,36 @@
                                     {% endif %}
                                 </td>
                             </tr>
-                        {% empty %}
-                            <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+                            {% empty %}
+                                <tr><td colspan="9">Заявок пока нет. Создайте первую через wizard.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bulk-bar" data-bulk-bar hidden role="region" aria-label="Массовые действия">
+                    <span class="bulk-bar-count">Выбрано: <strong data-bulk-count>0</strong></span>
+                    <span class="bulk-bar-spacer"></span>
+                    {% if can_manage_payment_requests %}
+                        <button class="command-button" type="button" data-bulk-action="bulk_submit" data-bulk-need-status="draft" disabled>
+                            На согласование
+                        </button>
+                    {% endif %}
+                    {% if can_approve_payment_requests %}
+                        <button class="command-button-primary" type="button" data-bulk-action="bulk_approve" data-bulk-need-status="pending_approval" disabled>
+                            Согласовать
+                        </button>
+                        <button class="command-button is-danger" type="button" data-bulk-action="bulk_reject" data-bulk-need-status="pending_approval" data-bulk-need-comment="1" disabled>
+                            Отклонить с комментарием
+                        </button>
+                    {% endif %}
+                    {% if can_manage_payment_requests %}
+                        <button class="command-button-primary" type="button" data-bulk-action="bulk_transfer" data-bulk-need-status="approved" disabled>
+                            Передать в 1С:ДО
+                        </button>
+                    {% endif %}
+                </div>
+            </form>
         </div>
 
         <div class="summary-line section-tab-panel" data-tab-panel="control" hidden>
@@ -135,4 +167,60 @@
             <span class="summary-value">{{ limit_control_mode_label }}</span>
         </div>
     </section>
+
+    <script>
+        (() => {
+            const form = document.querySelector('[data-bulk-form]');
+            if (!form) return;
+            const bar = form.querySelector('[data-bulk-bar]');
+            const countEl = form.querySelector('[data-bulk-count]');
+            const actionField = form.querySelector('[data-bulk-action-field]');
+            const commentField = form.querySelector('[data-bulk-comment-field]');
+            const rowChecks = () => Array.from(form.querySelectorAll('[data-bulk-target]'));
+            const selectedRows = () => rowChecks().filter((c) => c.checked);
+            const buttons = Array.from(form.querySelectorAll('[data-bulk-action]'));
+
+            function refresh() {
+                const selected = selectedRows();
+                const count = selected.length;
+                countEl.textContent = count;
+                bar.hidden = count === 0;
+                const selectedStatuses = new Set(
+                    selected.map((c) => c.closest('[data-bulk-row]').dataset.status)
+                );
+                rowChecks().forEach((c) => {
+                    c.closest('[data-bulk-row]').classList.toggle('is-selected', c.checked);
+                });
+                buttons.forEach((btn) => {
+                    const need = btn.dataset.bulkNeedStatus;
+                    // Button enabled if every selected row matches the required status
+                    const ok = count > 0 && selectedStatuses.size === 1 && selectedStatuses.has(need);
+                    btn.disabled = !ok;
+                });
+            }
+
+            form.addEventListener('change', (e) => {
+                if (e.target.matches('[data-bulk-toggle-all]')) {
+                    rowChecks().forEach((c) => { c.checked = e.target.checked; });
+                }
+                refresh();
+            });
+
+            buttons.forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    if (btn.dataset.bulkNeedComment === '1') {
+                        const comment = prompt('Комментарий для массового отклонения:');
+                        if (!comment || !comment.trim()) return;
+                        commentField.value = comment.trim();
+                    } else {
+                        commentField.value = '';
+                    }
+                    actionField.value = btn.dataset.bulkAction;
+                    form.submit();
+                });
+            });
+
+            refresh();
+        })();
+    </script>
 {% endblock %}

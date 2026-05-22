@@ -69,7 +69,10 @@ User = get_user_model()
 def payment_requests(request):
     org = working_organization(request)
     if request.method == "POST":
-        action = request.POST.get("action")
+        # `bulk_action` is sent by the in-table bulk form. We accept it as a
+        # fallback to avoid colliding with the legacy per-row `name="action"`
+        # contract elsewhere on the page (status changes go via wizards).
+        action = request.POST.get("action") or request.POST.get("bulk_action")
         try:
             if action == "create":
                 if not can_create_payment_requests(request.user):
@@ -109,6 +112,8 @@ def payment_requests(request):
                     request.user,
                 )
                 messages.success(request, "Заявка передана в 1С:ДО")
+            elif action in {"bulk_approve", "bulk_reject", "bulk_transfer", "bulk_submit"}:
+                _bulk_handle(request, action)
         except (InvalidOperation, ValueError) as exc:
             messages.error(request, str(exc))
         return redirect("payment_requests")
@@ -403,6 +408,102 @@ def payment_request_justification_download(request, request_id: int):
     response["Content-Disposition"] = f'attachment; filename="{download_name}"'
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+# --- Bulk handlers --------------------------------------------------------
+
+def _bulk_handle(request, action: str) -> None:
+    """Apply `action` to every selected PaymentRequest, accumulating messages.
+
+    Each item is handled independently in its own transaction (via the
+    service helpers, which are @transaction.atomic). Per-item failures don't
+    break the batch — they accumulate as messages.error so the user sees
+    exactly which numbers were skipped and why.
+    """
+    raw_ids = [v for v in request.POST.getlist("request_id") if v]
+    if not raw_ids:
+        raise ValueError("Не выбрана ни одна заявка")
+    # Limit to the working organization so we don't touch other companies.
+    org = working_organization(request)
+    queryset = PaymentRequest.objects.filter(id__in=raw_ids, organization=org).select_related(
+        "counterparty", "currency", "approver", "author", "article", "organization",
+    )
+
+    if action == "bulk_approve":
+        if not can_approve_payment_requests(request.user):
+            raise ValueError("Согласовывать заявки может только назначенный руководитель")
+        _bulk_apply(
+            request,
+            queryset.filter(status=PaymentRequestStatus.PENDING_APPROVAL),
+            lambda pr: approve_payment_request(pr, request.user),
+            verb_done="Согласовано",
+            verb_skipped_reason="не в статусе ‘На согласовании’",
+        )
+        return
+
+    if action == "bulk_reject":
+        if not can_approve_payment_requests(request.user):
+            raise ValueError("Отклонять заявки может только назначенный руководитель")
+        comment = (request.POST.get("approver_comment") or "").strip()
+        if not comment:
+            raise ValueError("Для массового отклонения укажите комментарий")
+        _bulk_apply(
+            request,
+            queryset.filter(status=PaymentRequestStatus.PENDING_APPROVAL),
+            lambda pr: reject_payment_request(pr, request.user, comment),
+            verb_done="Отклонено",
+            verb_skipped_reason="не в статусе ‘На согласовании’",
+        )
+        return
+
+    if action == "bulk_transfer":
+        if not can_manage_payment_requests(request.user):
+            raise ValueError("Передавать в 1С:ДО может только экономист или администратор")
+        _bulk_apply(
+            request,
+            queryset.filter(status=PaymentRequestStatus.APPROVED),
+            lambda pr: transfer_payment_request_to_do(pr, request.user),
+            verb_done="Передано в 1С:ДО",
+            verb_skipped_reason="не в статусе ‘Согласована’",
+        )
+        return
+
+    if action == "bulk_submit":
+        if not can_manage_payment_requests(request.user):
+            raise ValueError("Отправлять заявки может только экономист или администратор")
+        _bulk_apply(
+            request,
+            queryset.filter(status=PaymentRequestStatus.DRAFT),
+            lambda pr: submit_payment_request(pr, request.user),
+            verb_done="Отправлено на согласование",
+            verb_skipped_reason="не в статусе ‘Черновик’",
+        )
+        return
+
+
+def _bulk_apply(request, eligible_queryset, action_callable, *, verb_done: str, verb_skipped_reason: str) -> None:
+    """Run `action_callable(pr)` on every eligible row; collect successes and errors."""
+    eligible_ids = set(eligible_queryset.values_list("id", flat=True))
+    submitted_ids = {int(v) for v in request.POST.getlist("request_id") if v.isdigit()}
+    skipped = submitted_ids - eligible_ids
+
+    success_numbers = []
+    error_lines = []
+    for pr in eligible_queryset:
+        try:
+            action_callable(pr)
+            success_numbers.append(pr.number)
+        except ValueError as exc:
+            error_lines.append(f"{pr.number}: {exc}")
+
+    if success_numbers:
+        messages.success(request, f"{verb_done}: {len(success_numbers)} ({', '.join(success_numbers[:5])}{'…' if len(success_numbers) > 5 else ''})")
+    if skipped:
+        messages.warning(request, f"Пропущено: {len(skipped)} (причина: {verb_skipped_reason})")
+    for line in error_lines:
+        messages.error(request, line)
+    if not success_numbers and not skipped and not error_lines:
+        messages.info(request, "Нет подходящих заявок для выбранного действия")
 
 
 # --- POST extraction helpers ----------------------------------------------
