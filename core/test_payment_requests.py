@@ -324,6 +324,46 @@ class PaymentRequestWorkflowTests(TestCase):
             ).exists()
         )
 
+    def test_limit_overrun_notification_on_submit(self):
+        """При warning-mode превышение лимита должно дать LIMIT_OVERRUN автору и согласующему."""
+        from core.models import (
+            Currency,
+            Notification,
+            NotificationKind,
+            Organization,
+            PaymentLimitControlMode,
+            PaymentRequestControlSettings,
+        )
+
+        # warning-mode (не block) — лимит превышаем, но заявка проходит
+        PaymentRequestControlSettings.objects.all().delete()
+        PaymentRequestControlSettings.objects.create(
+            control_mode=PaymentLimitControlMode.WARNING, is_active=True,
+        )
+        # Делаем сумму заведомо выше approved-лимита (в setUp лимит 2_000_000)
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("5000000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Превышение",
+        )
+        submit_payment_request(payment_request, self.economist)
+        # Уведомление автору и руководителю
+        overruns = Notification.objects.filter(
+            kind=NotificationKind.LIMIT_OVERRUN,
+            payload_object_id=str(payment_request.id),
+        )
+        recipients = set(overruns.values_list("recipient_id", flat=True))
+        self.assertIn(self.economist.id, recipients)
+        self.assertIn(self.manager.id, recipients)
+
     def test_notifications_page_and_mark_read(self):
         from core.models import Notification, NotificationKind
         from core.services.notifications import notify

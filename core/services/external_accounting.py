@@ -4,6 +4,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from django.contrib.auth import get_user_model
+
 from core.models import (
     AccountingKind,
     AuditAction,
@@ -11,12 +13,15 @@ from core.models import (
     CashFlowArticle,
     Contract,
     ExternalPaymentDocument,
+    NotificationKind,
     Organization,
     PaymentDirection,
     PaymentFact,
     SourceSystem,
+    UserRole,
 )
 from core.services.document_numbers import next_document_number
+from core.services.notifications import notify_many
 
 
 DEFAULT_PAYMENT_ACCOUNT = "51"
@@ -55,6 +60,18 @@ def pay_contract(contract: Contract, accountant, amount: Decimal | None = None) 
         message=f"Оплачен договор {contract.number} на сумму {amount}",
     )
 
+    # Уведомить экономистов: оплата прошла через бухгалтерский контур —
+    # факт зайдёт в БДДС, лимит уже потрачен и резерв изменится.
+    User = get_user_model()
+    economists = list(User.objects.filter(profile__role=UserRole.ECONOMIST, is_active=True))
+    notify_many(
+        economists,
+        kind=NotificationKind.EXTERNAL_PAYMENT_POSTED,
+        title=f"Внешняя оплата {payment.number}",
+        text=f"Договор {contract.number} · {amount} {contract.currency.code}",
+        link="/payments/facts/",
+        related=payment,
+    )
     return payment
 
 

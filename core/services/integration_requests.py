@@ -4,8 +4,10 @@ from core.models import (
     AuditLog,
     IntegrationRequest,
     IntegrationRequestStatus,
+    NotificationKind,
 )
 from core.services.document_numbers import next_document_number
+from core.services.notifications import notify
 
 
 WORKFLOW_PATH = "/settings/integration-requests/"
@@ -70,6 +72,18 @@ def update_integration_request_status(
         object_id=str(request.pk),
         message=f"Статус заявки {request.number} изменен на {request.get_status_display()}",
     )
+    # Уведомить инициатора об изменении статуса (не уведомляем самого админа,
+    # если он же является инициатором — это его собственное действие).
+    if request.requested_by_id and request.requested_by_id != admin_user.id:
+        comment_suffix = f" · {admin_comment.strip()}" if admin_comment.strip() else ""
+        notify(
+            recipient=request.requested_by,
+            kind=NotificationKind.INTEGRATION_STATUS_CHANGED,
+            title=f"Заявка {request.number}: {request.get_status_display()}",
+            text=f"{request.integration_name} · {request.target_system}{comment_suffix}",
+            link=WORKFLOW_PATH,
+            related=request,
+        )
     return request
 
 

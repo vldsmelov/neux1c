@@ -263,6 +263,18 @@ def submit_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetLi
         object_id=str(adjustment.pk),
         message=f"Корректировка {adjustment.number} отправлена на утверждение",
     )
+    if adjustment.approver_id:
+        notify(
+            recipient=adjustment.approver,
+            kind=NotificationKind.LIMIT_ADJUSTMENT_SUBMITTED,
+            title=f"Корректировка {adjustment.number} на утверждении",
+            text=(
+                f"Базовый лимит: {adjustment.base_plan.number} · "
+                f"новая сумма: {adjustment.new_annual_amount} {adjustment.base_plan.currency.code}"
+            ),
+            link="/planning/limits/",
+            related=adjustment,
+        )
     return adjustment
 
 

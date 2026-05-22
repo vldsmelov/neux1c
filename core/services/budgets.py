@@ -5,6 +5,8 @@ from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 
+from django.contrib.auth import get_user_model
+
 from core.models import (
     AuditAction,
     AuditLog,
@@ -13,9 +15,12 @@ from core.models import (
     BudgetPlan,
     BudgetPlanStatus,
     BudgetScope,
+    NotificationKind,
     Organization,
+    UserRole,
 )
 from core.services.document_numbers import next_document_number
+from core.services.notifications import notify_many
 from core.services.payment_requests import quant_money
 
 
@@ -124,6 +129,21 @@ def submit_budget(budget: BudgetPlan, user) -> BudgetPlan:
         object_type="BudgetPlan",
         object_id=str(budget.pk),
         message=f"Бюджет {budget.number} отправлен на утверждение",
+    )
+    # У BudgetPlan нет явного approver — утвердить может любой руководитель
+    # или администратор. Шлём уведомление всем активным руководителям.
+    User = get_user_model()
+    managers = list(User.objects.filter(profile__role=UserRole.MANAGER, is_active=True))
+    notify_many(
+        managers,
+        kind=NotificationKind.BUDGET_SUBMITTED,
+        title=f"Бюджет {budget.number} на утверждении",
+        text=(
+            f"{budget.organization.name if budget.organization else 'Все ЦФО'} · "
+            f"{budget.budget_year} · {budget.total_amount} {budget.currency.code}"
+        ),
+        link="/planning/budgets/",
+        related=budget,
     )
     return budget
 

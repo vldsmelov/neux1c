@@ -255,6 +255,31 @@ def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
             link=f"/payments/requests/",
             related=request,
         )
+    # При превышении лимита в warning-режиме (block-режим вообще не пропустил
+    # бы заявку) — сигнал и автору, и согласующему о выходе за бюджет.
+    if is_exceeded:
+        overrun_text = (
+            f"{request.article.code} · {request.counterparty.name} · "
+            f"{request.amount} {request.currency.code} · "
+            f"остаток после: {after_limit}"
+        )
+        notify(
+            recipient=request.author,
+            kind=NotificationKind.LIMIT_OVERRUN,
+            title=f"Превышение лимита по заявке {request.number}",
+            text=overrun_text,
+            link="/reports/manager/",
+            related=request,
+        )
+        if request.approver_id and request.approver_id != request.author_id:
+            notify(
+                recipient=request.approver,
+                kind=NotificationKind.LIMIT_OVERRUN,
+                title=f"Превышение лимита по заявке {request.number}",
+                text=overrun_text,
+                link="/reports/manager/",
+                related=request,
+            )
     return request
 
 
