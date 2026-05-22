@@ -299,6 +299,50 @@ class AccessControlTests(TestCase):
         self.assertEqual(response.url, reverse("external_accounting"))
         self.assertFalse(UserProfile.objects.get(user__username="accountant").can_access_app)
 
+    def test_audit_log_page_is_admin_only_and_filters_correctly(self):
+        """Журнал действий — admin-only; фильтры по user/action/search работают."""
+        # Сгенерируем разнообразные записи аудита через реальные действия
+        self.client.login(username="economist", password="demo12345")
+        self.client.get(reverse("payment_requests"))
+        self.client.get(reverse("payment_requests"))
+        self.client.logout()
+        self.client.login(username="manager", password="demo12345")
+        self.client.get(reverse("integration_requests"))
+
+        url = reverse("audit_log")
+
+        # Не админы получают 403
+        for username in ["economist", "manager", "accountant"]:
+            self.client.logout()
+            self.client.login(username=username, password="demo12345")
+            self.assertEqual(self.client.get(url).status_code, 403, msg=username)
+
+        # Админ видит страницу и получает корректную выборку
+        self.client.logout()
+        self.client.login(username="admin", password="demo12345")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(response.context["total"], 0)
+
+        # Фильтр по пользователю работает
+        manager = get_user_model().objects.get(username="manager")
+        response = self.client.get(url, {"user_id": manager.id})
+        self.assertEqual(response.status_code, 200)
+        for entry in response.context["page"].object_list:
+            self.assertEqual(entry.user_id, manager.id)
+
+        # Фильтр по действию работает
+        response = self.client.get(url, {"action": AuditAction.VIEW})
+        self.assertEqual(response.status_code, 200)
+        for entry in response.context["page"].object_list:
+            self.assertEqual(entry.action, AuditAction.VIEW)
+
+        # Поиск по пути работает
+        response = self.client.get(url, {"q": "/settings/integration-requests/"})
+        self.assertEqual(response.status_code, 200)
+        paths = [entry.path for entry in response.context["page"].object_list]
+        self.assertTrue(any("integration-requests" in p for p in paths))
+
     def test_only_administrator_has_django_admin_access(self):
         """Только администратор должен иметь is_staff=True и доступ к /admin/.
 

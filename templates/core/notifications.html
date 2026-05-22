@@ -1,0 +1,80 @@
+{% extends "core/base.html" %}
+
+{% block title %}Уведомления · NE UX{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Уведомления</h1>
+            <p class="app-subtitle">События по вашим документам: согласования, отклонения, передачи в 1С:ДО.</p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button {% if show_filter == 'all' %}is-active{% endif %}" href="?filter=all">Все · {{ total }}</a>
+            <a class="command-button {% if show_filter == 'unread' %}is-active{% endif %}" href="?filter=unread">Непрочитанные · {{ unread_total }}</a>
+            {% if unread_total %}
+                <form method="post" style="display:inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="mark_all_read">
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button class="command-button-primary" type="submit">Пометить все прочитанными</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        {% if page.object_list %}
+            <ul class="notif-list">
+                {% for notif in page.object_list %}
+                    <li class="notif-item {% if not notif.is_read %}is-unread{% endif %} notif-kind-{{ notif.kind }}">
+                        <div class="notif-marker" aria-hidden="true"></div>
+                        <div class="notif-body">
+                            <div class="notif-head">
+                                <span class="notif-title">{{ notif.title }}</span>
+                                <span class="notif-time">{{ notif.created_at|date:"d.m.Y H:i" }}</span>
+                            </div>
+                            {% if notif.text %}
+                                <p class="notif-text">{{ notif.text }}</p>
+                            {% endif %}
+                            <div class="notif-meta">
+                                <span class="badge badge-muted">{{ notif.get_kind_display }}</span>
+                                {% if notif.link %}
+                                    <a class="command-button is-sm" href="{% url 'notification_follow' notif.id %}">Открыть</a>
+                                {% endif %}
+                                {% if not notif.is_read %}
+                                    <form method="post" style="display:inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="mark_read">
+                                        <input type="hidden" name="notification_id" value="{{ notif.id }}">
+                                        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                        <button class="command-button is-sm" type="submit">Прочитано</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="empty-state">
+                <h2>{% if show_filter == 'unread' %}Непрочитанных нет{% else %}Уведомлений пока нет{% endif %}</h2>
+                <p>Здесь появятся события по вашим документам: согласования, отклонения, передачи в 1С:ДО.</p>
+            </div>
+        {% endif %}
+
+        {% if page.paginator.num_pages > 1 %}
+            <div class="table-toolbar">
+                <span class="table-toolbar-note">{{ page.start_index }}–{{ page.end_index }} из {{ total }}</span>
+                <div class="command-bar">
+                    {% if page.has_previous %}
+                        <a class="command-button is-sm" href="?filter={{ show_filter }}&page={{ page.previous_page_number }}">‹</a>
+                    {% endif %}
+                    <span class="muted-text" style="padding: 0 var(--space-2);">Страница {{ page.number }}</span>
+                    {% if page.has_next %}
+                        <a class="command-button is-sm" href="?filter={{ show_filter }}&page={{ page.next_page_number }}">›</a>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

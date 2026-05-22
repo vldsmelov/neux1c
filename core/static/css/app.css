@@ -2968,3 +2968,103 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     margin-bottom: var(--space-2);
 }
 .dashboard-section-headline h2 { margin: 0; }
+
+/* --- Notifications: bell badge + list page --- */
+
+.notif-bell {
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 16px;
+    transition: background var(--transition-fast), color var(--transition-fast);
+}
+.notif-bell:hover { background: var(--color-accent-soft); color: var(--color-accent-hover); }
+.notif-bell.has-unread { color: var(--color-accent); }
+.notif-bell-count {
+    position: absolute;
+    top: -2px;
+    right: -4px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: var(--radius-full);
+    background: var(--color-danger);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.notif-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-2);
+}
+.notif-item {
+    display: grid;
+    grid-template-columns: 8px 1fr;
+    gap: var(--space-3);
+    align-items: stretch;
+    padding: var(--space-3) var(--space-4);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+}
+.notif-item.is-unread {
+    background: color-mix(in srgb, var(--color-accent) 5%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
+}
+.notif-marker {
+    border-radius: var(--radius-full);
+    background: var(--color-border);
+    align-self: center;
+    width: 8px;
+    height: 8px;
+}
+.notif-item.is-unread .notif-marker { background: var(--color-accent); }
+.notif-kind-payment_rejected.is-unread .notif-marker,
+.notif-kind-limit_overrun.is-unread .notif-marker { background: var(--color-danger); }
+.notif-kind-payment_approved.is-unread .notif-marker,
+.notif-kind-limit_approved.is-unread .notif-marker { background: var(--color-success); }
+
+.notif-body { display: grid; gap: 4px; }
+.notif-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+.notif-title {
+    font-weight: 600;
+    color: var(--color-text);
+    font-size: var(--text-md);
+}
+.notif-time {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+    white-space: nowrap;
+}
+.notif-text {
+    color: var(--color-text);
+    font-size: var(--text-base);
+    margin: 0;
+    line-height: var(--leading-normal);
+}
+.notif-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: center;
+    margin-top: var(--space-2);
+}

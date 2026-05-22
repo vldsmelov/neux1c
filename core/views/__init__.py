@@ -6,6 +6,7 @@ surface so external callers (``config/urls.py``, tests) keep using
 ``from core.views import X`` regardless of where ``X`` actually lives.
 """
 
+from .audit import audit_log  # noqa: F401
 from .auth import RoleAwareLoginView, set_theme_mode, set_working_organization  # noqa: F401
 from .contracts import contracts_register, contracts_reservations, contracts_tree  # noqa: F401
 from .external import external_accounting, external_payment_wizard  # noqa: F401
@@ -15,6 +16,7 @@ from .integrations import (  # noqa: F401
     integration_request_wizard,
     integration_requests,
 )
+from .notifications import notification_follow, notifications  # noqa: F401
 from .nsi import nsi_dashboard, nsi_directory  # noqa: F401
 from .payments import (  # noqa: F401
     payment_fact_adjustment_wizard,

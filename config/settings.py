@@ -77,6 +77,8 @@ TEMPLATES = [
                 "django.contrib.messages.context_processors.messages",
                 "core.context_processors.ui_theme",
                 "core.context_processors.working_organization",
+                "core.context_processors.current_user_flags",
+                "core.context_processors.notifications_summary",
             ],
         },
     },

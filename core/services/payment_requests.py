@@ -13,6 +13,7 @@ from core.models import (
     BudgetPlanStatus,
     Contract,
     ContractKind,
+    NotificationKind,
     PaymentDirection,
     PaymentFact,
     PaymentLimitControlMode,
@@ -22,6 +23,7 @@ from core.models import (
     PaymentRequestStatus,
 )
 from core.services.document_numbers import next_document_number
+from core.services.notifications import notify
 from core.validators import validate_justification_file
 
 
@@ -242,6 +244,17 @@ def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
         object_id=str(request.pk),
         message=f"Заявка {request.number} отправлена на согласование",
     )
+    # Уведомить согласующего о новой заявке
+    if request.approver_id:
+        notify(
+            recipient=request.approver,
+            kind=NotificationKind.PAYMENT_SUBMITTED,
+            title=f"Новая заявка на согласование · {request.number}",
+            text=f"{request.counterparty.name} · {request.amount} {request.currency.code}"
+                 + (" · превышение лимита" if is_exceeded else ""),
+            link=f"/payments/requests/",
+            related=request,
+        )
     return request
 
 
@@ -284,6 +297,15 @@ def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
         object_id=str(request.pk),
         message=f"Заявка {request.number} согласована",
     )
+    # Уведомить автора
+    notify(
+        recipient=request.author,
+        kind=NotificationKind.PAYMENT_APPROVED,
+        title=f"Заявка {request.number} согласована",
+        text=f"{request.counterparty.name} · {request.amount} {request.currency.code}",
+        link="/payments/requests/",
+        related=request,
+    )
     return request
 
 
@@ -308,6 +330,15 @@ def reject_payment_request(request: PaymentRequest, user, approver_comment: str)
         object_id=str(request.pk),
         message=f"Заявка {request.number} отклонена",
     )
+    # Уведомить автора с причиной отклонения
+    notify(
+        recipient=request.author,
+        kind=NotificationKind.PAYMENT_REJECTED,
+        title=f"Заявка {request.number} отклонена",
+        text=approver_comment.strip()[:400],
+        link=f"/payments/requests/{request.pk}/edit-wizard/",
+        related=request,
+    )
     return request
 
 
@@ -327,6 +358,15 @@ def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequ
         object_type="PaymentRequest",
         object_id=str(request.pk),
         message=f"Заявка {request.number} передана в 1С:ДО как {request.do_external_id}",
+    )
+    # Уведомить автора, что заявка ушла во внешний контур
+    notify(
+        recipient=request.author,
+        kind=NotificationKind.PAYMENT_TRANSFERRED,
+        title=f"Заявка {request.number} передана в 1С:ДО",
+        text=f"Внешний ID: {request.do_external_id}",
+        link="/payments/requests/",
+        related=request,
     )
     return request
 

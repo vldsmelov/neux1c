@@ -58,6 +58,24 @@ class IntegrationRequestStatus(models.TextChoices):
     REJECTED = "rejected", "Отклонена"
 
 
+class NotificationKind(models.TextChoices):
+    # Заявки на оплату
+    PAYMENT_SUBMITTED = "payment_submitted", "Заявка ушла на согласование"
+    PAYMENT_APPROVED = "payment_approved", "Заявка согласована"
+    PAYMENT_REJECTED = "payment_rejected", "Заявка отклонена"
+    PAYMENT_TRANSFERRED = "payment_transferred", "Заявка передана в 1С:ДО"
+    # Лимиты и бюджеты
+    BUDGET_SUBMITTED = "budget_submitted", "Бюджет на утверждении"
+    LIMIT_SUBMITTED = "limit_submitted", "Лимит на утверждении"
+    LIMIT_APPROVED = "limit_approved", "Лимит утверждён"
+    LIMIT_ADJUSTMENT_SUBMITTED = "limit_adjustment_submitted", "Корректировка лимита на утверждении"
+    LIMIT_OVERRUN = "limit_overrun", "Превышение лимита"
+    # Внешний контур
+    EXTERNAL_PAYMENT_POSTED = "external_payment_posted", "Внешняя оплата проведена"
+    # Интеграции
+    INTEGRATION_STATUS_CHANGED = "integration_status_changed", "Статус интеграционной заявки изменён"
+
+
 class AuditAction(models.TextChoices):
     VIEW = "view", "Просмотр"
     CREATE = "create", "Создание"
@@ -1017,3 +1035,36 @@ class AuditLog(models.Model):
     def __str__(self) -> str:
         actor = self.user.username if self.user else "anonymous"
         return f"{self.get_action_display()} · {actor} · {self.path}"
+
+
+class Notification(models.Model):
+    recipient = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Получатель",
+        on_delete=models.CASCADE,
+        related_name="notifications",
+    )
+    kind = models.CharField("Тип", max_length=64, choices=NotificationKind.choices)
+    title = models.CharField("Заголовок", max_length=200)
+    text = models.CharField("Текст", max_length=500, blank=True)
+    link = models.CharField("Ссылка", max_length=255, blank=True)
+    payload_object_type = models.CharField("Тип объекта", max_length=120, blank=True)
+    payload_object_id = models.CharField("ID объекта", max_length=120, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    read_at = models.DateTimeField("Прочитано", null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["recipient", "read_at"]),
+            models.Index(fields=["-created_at"]),
+        ]
+        verbose_name = "Уведомление"
+        verbose_name_plural = "Уведомления"
+
+    def __str__(self) -> str:
+        return f"{self.get_kind_display()} · {self.recipient.username}"
+
+    @property
+    def is_read(self) -> bool:
+        return self.read_at is not None

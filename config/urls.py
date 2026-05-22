@@ -4,7 +4,10 @@ from django.urls import path
 
 from core.views import (
     RoleAwareLoginView,
+    audit_log,
     contracts_register,
+    notification_follow,
+    notifications,
     contracts_reservations,
     contracts_tree,
     document_action_wizard,
@@ -81,6 +84,9 @@ urlpatterns = [
     ),
     path("settings/integration-requests/", integration_requests, name="integration_requests"),
     path("settings/styleguide/", styleguide, name="styleguide"),
+    path("settings/audit/", audit_log, name="audit_log"),
+    path("notifications/", notifications, name="notifications"),
+    path("notifications/<int:notification_id>/follow/", notification_follow, name="notification_follow"),
     path("healthz/", healthz, name="healthz"),
     path("admin/", admin.site.urls),
 ]

@@ -11,10 +11,12 @@ from core.models import (
     BudgetLimitMonth,
     BudgetLimitPlan,
     BudgetPlanStatus,
+    NotificationKind,
     Organization,
 )
 from core.services.budgets import validate_limit_within_budget
 from core.services.document_numbers import next_document_number
+from core.services.notifications import notify
 
 
 MONTH_NUMBERS = list(range(1, 13))
@@ -105,6 +107,15 @@ def submit_budget_plan(plan: BudgetLimitPlan, user) -> BudgetLimitPlan:
         object_id=str(plan.pk),
         message=f"План {plan.number} отправлен на утверждение",
     )
+    if plan.approver_id:
+        notify(
+            recipient=plan.approver,
+            kind=NotificationKind.LIMIT_SUBMITTED,
+            title=f"Лимит {plan.number} на утверждении",
+            text=f"{plan.department.name} · {plan.article.name} · {plan.annual_amount} {plan.currency.code}",
+            link="/planning/limits/",
+            related=plan,
+        )
     return plan
 
 
@@ -125,6 +136,14 @@ def approve_budget_plan(plan: BudgetLimitPlan, user) -> BudgetLimitPlan:
         object_type="BudgetLimitPlan",
         object_id=str(plan.pk),
         message=f"План {plan.number} утвержден",
+    )
+    notify(
+        recipient=plan.author,
+        kind=NotificationKind.LIMIT_APPROVED,
+        title=f"Лимит {plan.number} утверждён",
+        text=f"{plan.department.name} · {plan.article.name} · {plan.annual_amount} {plan.currency.code}",
+        link="/planning/limits/",
+        related=plan,
     )
     return plan
 

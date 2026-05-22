@@ -53,6 +53,33 @@ def ui_theme(request):
     }
 
 
+def notifications_summary(request):
+    """Expose unread notification count to the global app shell."""
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {"unread_notifications": 0}
+    try:
+        from .services.notifications import unread_count
+        return {"unread_notifications": unread_count(user)}
+    except (OperationalError, ProgrammingError):
+        return {"unread_notifications": 0}
+
+
+def current_user_flags(request):
+    """Expose role-derived booleans to every template (e.g. for sidebar gating).
+
+    Computed once per request; values are cheap (no extra DB queries beyond
+    the AuthenticationMiddleware-loaded profile).
+    """
+    user = getattr(request, "user", None)
+    if user is None or not user.is_authenticated:
+        return {"is_admin_user": False}
+    if user.is_superuser:
+        return {"is_admin_user": True}
+    profile = getattr(user, "profile", None)
+    return {"is_admin_user": bool(profile and profile.role == "administrator")}
+
+
 def working_organization(request):
     try:
         organizations = list(Organization.objects.order_by("name"))

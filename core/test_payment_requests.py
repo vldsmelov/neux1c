@@ -261,6 +261,105 @@ class PaymentRequestWorkflowTests(TestCase):
                 justification_file=payload,
             )
 
+    def test_payment_workflow_fires_notifications_to_correct_recipients(self):
+        from core.models import Currency, Notification, NotificationKind, Organization
+        from core.services.payment_requests import (
+            approve_payment_request,
+            reject_payment_request,
+            transfer_payment_request_to_do,
+        )
+
+        # submit → notify approver
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Оплата",
+        )
+        submit_payment_request(payment_request, self.economist)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.manager,
+                kind=NotificationKind.PAYMENT_SUBMITTED,
+                payload_object_id=str(payment_request.id),
+            ).exists()
+        )
+
+        # reject → notify author с комментарием в text
+        reject_payment_request(payment_request, self.manager, "Уточните основание")
+        rejection = Notification.objects.get(
+            recipient=self.economist,
+            kind=NotificationKind.PAYMENT_REJECTED,
+            payload_object_id=str(payment_request.id),
+        )
+        self.assertIn("Уточните основание", rejection.text)
+
+        # Снова отправляем после исправления → approve → notify author
+        payment_request.status = "draft"
+        payment_request.save(update_fields=["status"])
+        submit_payment_request(payment_request, self.economist)
+        approve_payment_request(payment_request, self.manager)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.economist,
+                kind=NotificationKind.PAYMENT_APPROVED,
+                payload_object_id=str(payment_request.id),
+            ).exists()
+        )
+
+        # transfer → notify author
+        transfer_payment_request_to_do(payment_request, self.economist)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.economist,
+                kind=NotificationKind.PAYMENT_TRANSFERRED,
+                payload_object_id=str(payment_request.id),
+            ).exists()
+        )
+
+    def test_notifications_page_and_mark_read(self):
+        from core.models import Notification, NotificationKind
+        from core.services.notifications import notify
+
+        # setUp создал утверждённый лимит → LIMIT_APPROVED уведомление автору
+        # уже есть. Считаем baseline до нашего теста.
+        baseline_unread = Notification.objects.filter(
+            recipient=self.economist, read_at__isnull=True
+        ).count()
+        notify(
+            recipient=self.economist,
+            kind=NotificationKind.PAYMENT_APPROVED,
+            title="Тестовое",
+            text="Содержание",
+            link="/payments/requests/",
+        )
+        self.client.login(username="economist", password="demo12345")
+
+        # Страница доступна, показывает уведомление
+        response = self.client.get(reverse("notifications"))
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["unread_total"], baseline_unread + 1)
+        self.assertContains(response, "Тестовое")
+
+        # Пометка всех как прочитанных
+        response = self.client.post(reverse("notifications"), {"action": "mark_all_read"}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            Notification.objects.filter(recipient=self.economist, read_at__isnull=True).count(),
+            0,
+        )
+
+        # Фильтр непрочитанных пуст
+        response = self.client.get(reverse("notifications"), {"filter": "unread"})
+        self.assertEqual(response.context["page"].paginator.count, 0)
+
     def test_manager_can_reject_with_comment(self):
         from core.models import Currency, Organization
 

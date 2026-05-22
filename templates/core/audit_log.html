@@ -1,0 +1,147 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Журнал действий · NE UX{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Журнал действий</h1>
+            <p class="app-subtitle">Аудит активности пользователей: просмотры, изменения, отказы доступа, скачивания файлов.</p>
+        </div>
+    </div>
+
+    <div class="document-grid">
+        <aside class="form-panel">
+            <details class="form-section" open>
+                <summary>Фильтры</summary>
+                <div class="form-section-content">
+                    <form method="get" class="form-stack form-grid form-grid-2">
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="user_id">Пользователь</label>
+                            <select class="field-control-select" id="user_id" name="user_id">
+                                <option value="">Все</option>
+                                {% for user in users %}
+                                    <option value="{{ user.id }}" {% if selected_user_id == user.id %}selected{% endif %}>{{ user.username }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="action">Действие</label>
+                            <select class="field-control-select" id="action" name="action">
+                                {% for value, label in action_choices %}
+                                    <option value="{{ value }}" {% if selected_action == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_from">Дата с</label>
+                            <input class="field-control" id="date_from" type="text" name="date_from" value="{{ selected_date_from }}" placeholder="гггг-мм-дд">
+                        </div>
+                        <div>
+                            <label class="field-label" for="date_to">Дата по</label>
+                            <input class="field-control" id="date_to" type="text" name="date_to" value="{{ selected_date_to }}" placeholder="гггг-мм-дд">
+                        </div>
+                        <div class="form-grid-span-full">
+                            <label class="field-label" for="q">Поиск</label>
+                            <input class="field-control" id="q" type="search" name="q" value="{{ search_text }}" placeholder="путь, сообщение, ID объекта">
+                        </div>
+                        <div class="form-grid-span-full inline-form-row">
+                            <button class="command-button-primary" type="submit">Применить</button>
+                            <a class="command-button" href="{% url 'audit_log' %}">Сбросить</a>
+                        </div>
+                    </form>
+                </div>
+            </details>
+        </aside>
+
+        <section class="data-panel stack">
+            <div class="metric-strip">
+                <div class="metric-cell">
+                    <div class="metric-value">{{ total }}</div>
+                    <div class="metric-label">Записей в выборке</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ page.number }} / {{ page.paginator.num_pages }}</div>
+                    <div class="metric-label">Страница</div>
+                </div>
+                <div class="metric-cell">
+                    <div class="metric-value">{{ page_size }}</div>
+                    <div class="metric-label">На странице</div>
+                </div>
+            </div>
+
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th scope="col" class="table-col-date">Время</th>
+                            <th scope="col">Пользователь</th>
+                            <th scope="col" class="table-col-status">Действие</th>
+                            <th scope="col" class="table-col-short">Метод</th>
+                            <th scope="col">Путь</th>
+                            <th scope="col" class="table-col-short">HTTP</th>
+                            <th scope="col">Объект</th>
+                            <th scope="col">Сообщение</th>
+                            <th scope="col" class="table-col-short">IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in page.object_list %}
+                            <tr>
+                                <td class="table-col-date table-cell-nowrap">{{ entry.created_at|date:"d.m.Y H:i:s" }}</td>
+                                <td>{% if entry.user %}{{ entry.user.username }}{% else %}<span class="muted-text">—</span>{% endif %}</td>
+                                <td class="table-col-status">
+                                    {% if entry.action == 'denied' %}
+                                        <span class="badge badge-danger">{{ entry.get_action_display }}</span>
+                                    {% elif entry.action == 'delete' %}
+                                        <span class="badge badge-danger">{{ entry.get_action_display }}</span>
+                                    {% elif entry.action == 'create' or entry.action == 'approve' or entry.action == 'pay' %}
+                                        <span class="badge badge-success">{{ entry.get_action_display }}</span>
+                                    {% elif entry.action == 'update' or entry.action == 'transfer' %}
+                                        <span class="badge badge-info">{{ entry.get_action_display }}</span>
+                                    {% else %}
+                                        <span class="badge badge-muted">{{ entry.get_action_display }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="table-col-short">{{ entry.method|default:"—" }}</td>
+                                <td class="table-cell-nowrap"><code class="sg-code">{{ entry.path|truncatechars:60 }}</code></td>
+                                <td class="table-col-short">{% if entry.status_code %}{{ entry.status_code }}{% else %}—{% endif %}</td>
+                                <td>
+                                    {% if entry.object_type %}
+                                        <span class="muted-text">{{ entry.object_type }}</span>{% if entry.object_id %} · #{{ entry.object_id }}{% endif %}
+                                    {% else %}
+                                        <span class="muted-text">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ entry.message|default:""|truncatechars:80 }}</td>
+                                <td class="table-col-short muted-text">{{ entry.ip_address|default:"—" }}</td>
+                            </tr>
+                        {% empty %}
+                            <tr><td colspan="9">Записей по выбранным фильтрам не найдено.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if page.paginator.num_pages > 1 %}
+                <div class="table-toolbar">
+                    <span class="table-toolbar-note">
+                        Показано {{ page.start_index }}–{{ page.end_index }} из {{ total }}
+                    </span>
+                    <div class="command-bar">
+                        {% if page.has_previous %}
+                            <a class="command-button is-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page=1">«</a>
+                            <a class="command-button is-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ page.previous_page_number }}">‹</a>
+                        {% endif %}
+                        <span class="muted-text" style="padding: 0 var(--space-2);">Страница {{ page.number }}</span>
+                        {% if page.has_next %}
+                            <a class="command-button is-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ page.next_page_number }}">›</a>
+                            <a class="command-button is-sm" href="?{% if base_query %}{{ base_query }}&{% endif %}page={{ page.paginator.num_pages }}">»</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </section>
+    </div>
+{% endblock %}

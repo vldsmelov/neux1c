@@ -134,6 +134,9 @@
                 <nav class="app-nav" aria-label="Сервисные разделы">
                     <details class="app-nav-group" {% if active_section == 'settings' or active_section == 'instruction' %}open{% endif %}>
                         <summary class="app-nav-group-title">Сервис</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'notifications' %}is-active{% endif %}" href="{% url 'notifications' %}">
+                        <span class="app-nav-icon">⌾</span><span>Уведомления</span><span>{% if unread_notifications %}<span class="badge badge-info" style="margin-left:6px">{{ unread_notifications }}</span>{% else %}›{% endif %}</span>
+                    </a>
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'instruction' %}is-active{% endif %}" href="/instruction/">
                         <span class="app-nav-icon">☰</span><span>Инструкция</span><span>›</span>
                     </a>
@@ -143,9 +146,17 @@
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'integration_request_wizard' %}is-active{% endif %}" href="/settings/integration-requests/wizard/">
                         <span class="app-nav-icon">+</span><span>Заявка на интеграцию</span><span>›</span>
                     </a>
-                    <a class="app-nav-link" href="/admin/">
-                        <span class="app-nav-icon">◎</span><span>Администрирование</span><span>›</span>
-                    </a>
+                    {% if is_admin_user %}
+                        <a class="app-nav-link {% if request.resolver_match.url_name == 'audit_log' %}is-active{% endif %}" href="{% url 'audit_log' %}">
+                            <span class="app-nav-icon">⎙</span><span>Журнал действий</span><span>›</span>
+                        </a>
+                        <a class="app-nav-link {% if request.resolver_match.url_name == 'styleguide' %}is-active{% endif %}" href="{% url 'styleguide' %}">
+                            <span class="app-nav-icon">◆</span><span>Дизайн-система</span><span>›</span>
+                        </a>
+                        <a class="app-nav-link" href="/admin/">
+                            <span class="app-nav-icon">◎</span><span>Администрирование</span><span>›</span>
+                        </a>
+                    {% endif %}
                     </details>
                 </nav>
             </div>
@@ -179,6 +190,10 @@
                             <button class="density-button" type="button" data-table-density="normal" title="Стандартная плотность таблиц" aria-label="Стандартная плотность таблиц">☰</button>
                             <button class="density-button" type="button" data-table-density="compact" title="Компактная плотность таблиц" aria-label="Компактная плотность таблиц">≣</button>
                         </div>
+                        <a class="notif-bell {% if unread_notifications %}has-unread{% endif %}" href="{% url 'notifications' %}" title="Уведомления" aria-label="Уведомления, непрочитанных: {{ unread_notifications }}">
+                            <span aria-hidden="true">⌾</span>
+                            {% if unread_notifications %}<span class="notif-bell-count">{{ unread_notifications }}</span>{% endif %}
+                        </a>
                         <span>{{ request.user.username }}</span>
                         <form class="logout-form" method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
