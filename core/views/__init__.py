@@ -20,6 +20,7 @@ from .notifications import notification_follow, notifications  # noqa: F401
 from .nsi import nsi_dashboard, nsi_directory  # noqa: F401
 from .payments import (  # noqa: F401
     payment_fact_adjustment_wizard,
+    payment_fact_history,
     payment_facts,
     payment_request_edit_wizard,
     payment_request_justification_download,
@@ -27,6 +28,7 @@ from .payments import (  # noqa: F401
     payment_requests,
 )
 from .planning import (  # noqa: F401
+    budget_limit_history,
     limit_adjustment_wizard,
     planning_budgets,
     planning_limits,

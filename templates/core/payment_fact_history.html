@@ -1,0 +1,118 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}История факта · {{ fact.date|date:"d.m.Y" }} · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/payments/requests/wizard/">Новая заявка</a>
+    <a class="app-tab" href="/payments/requests/">Журнал заявок</a>
+    <a class="app-tab" href="/payments/facts/">Факт оплат</a>
+    <a class="app-tab is-active" href="#">История корректировок</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">История корректировок факта</h1>
+            <p class="app-subtitle">
+                {{ fact.date|date:"d.m.Y" }} · {{ fact.article.code }} {{ fact.article.name }}
+                · {{ fact.counterparty.name }}{% if fact.contract %} · договор {{ fact.contract.number }}{% endif %}
+            </p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/payments/facts/">← К журналу</a>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell">
+                <div class="metric-value">{{ fact.amount|ru_number }} {{ fact.currency.code }}</div>
+                <div class="metric-label">Текущая сумма</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">v{{ latest_version }}</div>
+                <div class="metric-label">Версия</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">{{ adjustments|length }}</div>
+                <div class="metric-label">Корректировок</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">{{ fact.get_accounting_kind_display }}</div>
+                <div class="metric-label">Учёт</div>
+            </div>
+        </div>
+
+        <ol class="timeline">
+            <li class="timeline-item timeline-base">
+                <div class="timeline-dot timeline-dot-base" aria-hidden="true"></div>
+                <div class="timeline-body">
+                    <div class="timeline-head">
+                        <span class="badge badge-muted">v0 · база</span>
+                        <span class="timeline-time">{{ fact.created_at|date:"d.m.Y H:i" }}</span>
+                    </div>
+                    <div class="timeline-row">
+                        <span class="muted-text">Сумма:</span>
+                        <strong>{{ base_amount|ru_number }} {{ fact.currency.code }}</strong>
+                    </div>
+                    {% if base_comment %}
+                        <div class="timeline-row">
+                            <span class="muted-text">Комментарий:</span>
+                            <span>{{ base_comment }}</span>
+                        </div>
+                    {% endif %}
+                </div>
+            </li>
+
+            {% for item in adjustments %}
+                {% with adj=item.row delta=item.delta %}
+                <li class="timeline-item">
+                    <div class="timeline-dot" aria-hidden="true"></div>
+                    <div class="timeline-body">
+                        <div class="timeline-head">
+                            <span class="badge badge-info">v{{ adj.version }}</span>
+                            <span class="timeline-time">{{ adj.created_at|date:"d.m.Y H:i" }} · {{ adj.author.username }}</span>
+                        </div>
+                        <div class="timeline-row">
+                            <span class="muted-text">Сумма:</span>
+                            <strong>{{ adj.previous_amount|ru_number }}</strong>
+                            <span class="timeline-arrow" aria-hidden="true">→</span>
+                            <strong class="{% if adj.new_amount != adj.previous_amount %}timeline-changed{% endif %}">
+                                {{ adj.new_amount|ru_number }} {{ fact.currency.code }}
+                            </strong>
+                            {% if delta %}
+                                <span class="badge {% if delta > 0 %}badge-success{% else %}badge-danger{% endif %}">
+                                    {% if delta > 0 %}+{% endif %}{{ delta|ru_number }}
+                                </span>
+                            {% endif %}
+                        </div>
+                        {% if adj.new_comment != adj.previous_comment %}
+                            <div class="timeline-row">
+                                <span class="muted-text">Комментарий:</span>
+                                {% if adj.previous_comment %}
+                                    <span class="muted-text">«{{ adj.previous_comment }}»</span>
+                                    <span class="timeline-arrow" aria-hidden="true">→</span>
+                                {% endif %}
+                                <span class="timeline-changed">«{{ adj.new_comment|default:'—' }}»</span>
+                            </div>
+                        {% endif %}
+                        <div class="timeline-reason">
+                            <span class="muted-text">Причина:</span>
+                            <span>{{ adj.reason }}</span>
+                        </div>
+                    </div>
+                </li>
+                {% endwith %}
+            {% empty %}
+                <li class="timeline-item">
+                    <div class="timeline-dot timeline-dot-muted" aria-hidden="true"></div>
+                    <div class="timeline-body empty-state">
+                        <h2>Корректировок ещё не было</h2>
+                        <p>Факт получен из 1С:БП и пока не корректировался.</p>
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+{% endblock %}

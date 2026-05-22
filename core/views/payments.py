@@ -370,6 +370,53 @@ def payment_fact_adjustment_wizard(request):
     )
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def payment_fact_history(request, fact_id: int):
+    """Render the full version history (timeline) of a single PaymentFact."""
+    fact = get_object_or_404(
+        PaymentFact.objects.select_related(
+            "organization", "article", "counterparty", "contract", "currency",
+        ),
+        pk=fact_id,
+    )
+    raw_adjustments = list(
+        PaymentFactAdjustment.objects.filter(payment_fact=fact)
+        .select_related("author")
+        .order_by("version")
+    )
+    # The very first row is the base state — synthesised from the earliest
+    # adjustment's `previous_*` fields, or from the current fact when there
+    # are no adjustments.
+    if raw_adjustments:
+        base = raw_adjustments[0]
+        base_amount = base.previous_amount
+        base_comment = base.previous_comment
+    else:
+        base_amount = fact.amount
+        base_comment = fact.comment
+
+    # Precompute amount delta per adjustment (template can't subtract).
+    adjustments = []
+    for adj in raw_adjustments:
+        adjustments.append({
+            "row": adj,
+            "delta": adj.new_amount - adj.previous_amount,
+        })
+
+    return render(
+        request,
+        "core/payment_fact_history.html",
+        {
+            "active_section": "payments",
+            "fact": fact,
+            "adjustments": adjustments,
+            "base_amount": base_amount,
+            "base_comment": base_comment,
+            "latest_version": raw_adjustments[-1].version if raw_adjustments else 0,
+        },
+    )
+
+
 @login_required
 def payment_request_justification_download(request, request_id: int):
     """Authenticated, access-checked download of the justification file.

@@ -75,15 +75,16 @@
                                     <td class="table-col-number">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</td>
                                     <td class="table-col-status"><span class="badge {% if plan.status == status.APPROVED %}badge-success{% elif plan.status == status.PENDING_APPROVAL %}badge-info{% endif %}">{{ plan.get_status_display }}</span></td>
                                     <td class="table-action-col">
-                                        {% if plan.status == status.DRAFT and can_edit_plans %}
-                                            <a class="command-button" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
-                                        {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
-                                            <a class="command-button-primary" href="{% url 'document_action_wizard' 'limit' plan.id 'approve' %}">Утвердить</a>
-                                        {% elif plan.status == status.APPROVED and can_create_limit_adjustments %}
-                                            <a class="command-button" href="/planning/adjustments/wizard/">Корректировать</a>
-                                        {% else %}
-                                            <span class="badge">Открыть</span>
-                                        {% endif %}
+                                        <div class="form-stack-compact">
+                                            {% if plan.status == status.DRAFT and can_edit_plans %}
+                                                <a class="command-button is-sm" href="{% url 'document_action_wizard' 'limit' plan.id 'submit' %}">На утверждение</a>
+                                            {% elif plan.status == status.PENDING_APPROVAL and can_approve_plans %}
+                                                <a class="command-button-primary is-sm" href="{% url 'document_action_wizard' 'limit' plan.id 'approve' %}">Утвердить</a>
+                                            {% elif plan.status == status.APPROVED and can_create_limit_adjustments %}
+                                                <a class="command-button is-sm" href="/planning/adjustments/wizard/">Корректировать</a>
+                                            {% endif %}
+                                            <a class="command-button is-sm" href="{% url 'budget_limit_history' plan.id %}">История</a>
+                                        </div>
                                     </td>
                                 </tr>
                             {% empty %}

@@ -126,11 +126,12 @@
                                     {% if row.versions %}<span class="badge badge-info">v{{ row.latest_version }}</span>{% else %}<span class="badge">база</span>{% endif %}
                                 </td>
                                 <td class="table-action-col">
-                                    {% if can_edit_payment_facts %}
-                                        <a class="command-button" href="/payments/facts/wizard/?fact_id={{ row.fact.id }}">Корректировать</a>
-                                    {% else %}
-                                        <span class="badge">Просмотр</span>
-                                    {% endif %}
+                                    <div class="form-stack-compact">
+                                        {% if can_edit_payment_facts %}
+                                            <a class="command-button is-sm" href="/payments/facts/wizard/?fact_id={{ row.fact.id }}">Корректировать</a>
+                                        {% endif %}
+                                        <a class="command-button is-sm" href="{% url 'payment_fact_history' row.fact.id %}">История</a>
+                                    </div>
                                 </td>
                             </tr>
                         {% empty %}

@@ -5,9 +5,11 @@ from django.urls import path
 from core.views import (
     RoleAwareLoginView,
     audit_log,
+    budget_limit_history,
     contracts_register,
     notification_follow,
     notifications,
+    payment_fact_history,
     contracts_reservations,
     contracts_tree,
     document_action_wizard,
@@ -51,6 +53,7 @@ urlpatterns = [
     path("planning/adjustments/wizard/", limit_adjustment_wizard, name="limit_adjustment_wizard"),
     path("planning/budgets/", planning_budgets, name="planning_budgets"),
     path("planning/limits/", planning_limits, name="planning_limits"),
+    path("planning/limits/<int:plan_id>/history/", budget_limit_history, name="budget_limit_history"),
     path("payments/requests/wizard/", payment_request_wizard, name="payment_request_wizard"),
     path("payments/requests/<int:request_id>/edit-wizard/", payment_request_edit_wizard, name="payment_request_edit_wizard"),
     path(
@@ -60,6 +63,7 @@ urlpatterns = [
     ),
     path("payments/requests/", payment_requests, name="payment_requests"),
     path("payments/facts/wizard/", payment_fact_adjustment_wizard, name="payment_fact_adjustment_wizard"),
+    path("payments/facts/<int:fact_id>/history/", payment_fact_history, name="payment_fact_history"),
     path("payments/facts/", payment_facts, name="payment_facts"),
     path("reports/manager/", manager_dashboard, name="manager_dashboard"),
     path("reports/plan-fact/", plan_fact_report, name="plan_fact_report"),

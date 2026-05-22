@@ -1,0 +1,149 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}История лимита · {{ plan.number }} · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab is-active" href="#">История</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">История лимита {{ plan.number }}</h1>
+            <p class="app-subtitle">
+                {{ plan.department.name }} · {{ plan.article.code }} {{ plan.article.name }}
+                · {{ plan.planning_year }} · {{ plan.currency.code }}
+            </p>
+        </div>
+        <div class="command-bar">
+            <a class="command-button" href="/planning/limits/">← К лимитам</a>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <div class="metric-strip">
+            <div class="metric-cell">
+                <div class="metric-value">{{ plan.annual_amount|ru_number }} {{ plan.currency.code }}</div>
+                <div class="metric-label">Текущая годовая сумма</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">v{{ plan.version }}</div>
+                <div class="metric-label">Версия плана</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">{{ timeline|length }}</div>
+                <div class="metric-label">Корректировок</div>
+            </div>
+            <div class="metric-cell">
+                <div class="metric-value">{{ plan.get_status_display }}</div>
+                <div class="metric-label">Статус</div>
+            </div>
+        </div>
+
+        <h2 class="section-title">Текущая месячная разбивка</h2>
+        <div class="data-table-wrap">
+            <table class="data-table table-narrow">
+                <thead>
+                    <tr>
+                        {% for row in months_table %}<th scope="col">{{ row.label }}</th>{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        {% for row in months_table %}
+                            <td class="table-col-number">{{ row.current|ru_number }}</td>
+                        {% endfor %}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <h2 class="section-title">Хронология корректировок</h2>
+        <ol class="timeline">
+            <li class="timeline-item timeline-base">
+                <div class="timeline-dot timeline-dot-base" aria-hidden="true"></div>
+                <div class="timeline-body">
+                    <div class="timeline-head">
+                        <span class="badge badge-muted">v1 · база</span>
+                        <span class="timeline-time">
+                            {{ plan.created_at|date:"d.m.Y H:i" }} · {{ plan.author.username }}
+                        </span>
+                    </div>
+                    <div class="timeline-row">
+                        <span class="muted-text">Утверждён согласующим:</span>
+                        <span>{{ plan.approver.username }}</span>
+                        {% if plan.approved_at %}
+                            <span class="muted-text">· {{ plan.approved_at|date:"d.m.Y H:i" }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </li>
+
+            {% for item in timeline %}
+                {% with adj=item.adjustment %}
+                <li class="timeline-item">
+                    <div class="timeline-dot" aria-hidden="true"></div>
+                    <div class="timeline-body">
+                        <div class="timeline-head">
+                            <span class="badge {% if adj.status == 'approved' %}badge-success{% elif adj.status == 'pending_approval' %}badge-info{% else %}badge-muted{% endif %}">
+                                v{{ adj.version }} · {{ adj.number }} · {{ adj.get_status_display }}
+                            </span>
+                            <span class="timeline-time">{{ adj.created_at|date:"d.m.Y H:i" }} · {{ adj.author.username }}</span>
+                        </div>
+                        <div class="timeline-row">
+                            <span class="muted-text">Новая годовая сумма:</span>
+                            <strong>{{ adj.new_annual_amount|ru_number }} {{ plan.currency.code }}</strong>
+                        </div>
+                        {% if adj.target_organization %}
+                            <div class="timeline-row">
+                                <span class="muted-text">Перенос в компанию:</span>
+                                <span>{{ adj.target_organization.name }}</span>
+                            </div>
+                        {% endif %}
+                        <div class="timeline-row">
+                            <span class="muted-text">Утверждающий:</span>
+                            <span>{{ adj.approver.username }}</span>
+                            {% if adj.approved_at %}
+                                <span class="muted-text">· утверждено {{ adj.approved_at|date:"d.m.Y H:i" }}</span>
+                            {% endif %}
+                        </div>
+                        <div class="timeline-reason">
+                            <span class="muted-text">Причина:</span>
+                            <span>{{ adj.reason }}</span>
+                        </div>
+                        <details class="timeline-months">
+                            <summary>Месячная разбивка корректировки</summary>
+                            <div class="data-table-wrap">
+                                <table class="data-table table-narrow">
+                                    <thead>
+                                        <tr>
+                                            {% for m in item.months %}<th scope="col">{{ m.label }}</th>{% endfor %}
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            {% for m in item.months %}<td class="table-col-number">{{ m.amount|ru_number }}</td>{% endfor %}
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </details>
+                    </div>
+                </li>
+                {% endwith %}
+            {% empty %}
+                <li class="timeline-item">
+                    <div class="timeline-dot timeline-dot-muted" aria-hidden="true"></div>
+                    <div class="timeline-body empty-state">
+                        <h2>Корректировок ещё не было</h2>
+                        <p>Лимит работает в базовой версии. Корректировки появятся здесь после первой заявки на изменение.</p>
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+    </section>
+{% endblock %}

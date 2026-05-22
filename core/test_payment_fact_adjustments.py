@@ -103,3 +103,34 @@ class PaymentFactAdjustmentsTests(TestCase):
         self.fact.refresh_from_db()
         self.assertEqual(self.fact.amount, Decimal("800000.00"))
         self.assertFalse(PaymentFactAdjustment.objects.filter(payment_fact=self.fact).exists())
+
+    def test_payment_fact_history_page_shows_base_and_each_adjustment(self):
+        from core.services.payment_fact_adjustments import adjust_payment_fact
+
+        # Делаем две корректировки подряд
+        adjust_payment_fact(
+            payment_fact=self.fact,
+            author=self.economist,
+            new_amount=Decimal("850000.00"),
+            reason="Уточнение БУ",
+            new_comment="Сверка по акту",
+        )
+        adjust_payment_fact(
+            payment_fact=self.fact,
+            author=self.economist,
+            new_amount=Decimal("900000.00"),
+            reason="Доплата",
+            new_comment="Доп.акт",
+        )
+
+        self.client.login(username="manager", password="demo12345")
+        response = self.client.get(reverse("payment_fact_history", args=[self.fact.id]))
+        self.assertEqual(response.status_code, 200)
+        # На странице обе версии и причины присутствуют
+        self.assertEqual(len(response.context["adjustments"]), 2)
+        self.assertContains(response, "Уточнение БУ")
+        self.assertContains(response, "Доплата")
+        # latest_version отражает реальную версию
+        self.assertEqual(response.context["latest_version"], 2)
+        # base — это previous_amount первой корректировки (800000)
+        self.assertEqual(response.context["base_amount"], Decimal("800000.00"))

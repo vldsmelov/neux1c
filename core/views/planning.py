@@ -275,6 +275,50 @@ def planning_limits(request):
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def budget_limit_history(request, plan_id: int):
+    """Render the version history (timeline) of a single BudgetLimitPlan."""
+    plan = get_object_or_404(
+        BudgetLimitPlan.objects.select_related(
+            "organization", "department", "article", "currency", "approver", "author", "budget",
+        ),
+        pk=plan_id,
+    )
+    plan_months = {row.month: row.amount for row in plan.months.all()}
+    months_table = [
+        {"number": number, "label": label, "current": plan_months.get(number, 0)}
+        for number, label in WIZARD_MONTHS
+    ]
+    adjustments = list(
+        BudgetLimitAdjustment.objects.filter(base_plan=plan)
+        .select_related("author", "approver", "target_organization", "target_plan")
+        .prefetch_related("months")
+        .order_by("version", "created_at")
+    )
+    # Build a per-adjustment view of monthly amounts indexed by month for the
+    # template (otherwise iterating .months in template is awkward).
+    timeline = []
+    for adj in adjustments:
+        adj_months = {row.month: row.amount for row in adj.months.all()}
+        timeline.append({
+            "adjustment": adj,
+            "months": [
+                {"number": number, "label": label, "amount": adj_months.get(number, 0)}
+                for number, label in WIZARD_MONTHS
+            ],
+        })
+    return render(
+        request,
+        "core/budget_limit_history.html",
+        {
+            "active_section": "planning",
+            "plan": plan,
+            "months_table": months_table,
+            "timeline": timeline,
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
 def limit_adjustment_wizard(request):
     can_create_adjustment = can_create_limit_adjustments(request.user) and can_edit_limit_adjustments(request.user)
     org = working_organization(request)
