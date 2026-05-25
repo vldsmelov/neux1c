@@ -8,7 +8,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.db.models import Count, Max
+from django.db.models import Count, Max, Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -125,15 +125,40 @@ def payment_requests(request):
         AdditionalAgreement.objects.select_related("contract", "currency", "contract__counterparty").order_by("date", "number")
     )
     limit_settings = PaymentRequestControlSettings.active_or_default()
+
+    # Server-side filters: status + free-text search by number / contract /
+    # counterparty / invoice / approver.
+    selected_status = (request.GET.get("status") or "").strip()
+    if selected_status not in PaymentRequestStatus.values:
+        selected_status = ""
+    selected_only_overrun = request.GET.get("only_overrun") == "1"
+    search_text = (request.GET.get("q") or "").strip()
+
+    requests_query = PaymentRequest.objects.select_related(
+        "organization", "article", "counterparty", "contract",
+        "additional_agreement", "currency", "approver", "author",
+    ).filter(organization=org)
+    if selected_status:
+        requests_query = requests_query.filter(status=selected_status)
+    if selected_only_overrun:
+        requests_query = requests_query.filter(limit_exceeded=True)
+    if search_text:
+        requests_query = requests_query.filter(
+            Q(number__icontains=search_text)
+            | Q(counterparty__name__icontains=search_text)
+            | Q(contract__number__icontains=search_text)
+            | Q(additional_agreement__number__icontains=search_text)
+            | Q(invoice_number__icontains=search_text)
+            | Q(approver__username__icontains=search_text)
+            | Q(approver__last_name__icontains=search_text)
+        )
+
     return render(
         request,
         "core/payment_requests.html",
         {
             "active_section": "payments",
-            "requests": PaymentRequest.objects.select_related(
-                "organization", "article", "counterparty", "contract",
-                "additional_agreement", "currency", "approver", "author",
-            ).filter(organization=org),
+            "requests": requests_query,
             "organizations": Organization.objects.all(),
             "working_organization": org,
             "articles": CashFlowArticle.objects.all(),
@@ -171,6 +196,10 @@ def payment_requests(request):
             "limit_control_mode_label": (
                 "Блокировка" if limit_settings.control_mode == PaymentLimitControlMode.BLOCK else "Предупреждение"
             ),
+            "status_choices": [("", "Все статусы")] + list(PaymentRequestStatus.choices),
+            "selected_status": selected_status,
+            "selected_only_overrun": selected_only_overrun,
+            "search_text": search_text,
         },
     )
 

@@ -400,6 +400,71 @@ class PaymentRequestWorkflowTests(TestCase):
         response = self.client.get(reverse("notifications"), {"filter": "unread"})
         self.assertEqual(response.context["page"].paginator.count, 0)
 
+    def test_journal_server_side_filters(self):
+        """status / only_overrun / q сужают выборку на стороне БД."""
+        from core.models import Currency, Organization
+
+        org = Organization.objects.first()
+        # Заявка 1: DRAFT — не отправлена
+        draft = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Draft",
+        )
+        # Заявка 2: PENDING
+        pending = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("200000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Pending normal",
+        )
+        submit_payment_request(pending, self.economist)
+
+        self.client.login(username="economist", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = org.id
+        session.save()
+
+        url = reverse("payment_requests")
+
+        # Без фильтров — обе заявки
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        ids = {pr.id for pr in response.context["requests"]}
+        self.assertIn(draft.id, ids)
+        self.assertIn(pending.id, ids)
+
+        # status=draft → только draft
+        response = self.client.get(url, {"status": "draft"})
+        ids = {pr.id for pr in response.context["requests"]}
+        self.assertEqual(ids, {draft.id})
+
+        # q по номеру → только эта заявка
+        response = self.client.get(url, {"q": pending.number})
+        ids = {pr.id for pr in response.context["requests"]}
+        self.assertEqual(ids, {pending.id})
+
+        # q по контрагенту → обе попадают (один counterparty)
+        response = self.client.get(url, {"q": self.contract.counterparty.name[:5]})
+        ids = {pr.id for pr in response.context["requests"]}
+        self.assertIn(pending.id, ids)
+        self.assertIn(draft.id, ids)
+
     def test_bulk_approve_processes_eligible_requests_and_skips_others(self):
         """Manager bulk-approves PENDING_APPROVAL; DRAFT в той же выборке пропускается."""
         from core.models import Currency, Notification, NotificationKind, Organization

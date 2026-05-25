@@ -51,16 +51,30 @@
         </div>
 
         <div class="section-tab-panel" data-tab-panel="requests">
-            <div class="table-toolbar">
-                <span class="table-toolbar-note">Строк в списке: <strong id="payment-requests-table-count">{{ requests|length }}</strong></span>
+            <form method="get" class="table-toolbar" role="search" aria-label="Фильтры журнала заявок">
+                <span class="table-toolbar-note">Найдено: <strong>{{ requests.count }}</strong></span>
+                <label class="toolbar-label" for="filter-status">Статус</label>
+                <select class="field-control-select field-control-sm toolbar-select-md" id="filter-status" name="status" onchange="this.form.submit()">
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <label class="inline-form-row" style="gap: 6px;">
+                    <input type="checkbox" name="only_overrun" value="1" {% if selected_only_overrun %}checked{% endif %} onchange="this.form.submit()">
+                    <span class="muted-text">Только превышения</span>
+                </label>
                 <input
                     class="field-control field-control-sm table-search-input"
                     type="search"
-                    placeholder="Поиск по заявкам"
-                    data-table-search="#payment-requests-table"
-                    data-table-count="#payment-requests-table-count"
+                    name="q"
+                    value="{{ search_text }}"
+                    placeholder="Поиск: номер, контрагент, договор, счёт"
                 >
-            </div>
+                <button class="command-button is-sm" type="submit">Применить</button>
+                {% if selected_status or selected_only_overrun or search_text %}
+                    <a class="command-button is-sm" href="{% url 'payment_requests' %}">Сбросить</a>
+                {% endif %}
+            </form>
             <form method="post" data-bulk-form>
                 {% csrf_token %}
                 <input type="hidden" name="bulk_action" value="" data-bulk-action-field>
