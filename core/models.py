@@ -825,6 +825,18 @@ class PaymentRequest(models.Model):
     def __str__(self) -> str:
         return f"{self.number} · {self.counterparty.name}"
 
+    # SLA for pending approval: см. core.services.manager_dashboard.PENDING_SLA_DAYS
+    PENDING_SLA_DAYS = 3
+
+    @property
+    def is_overdue(self) -> bool:
+        """True если заявка PENDING_APPROVAL и висит дольше SLA."""
+        if self.status != PaymentRequestStatus.PENDING_APPROVAL or not self.submitted_at:
+            return False
+        from datetime import timedelta
+        from django.utils import timezone as _tz
+        return self.submitted_at < _tz.now() - timedelta(days=self.PENDING_SLA_DAYS)
+
 
 class ReportTemplate(models.Model):
     name = models.CharField("Название", max_length=120)

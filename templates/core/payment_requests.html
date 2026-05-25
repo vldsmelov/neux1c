@@ -123,6 +123,9 @@
                                     <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-success{% elif request_row.status == status.PENDING_APPROVAL %}badge-info{% elif request_row.status == status.REJECTED %}badge-danger{% elif request_row.status == status.CANCELLED %}badge-muted{% endif %}">
                                         {{ request_row.get_status_display }}
                                     </span>
+                                    {% if request_row.is_overdue %}
+                                        <span class="badge badge-warning" title="Висит на согласовании дольше SLA">⏱ {{ request_row.submitted_at|timesince }}</span>
+                                    {% endif %}
                                 </td>
                                 <td class="table-action-col-lg">
                                     {% if request_row.status == status.DRAFT and can_manage_payment_requests %}
@@ -180,6 +183,9 @@
                             Передать в 1С:ДО
                         </button>
                     {% endif %}
+                    <button class="command-button is-danger" type="button" data-bulk-action="bulk_cancel" data-bulk-need-status="pending_approval" data-bulk-need-comment="0" disabled>
+                        Отозвать свои
+                    </button>
                 </div>
             </form>
         </div>

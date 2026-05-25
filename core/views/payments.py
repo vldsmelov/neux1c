@@ -36,6 +36,7 @@ from ..models import (
 from ..services.payment_fact_adjustments import adjust_payment_fact
 from ..services.payment_requests import (
     approve_payment_request,
+    cancel_payment_request,
     create_payment_request,
     reject_payment_request,
     submit_payment_request,
@@ -112,7 +113,7 @@ def payment_requests(request):
                     request.user,
                 )
                 messages.success(request, "Заявка передана в 1С:ДО")
-            elif action in {"bulk_approve", "bulk_reject", "bulk_transfer", "bulk_submit"}:
+            elif action in {"bulk_approve", "bulk_reject", "bulk_transfer", "bulk_submit", "bulk_cancel"}:
                 _bulk_handle(request, action)
         except (InvalidOperation, ValueError) as exc:
             messages.error(request, str(exc))
@@ -553,6 +554,22 @@ def _bulk_handle(request, action: str) -> None:
             lambda pr: submit_payment_request(pr, request.user),
             verb_done="Отправлено на согласование",
             verb_skipped_reason="не в статусе ‘Черновик’",
+        )
+        return
+
+    if action == "bulk_cancel":
+        # Отменять можно только свои черновики/pending. Cервис проверит owner.
+        only_mine = queryset.filter(
+            author=request.user,
+            status__in=[PaymentRequestStatus.DRAFT, PaymentRequestStatus.PENDING_APPROVAL],
+        )
+        reason = (request.POST.get("approver_comment") or "").strip()
+        _bulk_apply(
+            request,
+            only_mine,
+            lambda pr: cancel_payment_request(pr, request.user, reason),
+            verb_done="Отменено",
+            verb_skipped_reason="не ваша заявка либо уже не в статусе ‘Черновик’/’На согласовании’",
         )
         return
 
