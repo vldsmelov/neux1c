@@ -50,12 +50,18 @@
             <div class="metric-label">Факт оплат БУ, руб.</div>
             <div class="metric-delta">накопительно</div>
         </div>
+        <div class="metric-cell {% if overdue_pending_count %}is-warning{% endif %}">
+            <div class="metric-value">{{ overdue_pending_count }}</div>
+            <div class="metric-label">Просрочено &gt; {{ overdue_threshold_days }} дн.</div>
+            <div class="metric-delta">{% if overdue_pending_count %}Требует реакции{% else %}SLA в норме{% endif %}</div>
+        </div>
     </div>
 
     <div class="stack" data-tab-scope>
         <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы дашборда">
             <button class="section-tab is-active" type="button" data-tab-target="limits">Остатки <span class="section-tab-count">{{ limit_residuals|length }}</span></button>
             <button class="section-tab" type="button" data-tab-target="overruns">Превышения <span class="section-tab-count">{{ top_overruns|length }}</span></button>
+            <button class="section-tab" type="button" data-tab-target="overdue">Просрочки <span class="section-tab-count">{{ overdue_pending_count }}</span></button>
             <button class="section-tab" type="button" data-tab-target="statuses">Статусы <span class="section-tab-count">{{ status_rows|length }}</span></button>
         </div>
 
@@ -161,6 +167,55 @@
                         {% endfor %}
                     </tbody>
                 </table>
+            </div>
+        </div>
+
+        <div class="stack-section section-tab-panel" data-tab-panel="overdue" hidden>
+            <div class="dashboard-section-headline">
+                <div>
+                    <h2 class="section-title">Просроченные заявки</h2>
+                    <p class="section-subtitle">Заявки в статусе «На согласовании», висящие дольше {{ overdue_threshold_days }} дн. с момента отправки.</p>
+                </div>
+                {% if overdue_pending_count %}
+                    <span class="badge badge-warning">Всего: {{ overdue_pending_count }}</span>
+                {% else %}
+                    <span class="badge badge-success">SLA в норме</span>
+                {% endif %}
+            </div>
+            <div class="data-panel">
+                {% if overdue_pending %}
+                    <div class="data-table-wrap">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="table-col-doc">Номер</th>
+                                    <th scope="col" class="table-col-date">Отправлена</th>
+                                    <th scope="col" class="table-col-short">Дней висит</th>
+                                    <th scope="col" class="table-col-counterparty">Контрагент</th>
+                                    <th scope="col" class="table-col-number">Сумма</th>
+                                    <th scope="col">Согласующий</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pr in overdue_pending %}
+                                    <tr>
+                                        <td class="table-col-doc table-cell-nowrap">{{ pr.number }}</td>
+                                        <td class="table-col-date table-cell-nowrap">{{ pr.submitted_at|date:"d.m.Y H:i" }}</td>
+                                        <td class="table-col-short"><span class="badge badge-warning">{{ pr.submitted_at|timesince }}</span></td>
+                                        <td class="table-col-counterparty">{{ pr.counterparty.name }}</td>
+                                        <td class="table-col-number">{{ pr.amount|ru_number }} {{ pr.currency.code }}</td>
+                                        <td>{{ pr.approver.username }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="empty-state">
+                        <h2>Нет просроченных заявок</h2>
+                        <p>Все заявки на согласовании уложились в SLA ({{ overdue_threshold_days }} дн.).</p>
+                    </div>
+                {% endif %}
             </div>
         </div>
 

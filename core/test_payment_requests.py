@@ -644,6 +644,42 @@ class PaymentRequestWorkflowTests(TestCase):
         self.assertIn(self.economist.id, recipients)
         self.assertIn(self.manager.id, recipients)
 
+    def test_submit_sets_submitted_at_and_dashboard_flags_overdue(self):
+        """submitted_at пишется при submit; дашборд считает SLA по этому полю."""
+        from datetime import timedelta
+        from core.models import Currency, Organization
+        from core.services.manager_dashboard import build_manager_dashboard
+        from django.utils import timezone
+
+        org = Organization.objects.first()
+        pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="SLA",
+        )
+        submit_payment_request(pr, self.economist)
+        pr.refresh_from_db()
+        self.assertIsNotNone(pr.submitted_at)
+
+        # Свежеотправленная заявка — не просрочена
+        payload = build_manager_dashboard(year=pr.request_date.year, organization_id=org.id)
+        self.assertEqual(payload["overdue_pending_count"], 0)
+
+        # Сдвигаем submitted_at на 5 дней назад → просрочена
+        pr.submitted_at = timezone.now() - timedelta(days=5)
+        pr.save(update_fields=["submitted_at"])
+        payload = build_manager_dashboard(year=pr.request_date.year, organization_id=org.id)
+        self.assertEqual(payload["overdue_pending_count"], 1)
+        self.assertEqual(payload["overdue_pending"][0].id, pr.id)
+
     def test_author_can_cancel_own_pending_request(self):
         """Автор отменяет свою заявку → CANCELLED, approver получает уведомление,
         соседние pending-заявки пересчитываются (резерв освобождён)."""

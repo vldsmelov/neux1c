@@ -1,7 +1,14 @@
+from datetime import timedelta
+
 from django.db.models import Count
+from django.utils import timezone
 
 from core.models import PaymentRequest, PaymentRequestStatus
 from core.services.plan_fact_report import PlanFactFilters, build_plan_fact_report
+
+
+# SLA: заявка считается «просроченной» если висит на согласовании дольше N дней.
+PENDING_SLA_DAYS = 3
 
 
 def build_manager_dashboard(*, year: int, organization_id: int | None = None) -> dict:
@@ -34,12 +41,25 @@ def build_manager_dashboard(*, year: int, organization_id: int | None = None) ->
             "kind": _status_kind(status),
         })
 
+    overdue_cutoff = timezone.now() - timedelta(days=PENDING_SLA_DAYS)
+    overdue_query = PaymentRequest.objects.filter(
+        status=PaymentRequestStatus.PENDING_APPROVAL,
+        submitted_at__lt=overdue_cutoff,
+    )
+    if organization_id:
+        overdue_query = overdue_query.filter(organization_id=organization_id)
+    overdue_pending = overdue_query.select_related("counterparty", "currency", "approver").order_by("submitted_at")[:10]
+    overdue_pending_count = overdue_query.count()
+
     return {
         "summary": summary,
         "top_overruns": top_overruns,
         "limit_residuals": limit_residuals,
         "status_rows": status_rows,
         "requests_total": requests_total,
+        "overdue_pending": overdue_pending,
+        "overdue_pending_count": overdue_pending_count,
+        "overdue_threshold_days": PENDING_SLA_DAYS,
     }
 
 

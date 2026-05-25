@@ -793,6 +793,7 @@ class PaymentRequest(models.Model):
         related_name="payment_requests_to_approve",
     )
     approver_comment = models.TextField("Комментарий согласующего", blank=True)
+    submitted_at = models.DateTimeField("Дата отправки на согласование", null=True, blank=True)
     rejected_at = models.DateTimeField("Дата отклонения", null=True, blank=True)
     approved_at = models.DateTimeField("Дата согласования", null=True, blank=True)
     transferred_at = models.DateTimeField("Дата передачи в 1С:ДО", null=True, blank=True)

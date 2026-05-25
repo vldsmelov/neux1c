@@ -224,12 +224,14 @@ def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
     _enforce_limit_control_mode(control_settings.control_mode, is_exceeded)
 
     request.status = PaymentRequestStatus.PENDING_APPROVAL
+    request.submitted_at = timezone.now()
     request.limit_remaining_before_rub = before_limit
     request.limit_remaining_after_rub = after_limit
     request.limit_exceeded = is_exceeded
     request.save(
         update_fields=[
             "status",
+            "submitted_at",
             "limit_remaining_before_rub",
             "limit_remaining_after_rub",
             "limit_exceeded",
