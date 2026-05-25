@@ -3209,3 +3209,96 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     transition: transform var(--transition-fast);
 }
 .timeline-months[open] summary::before { transform: rotate(90deg); }
+
+/* --- Document history timeline --- */
+
+.timeline {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: var(--space-3);
+}
+.timeline-item {
+    display: grid;
+    grid-template-columns: 20px 1fr;
+    gap: var(--space-3);
+    align-items: stretch;
+    position: relative;
+}
+.timeline-item::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 18px;
+    bottom: -16px;
+    width: 2px;
+    background: var(--color-border);
+}
+.timeline-item:last-child::before { display: none; }
+
+.timeline-dot {
+    width: 14px;
+    height: 14px;
+    border-radius: var(--radius-full);
+    background: var(--color-accent);
+    margin-top: 6px;
+    box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 4px color-mix(in srgb, var(--color-accent) 25%, var(--color-border));
+}
+.timeline-dot-base { background: var(--color-text-muted); }
+.timeline-dot-muted { background: var(--color-border); }
+
+.timeline-body {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    display: grid;
+    gap: 6px;
+}
+.timeline-base .timeline-body { background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface)); }
+
+.timeline-head {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+    align-items: baseline;
+    justify-content: space-between;
+}
+.timeline-time {
+    color: var(--color-text-muted);
+    font-size: var(--text-xs);
+}
+.timeline-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: baseline;
+    font-size: var(--text-base);
+}
+.timeline-arrow {
+    color: var(--color-text-muted);
+    margin: 0 4px;
+}
+.timeline-changed {
+    color: var(--color-accent-hover);
+    font-weight: 600;
+}
+.timeline-reason {
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    padding-top: 4px;
+    border-top: 1px dashed var(--color-border);
+    margin-top: 4px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.timeline-months { margin-top: var(--space-2); }
+.timeline-months summary {
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    padding: 4px 0;
+}
+.timeline-months[open] summary { color: var(--color-text); }

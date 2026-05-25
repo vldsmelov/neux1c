@@ -17,6 +17,7 @@ from core.models import (
 from core.services.budgets import validate_limit_within_budget
 from core.services.document_numbers import next_document_number
 from core.services.notifications import notify
+from core.services.payment_requests import recalculate_pending_requests_for_limit
 
 
 MONTH_NUMBERS = list(range(1, 13))
@@ -144,6 +145,13 @@ def approve_budget_plan(plan: BudgetLimitPlan, user) -> BudgetLimitPlan:
         text=f"{plan.department.name} · {plan.article.name} · {plan.annual_amount} {plan.currency.code}",
         link="/planning/limits/",
         related=plan,
+    )
+    # Каскад: новый approved-лимит может изменить статус превышения у
+    # уже отправленных pending-заявок по этой же статье + компании.
+    recalculate_pending_requests_for_limit(
+        article=plan.article,
+        organization=plan.organization,
+        actor=user,
     )
     return plan
 
@@ -343,6 +351,19 @@ def approve_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetL
         object_id=str(adjustment.pk),
         message=f"Корректировка {adjustment.number} утверждена",
     )
+    # Каскад на pending-заявки: меняется approved-сумма базового лимита и
+    # (опционально) целевого лимита межкомпанийного переноса.
+    recalculate_pending_requests_for_limit(
+        article=base_plan.article,
+        organization=base_plan.organization,
+        actor=user,
+    )
+    if adjustment.target_plan_id:
+        recalculate_pending_requests_for_limit(
+            article=adjustment.target_plan.article,
+            organization=adjustment.target_plan.organization,
+            actor=user,
+        )
     return adjustment
 
 

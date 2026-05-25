@@ -396,6 +396,152 @@ def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequ
     return request
 
 
+def recalculate_pending_requests_for_limit(*, article, organization, actor=None) -> dict:
+    """Refresh limit_remaining_* and limit_exceeded for all PENDING_APPROVAL
+    payment requests in (article, organization) after the approved annual limit
+    has changed.
+
+    Sends LIMIT_OVERRUN notifications to author + approver only for requests
+    that *newly* crossed the threshold (transition from OK to overrun). Returns
+    a small summary dict for logging/tests.
+    """
+    queryset = (
+        PaymentRequest.objects.filter(
+            article=article,
+            organization=organization,
+            status=PaymentRequestStatus.PENDING_APPROVAL,
+        )
+        .select_related("author", "approver", "counterparty", "currency", "article")
+    )
+    became_overrun: list[int] = []
+    became_ok: list[int] = []
+    for pr in queryset:
+        before_limit, after_limit, is_exceeded = calculate_limit_delta(
+            article=article,
+            organization=organization,
+            request_amount_rub=pr.amount_rub,
+            exclude_request_id=pr.id,
+        )
+        was_exceeded = pr.limit_exceeded
+        if (
+            pr.limit_remaining_before_rub == before_limit
+            and pr.limit_remaining_after_rub == after_limit
+            and pr.limit_exceeded == is_exceeded
+        ):
+            continue
+        pr.limit_remaining_before_rub = before_limit
+        pr.limit_remaining_after_rub = after_limit
+        pr.limit_exceeded = is_exceeded
+        pr.save(update_fields=[
+            "limit_remaining_before_rub",
+            "limit_remaining_after_rub",
+            "limit_exceeded",
+            "updated_at",
+        ])
+        if is_exceeded and not was_exceeded:
+            became_overrun.append(pr.id)
+            text = (
+                f"{pr.article.code} · {pr.counterparty.name} · "
+                f"{pr.amount} {pr.currency.code} · "
+                f"остаток после: {after_limit}"
+            )
+            notify(
+                recipient=pr.author,
+                kind=NotificationKind.LIMIT_OVERRUN,
+                title=f"Заявка {pr.number} вышла за лимит после корректировки",
+                text=text,
+                link="/payments/requests/",
+                related=pr,
+            )
+            if pr.approver_id and pr.approver_id != pr.author_id:
+                notify(
+                    recipient=pr.approver,
+                    kind=NotificationKind.LIMIT_OVERRUN,
+                    title=f"Заявка {pr.number} вышла за лимит после корректировки",
+                    text=text,
+                    link="/payments/requests/",
+                    related=pr,
+                )
+        elif was_exceeded and not is_exceeded:
+            became_ok.append(pr.id)
+    return {
+        "rechecked": queryset.count(),
+        "became_overrun": became_overrun,
+        "became_ok": became_ok,
+    }
+
+
+def recalculate_pending_requests_for_limit(*, article, organization, actor) -> int:
+    """Refresh limit_remaining/exceeded on PENDING_APPROVAL requests after a
+    limit change. Returns the number of requests updated.
+
+    When the exceeded flag flips, notify the author (and the approver if
+    different) so they see why the document changed shape: a budget action
+    by someone else just made their request over/under limit.
+    """
+    pending = (
+        PaymentRequest.objects.filter(
+            article=article,
+            organization=organization,
+            status=PaymentRequestStatus.PENDING_APPROVAL,
+        )
+        .select_related("author", "approver", "currency", "counterparty")
+    )
+    touched = 0
+    for pr in pending:
+        before, after, exceeded = calculate_limit_delta(
+            article=article,
+            organization=organization,
+            request_amount_rub=pr.amount_rub,
+            exclude_request_id=pr.id,
+        )
+        if (
+            pr.limit_remaining_before_rub == before
+            and pr.limit_remaining_after_rub == after
+            and pr.limit_exceeded == exceeded
+        ):
+            continue
+        flipped_to_exceeded = exceeded and not pr.limit_exceeded
+        flipped_to_within = (not exceeded) and pr.limit_exceeded
+        pr.limit_remaining_before_rub = before
+        pr.limit_remaining_after_rub = after
+        pr.limit_exceeded = exceeded
+        pr.save(update_fields=[
+            "limit_remaining_before_rub",
+            "limit_remaining_after_rub",
+            "limit_exceeded",
+            "updated_at",
+        ])
+        touched += 1
+        if flipped_to_exceeded or flipped_to_within:
+            text = (
+                f"{pr.counterparty.name} · {pr.amount} {pr.currency.code} · "
+                f"остаток после: {after}"
+            )
+            kind = NotificationKind.LIMIT_OVERRUN if flipped_to_exceeded else NotificationKind.LIMIT_APPROVED
+            title = (
+                f"Заявка {pr.number}: превышение лимита после пересчёта"
+                if flipped_to_exceeded
+                else f"Заявка {pr.number}: вошла в лимит после пересчёта"
+            )
+            # Уведомляем обе стороны заявки даже когда actor совпадает с одним
+            # из них: actor только что совершил действие по другому документу
+            # (корректировка / новый лимит), а side-effect на свою собственную
+            # pending-заявку он мог не заметить.
+            for recipient in {pr.author, pr.approver}:
+                if recipient is None:
+                    continue
+                notify(
+                    recipient=recipient,
+                    kind=kind,
+                    title=title,
+                    text=text,
+                    link="/payments/requests/",
+                    related=pr,
+                )
+    return touched
+
+
 def calculate_limit_delta(
     *, article, organization, request_amount_rub: Decimal, exclude_request_id: int | None = None
 ) -> tuple[Decimal, Decimal, bool]:

@@ -513,6 +513,72 @@ class PaymentRequestWorkflowTests(TestCase):
         self.assertEqual(pr.status, PaymentRequestStatus.REJECTED)
         self.assertEqual(pr.approver_comment, "Все плохо, переделать")
 
+    def test_approving_limit_adjustment_cascades_to_pending_requests(self):
+        """Утверждение корректировки, уменьшающей лимит, должно перевести
+        ранее ‘в норме’ pending-заявку в превышение и уведомить участников."""
+        from core.models import (
+            BudgetLimitAdjustment,
+            BudgetLimitPlan,
+            BudgetPlanStatus,
+            Currency,
+            Notification,
+            NotificationKind,
+            Organization,
+        )
+        from core.services.budget_planning import (
+            approve_limit_adjustment,
+            create_limit_adjustment,
+            submit_limit_adjustment,
+        )
+
+        # В setUp создан approved-лимит на 2_000_000 для self.article (DDS-010).
+        # Mock-1C добавил BU-факт 800k по той же статье, поэтому доступный
+        # остаток на старте = 1_200_000. Заявка на 1_000_000 «в норме».
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("1000000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="В норме",
+        )
+        submit_payment_request(payment_request, self.economist)
+        payment_request.refresh_from_db()
+        self.assertFalse(payment_request.limit_exceeded)
+
+        # Создаём и утверждаем корректировку: годовая сумма падает до 900_000.
+        # После корректировки: лимит 900k - факт 800k = 100k свободно, заявка
+        # 1_000_000 → превышение на 900_000.
+        plan = BudgetLimitPlan.objects.filter(article=self.article).first()
+        monthly_amounts = {m: Decimal("900000.00") / 12 for m in range(1, 13)}
+        monthly_amounts[12] = Decimal("900000.00") - sum(monthly_amounts[m] for m in range(1, 12))
+        adjustment = create_limit_adjustment(
+            author=self.economist,
+            base_plan=plan,
+            new_annual_amount=Decimal("900000.00"),
+            reason="Сокращение",
+            monthly_amounts=monthly_amounts,
+        )
+        submit_limit_adjustment(adjustment, self.economist)
+        approve_limit_adjustment(adjustment, self.manager)
+
+        # Каскад должен пересчитать pending-заявку: теперь она превышает лимит
+        payment_request.refresh_from_db()
+        self.assertTrue(payment_request.limit_exceeded)
+        # И оба участника получили LIMIT_OVERRUN
+        overruns = Notification.objects.filter(
+            kind=NotificationKind.LIMIT_OVERRUN,
+            payload_object_id=str(payment_request.id),
+        )
+        recipients = set(overruns.values_list("recipient_id", flat=True))
+        self.assertIn(self.economist.id, recipients)
+        self.assertIn(self.manager.id, recipients)
+
     def test_manager_can_reject_with_comment(self):
         from core.models import Currency, Organization
 
