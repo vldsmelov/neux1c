@@ -28,6 +28,7 @@ from ..services.budget_planning import (
 from ..services.budgets import approve_budget, submit_budget
 from ..services.payment_requests import (
     approve_payment_request,
+    cancel_payment_request,
     reject_payment_request,
     submit_payment_request,
     transfer_payment_request_to_do,
@@ -259,6 +260,22 @@ def _document_action_config(document_type: str, action: str, document_id: int):
             "can_execute": lambda user, document: can_manage_payment_requests(user),
             "execute": lambda document, user, comment: transfer_payment_request_to_do(document, user),
             "success_message": "Заявка {number} передана в 1С:ДО",
+            "details": _payment_request_action_details,
+        },
+        ("payment-request", "cancel"): {
+            "document": payment_document,
+            "active_section": "payments",
+            "return_route": "payment_requests",
+            "document_kind": "Заявка на оплату",
+            "action_label": "Отмена заявки",
+            "action_text": "Заявка будет отмечена как отозванная автором и снята с очереди согласования. Резерв лимита освободится.",
+            "submit_label": "Отменить заявку",
+            "permission_error": "Отменить заявку может только её автор или администратор",
+            "can_execute": lambda user, document: user.is_superuser or document.author_id == user.id,
+            "execute": lambda document, user, comment: cancel_payment_request(document, user, comment),
+            "success_message": "Заявка {number} отменена",
+            "comment_label": "Причина отмены",
+            "comment_placeholder": "Передумал / попросили подождать / ошибка в сумме",
             "details": _payment_request_action_details,
         },
     }

@@ -121,6 +121,7 @@ class PaymentRequestStatus(models.TextChoices):
     APPROVED = "approved", "Согласована"
     TRANSFERRED = "transferred", "Передана в 1С:ДО"
     REJECTED = "rejected", "Отклонена"
+    CANCELLED = "cancelled", "Отменена автором"
 
 
 class PaymentLimitControlMode(models.TextChoices):
@@ -795,6 +796,8 @@ class PaymentRequest(models.Model):
     rejected_at = models.DateTimeField("Дата отклонения", null=True, blank=True)
     approved_at = models.DateTimeField("Дата согласования", null=True, blank=True)
     transferred_at = models.DateTimeField("Дата передачи в 1С:ДО", null=True, blank=True)
+    cancelled_at = models.DateTimeField("Дата отмены автором", null=True, blank=True)
+    cancellation_reason = models.CharField("Причина отмены", max_length=255, blank=True)
     do_external_id = models.CharField("ID в 1С:ДО", max_length=64, blank=True)
     author = models.ForeignKey(
         settings.AUTH_USER_MODEL,

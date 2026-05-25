@@ -644,6 +644,85 @@ class PaymentRequestWorkflowTests(TestCase):
         self.assertIn(self.economist.id, recipients)
         self.assertIn(self.manager.id, recipients)
 
+    def test_author_can_cancel_own_pending_request(self):
+        """Автор отменяет свою заявку → CANCELLED, approver получает уведомление,
+        соседние pending-заявки пересчитываются (резерв освобождён)."""
+        from core.models import Currency, Notification, NotificationKind, Organization
+        from core.services.payment_requests import cancel_payment_request
+
+        pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="К отмене",
+        )
+        submit_payment_request(pr, self.economist)
+        cancel_payment_request(pr, self.economist, "Передумал")
+        pr.refresh_from_db()
+        self.assertEqual(pr.status, PaymentRequestStatus.CANCELLED)
+        self.assertEqual(pr.cancellation_reason, "Передумал")
+        self.assertIsNotNone(pr.cancelled_at)
+        # Approver получил уведомление об отзыве (PAYMENT_REJECTED kind = «снято с очереди»)
+        self.assertTrue(
+            Notification.objects.filter(
+                recipient=self.manager,
+                payload_object_id=str(pr.id),
+                kind=NotificationKind.PAYMENT_REJECTED,
+            ).exists()
+        )
+
+    def test_other_user_cannot_cancel_someone_elses_request(self):
+        from core.models import Currency, Organization
+        from core.services.payment_requests import cancel_payment_request
+
+        pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Чужая",
+        )
+        with self.assertRaisesMessage(ValueError, "автор"):
+            cancel_payment_request(pr, self.manager, "Манагер не может")
+
+    def test_cannot_cancel_request_after_approval(self):
+        from core.models import Currency, Organization
+        from core.services.payment_requests import (
+            approve_payment_request,
+            cancel_payment_request,
+        )
+
+        pr = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=Organization.objects.first(),
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("100000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="После согласования",
+        )
+        submit_payment_request(pr, self.economist)
+        approve_payment_request(pr, self.manager)
+        with self.assertRaisesMessage(ValueError, "черновик или заявку"):
+            cancel_payment_request(pr, self.economist, "Поздно")
+
     def test_manager_can_reject_with_comment(self):
         from core.models import Currency, Organization
 

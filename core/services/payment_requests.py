@@ -368,6 +368,52 @@ def reject_payment_request(request: PaymentRequest, user, approver_comment: str)
 
 
 @transaction.atomic
+def cancel_payment_request(request: PaymentRequest, user, reason: str = "") -> PaymentRequest:
+    """Author-driven cancellation for DRAFT or PENDING_APPROVAL requests.
+
+    Cancelling a PENDING request frees its reserved limit, so other pending
+    requests on the same article need to be recomputed. The approver is
+    notified that the request was withdrawn.
+    """
+    if request.status not in (PaymentRequestStatus.DRAFT, PaymentRequestStatus.PENDING_APPROVAL):
+        raise ValueError("Отменить можно только черновик или заявку на согласовании")
+    if request.author_id != user.id and not user.is_superuser:
+        raise ValueError("Заявку может отменить только её автор")
+
+    was_pending = request.status == PaymentRequestStatus.PENDING_APPROVAL
+    request.status = PaymentRequestStatus.CANCELLED
+    request.cancelled_at = timezone.now()
+    request.cancellation_reason = (reason or "").strip()[:255]
+    request.save(update_fields=["status", "cancelled_at", "cancellation_reason", "updated_at"])
+    AuditLog.objects.create(
+        user=user,
+        action=AuditAction.UPDATE,
+        path=WORKFLOW_PATH,
+        object_type="PaymentRequest",
+        object_id=str(request.pk),
+        message=f"Заявка {request.number} отменена автором",
+    )
+    # Уведомить согласующего, если заявка успела дойти до него
+    if was_pending and request.approver_id and request.approver_id != user.id:
+        notify(
+            recipient=request.approver,
+            kind=NotificationKind.PAYMENT_REJECTED,  # Reuse — для approver это «снято с очереди»
+            title=f"Заявка {request.number} отозвана автором",
+            text=request.cancellation_reason or f"{request.counterparty.name} · {request.amount} {request.currency.code}",
+            link="/payments/requests/",
+            related=request,
+        )
+    # Отмена pending-заявки освобождает резерв → пересчитать соседей по статье
+    if was_pending:
+        recalculate_pending_requests_for_limit(
+            article=request.article,
+            organization=request.organization,
+            actor=user,
+        )
+    return request
+
+
+@transaction.atomic
 def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequest:
     if request.status != PaymentRequestStatus.APPROVED:
         raise ValueError("Передавать в 1С:ДО можно только согласованную заявку")
