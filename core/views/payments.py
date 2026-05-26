@@ -1,6 +1,8 @@
 """Payments domain: requests, edit, journal, facts, fact adjustments, downloads."""
 
+import csv
 from decimal import InvalidOperation
+from io import StringIO
 from mimetypes import guess_type
 from pathlib import Path
 
@@ -9,7 +11,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Max, Q
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -153,6 +155,9 @@ def payment_requests(request):
             | Q(approver__username__icontains=search_text)
             | Q(approver__last_name__icontains=search_text)
         )
+
+    if request.GET.get("export") == "csv":
+        return _export_payment_requests_csv(requests_query)
 
     return render(
         request,
@@ -484,6 +489,60 @@ def payment_request_justification_download(request, request_id: int):
     response = FileResponse(file_field.open("rb"), content_type=content_type)
     response["Content-Disposition"] = f'attachment; filename="{download_name}"'
     response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+# --- CSV export -----------------------------------------------------------
+
+def _export_payment_requests_csv(queryset) -> HttpResponse:
+    """Render the filtered payment-request queryset as a single-file CSV.
+
+    Columns mirror what an analyst typically needs in Excel for ad-hoc
+    reporting and don't try to be a complete dump of the model — we keep
+    it human-readable.
+    """
+    buffer = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow([
+        "Номер", "Дата заявки", "Тип", "Организация", "Контрагент",
+        "Договор", "Доп.соглашение", "Счёт", "Дата счёта",
+        "Сумма", "Валюта", "Сумма в руб.",
+        "Статус", "Согласующий", "Автор",
+        "Отправлена", "Согласована", "Передана в 1С:ДО",
+        "Отклонена", "Причина отклонения",
+        "Отменена", "Причина отмены",
+        "Превышение лимита",
+    ])
+    for pr in queryset.iterator():
+        writer.writerow([
+            pr.number,
+            pr.request_date.strftime("%Y-%m-%d") if pr.request_date else "",
+            pr.get_request_kind_display(),
+            pr.organization.name if pr.organization_id else "",
+            pr.counterparty.name if pr.counterparty_id else "",
+            pr.contract.number if pr.contract_id else "",
+            pr.additional_agreement.number if pr.additional_agreement_id else "",
+            pr.invoice_number,
+            pr.invoice_date.strftime("%Y-%m-%d") if pr.invoice_date else "",
+            f"{pr.amount}",
+            pr.currency.code if pr.currency_id else "",
+            f"{pr.amount_rub}",
+            pr.get_status_display(),
+            pr.approver.username if pr.approver_id else "",
+            pr.author.username if pr.author_id else "",
+            pr.submitted_at.strftime("%Y-%m-%d %H:%M") if pr.submitted_at else "",
+            pr.approved_at.strftime("%Y-%m-%d %H:%M") if pr.approved_at else "",
+            pr.transferred_at.strftime("%Y-%m-%d %H:%M") if pr.transferred_at else "",
+            pr.rejected_at.strftime("%Y-%m-%d %H:%M") if pr.rejected_at else "",
+            pr.approver_comment.replace("\n", " ") if pr.approver_comment else "",
+            pr.cancelled_at.strftime("%Y-%m-%d %H:%M") if pr.cancelled_at else "",
+            pr.cancellation_reason,
+            "да" if pr.limit_exceeded else "нет",
+        ])
+    # UTF-8 BOM, чтобы Excel сразу распознавал кириллицу.
+    response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
+    stamp = timezone.localdate().strftime("%Y%m%d")
+    response["Content-Disposition"] = f'attachment; filename="payment_requests_{stamp}.csv"'
     return response
 
 

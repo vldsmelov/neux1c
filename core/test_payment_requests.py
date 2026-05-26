@@ -400,6 +400,62 @@ class PaymentRequestWorkflowTests(TestCase):
         response = self.client.get(reverse("notifications"), {"filter": "unread"})
         self.assertEqual(response.context["page"].paginator.count, 0)
 
+    def test_journal_csv_export_respects_filters(self):
+        from core.models import Currency, Organization
+
+        org = Organization.objects.first()
+        # Две заявки в разных статусах
+        draft = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("111111.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Draft",
+        )
+        pending = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("222222.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Pending",
+        )
+        submit_payment_request(pending, self.economist)
+
+        self.client.login(username="economist", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = org.id
+        session.save()
+        url = reverse("payment_requests")
+
+        # Без фильтра — обе попадают
+        response = self.client.get(url, {"export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("attachment", response["Content-Disposition"])
+        body = response.content.decode("utf-8-sig")
+        self.assertIn(draft.number, body)
+        self.assertIn(pending.number, body)
+        # Заголовки на русском (UTF-8 BOM присутствует)
+        self.assertIn("Номер;Дата заявки", body.splitlines()[0])
+
+        # Фильтр по статусу обрезает выборку
+        response = self.client.get(url, {"status": "draft", "export": "csv"})
+        body = response.content.decode("utf-8-sig")
+        self.assertIn(draft.number, body)
+        self.assertNotIn(pending.number, body)
+
     def test_journal_server_side_filters(self):
         """status / only_overrun / q сужают выборку на стороне БД."""
         from core.models import Currency, Organization

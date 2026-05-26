@@ -74,6 +74,10 @@
                 {% if selected_status or selected_only_overrun or search_text %}
                     <a class="command-button is-sm" href="{% url 'payment_requests' %}">Сбросить</a>
                 {% endif %}
+                <button class="command-button is-sm" type="submit" name="export" value="csv" formnovalidate
+                        title="Экспортировать текущую выборку в CSV (с учётом фильтров)">
+                    ⬇ CSV
+                </button>
             </form>
             <form method="post" data-bulk-form>
                 {% csrf_token %}
