@@ -700,6 +700,41 @@ class PaymentRequestWorkflowTests(TestCase):
         self.assertIn(self.economist.id, recipients)
         self.assertIn(self.manager.id, recipients)
 
+    def test_sla_digest_command_notifies_approver_once_per_queue(self):
+        """send_pending_sla_digest шлёт согласующему один дайджест на всю очередь."""
+        from datetime import timedelta
+        from django.core.management import call_command
+        from django.utils import timezone
+        from core.models import Currency, Notification, NotificationKind, Organization
+
+        org = Organization.objects.first()
+        # Две просроченные pending-заявки одного согласующего
+        for i in range(2):
+            pr = create_payment_request(
+                author=self.economist,
+                request_kind=PaymentRequestKind.BY_CONTRACT,
+                organization=org,
+                article=self.article,
+                counterparty=self.contract.counterparty,
+                contract=self.contract,
+                currency=Currency.objects.get(code="RUB"),
+                amount=Decimal("100000.00"),
+                manual_exchange_rate=Decimal("1.0000"),
+                approver=self.manager,
+                payment_purpose=f"SLA {i}",
+            )
+            submit_payment_request(pr, self.economist)
+            pr.submitted_at = timezone.now() - timedelta(days=5)
+            pr.save(update_fields=["submitted_at"])
+
+        before = Notification.objects.filter(recipient=self.manager).count()
+        call_command("send_pending_sla_digest", verbosity=0)
+        after = Notification.objects.filter(recipient=self.manager).count()
+        # Ровно одно новое уведомление-дайджест, несмотря на 2 просроченные заявки
+        self.assertEqual(after - before, 1)
+        digest = Notification.objects.filter(recipient=self.manager).order_by("-created_at").first()
+        self.assertIn("Просрочено заявок", digest.title)
+
     def test_submit_sets_submitted_at_and_dashboard_flags_overdue(self):
         """submitted_at пишется при submit; дашборд считает SLA по этому полю."""
         from datetime import timedelta
