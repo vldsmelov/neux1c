@@ -254,7 +254,7 @@ def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
             title=f"Новая заявка на согласование · {request.number}",
             text=f"{request.counterparty.name} · {request.amount} {request.currency.code}"
                  + (" · превышение лимита" if is_exceeded else ""),
-            link=f"/payments/requests/",
+            link="/payments/requests/",
             related=request,
         )
     # При превышении лимита в warning-режиме (block-режим вообще не пропустил
@@ -444,81 +444,6 @@ def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequ
     return request
 
 
-def recalculate_pending_requests_for_limit(*, article, organization, actor=None) -> dict:
-    """Refresh limit_remaining_* and limit_exceeded for all PENDING_APPROVAL
-    payment requests in (article, organization) after the approved annual limit
-    has changed.
-
-    Sends LIMIT_OVERRUN notifications to author + approver only for requests
-    that *newly* crossed the threshold (transition from OK to overrun). Returns
-    a small summary dict for logging/tests.
-    """
-    queryset = (
-        PaymentRequest.objects.filter(
-            article=article,
-            organization=organization,
-            status=PaymentRequestStatus.PENDING_APPROVAL,
-        )
-        .select_related("author", "approver", "counterparty", "currency", "article")
-    )
-    became_overrun: list[int] = []
-    became_ok: list[int] = []
-    for pr in queryset:
-        before_limit, after_limit, is_exceeded = calculate_limit_delta(
-            article=article,
-            organization=organization,
-            request_amount_rub=pr.amount_rub,
-            exclude_request_id=pr.id,
-        )
-        was_exceeded = pr.limit_exceeded
-        if (
-            pr.limit_remaining_before_rub == before_limit
-            and pr.limit_remaining_after_rub == after_limit
-            and pr.limit_exceeded == is_exceeded
-        ):
-            continue
-        pr.limit_remaining_before_rub = before_limit
-        pr.limit_remaining_after_rub = after_limit
-        pr.limit_exceeded = is_exceeded
-        pr.save(update_fields=[
-            "limit_remaining_before_rub",
-            "limit_remaining_after_rub",
-            "limit_exceeded",
-            "updated_at",
-        ])
-        if is_exceeded and not was_exceeded:
-            became_overrun.append(pr.id)
-            text = (
-                f"{pr.article.code} · {pr.counterparty.name} · "
-                f"{pr.amount} {pr.currency.code} · "
-                f"остаток после: {after_limit}"
-            )
-            notify(
-                recipient=pr.author,
-                kind=NotificationKind.LIMIT_OVERRUN,
-                title=f"Заявка {pr.number} вышла за лимит после корректировки",
-                text=text,
-                link="/payments/requests/",
-                related=pr,
-            )
-            if pr.approver_id and pr.approver_id != pr.author_id:
-                notify(
-                    recipient=pr.approver,
-                    kind=NotificationKind.LIMIT_OVERRUN,
-                    title=f"Заявка {pr.number} вышла за лимит после корректировки",
-                    text=text,
-                    link="/payments/requests/",
-                    related=pr,
-                )
-        elif was_exceeded and not is_exceeded:
-            became_ok.append(pr.id)
-    return {
-        "rechecked": queryset.count(),
-        "became_overrun": became_overrun,
-        "became_ok": became_ok,
-    }
-
-
 def recalculate_pending_requests_for_limit(*, article, organization, actor) -> int:
     """Refresh limit_remaining/exceeded on PENDING_APPROVAL requests after a
     limit change. Returns the number of requests updated.
@@ -704,36 +629,6 @@ def _validate_request_payload(
         if additional_agreement.contract_id != contract.id:
             raise ValueError("Выбранное допсоглашение должно принадлежать договору заявки")
 
-    if manual_exchange_rate is not None and manual_exchange_rate < 0:
-        raise ValueError("Курс к RUB не может быть отрицательным")
-
-
-def _validate_request_payload_legacy(
-    *,
-    request_kind: str,
-    counterparty,
-    contract: Contract | None,
-    invoice_number: str,
-    amount: Decimal,
-    manual_exchange_rate: Decimal | None,
-) -> None:
-    if request_kind not in PaymentRequestKind.values:
-        raise ValueError("Неизвестный тип заявки")
-    if amount is None:
-        raise ValueError("Укажите сумму заявки")
-    if amount <= 0:
-        raise ValueError("Сумма заявки должна быть больше нуля")
-    if request_kind == PaymentRequestKind.BY_CONTRACT and contract is None:
-        raise ValueError("Для заявки по договору выберите договор")
-    if request_kind == PaymentRequestKind.BY_INVOICE and not invoice_number.strip():
-        raise ValueError("Для заявки по счету укажите номер счета")
-    if request_kind == PaymentRequestKind.WITHOUT_CONTRACT and contract is not None:
-        raise ValueError("Для заявки без договора поле договора должно быть пустым")
-    if contract is not None:
-        if contract.kind != ContractKind.SOLE_SUPPLIER:
-            raise ValueError("В заявке на оплату можно использовать только договор поставщика")
-        if contract.counterparty_id != counterparty.id:
-            raise ValueError("Контрагент заявки должен совпадать с контрагентом договора")
     if manual_exchange_rate is not None and manual_exchange_rate < 0:
         raise ValueError("Курс к RUB не может быть отрицательным")
 

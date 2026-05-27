@@ -10,12 +10,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from django.contrib.auth import get_user_model
-
 from core.models import Notification, NotificationKind
-
-
-User = get_user_model()
 
 
 def notify(
@@ -34,7 +29,7 @@ def notify(
     Returns the created Notification, or None if the recipient is missing or
     the kind is unknown.
     """
-    if not recipient or not getattr(recipient, "is_authenticated", True) is True and not isinstance(recipient, User):
+    if recipient is None or getattr(recipient, "pk", None) is None:
         return None
     if kind not in NotificationKind.values:
         return None

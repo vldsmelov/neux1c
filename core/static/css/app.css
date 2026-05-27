@@ -115,13 +115,6 @@
             gap: 6px;
         }
 
-        .app-sidebar-secondary-title {
-            color: var(--app-muted);
-            font-size: 12px;
-            line-height: 1.25;
-            padding: 0 8px;
-        }
-
         .app-logo {
             display: grid;
             grid-template-columns: 42px minmax(0, 1fr);
@@ -420,11 +413,6 @@
             max-width: 100%;
         }
 
-        .document-grid-compact {
-            grid-template-columns: minmax(0, 1fr);
-            max-width: 100%;
-        }
-
         .form-panel {
             border-right: 0;
             border-bottom: 1px solid var(--app-border);
@@ -487,31 +475,6 @@
         .form-section-content {
             display: grid;
             gap: 10px;
-        }
-
-        .form-link-row {
-            align-items: center;
-            border: 1px solid var(--app-border);
-            border-radius: 7px;
-            color: var(--app-text);
-            display: flex;
-            gap: 10px;
-            justify-content: space-between;
-            min-height: 46px;
-            padding: 8px 10px;
-        }
-
-        .form-link-row:hover {
-            border-color: var(--app-primary);
-            background: var(--app-primary-soft);
-        }
-
-        .form-link-row small {
-            color: var(--app-muted);
-            display: block;
-            font-size: 12px;
-            line-height: 1.25;
-            margin-top: 2px;
         }
 
         .form-section + .form-section {
@@ -596,14 +559,6 @@
             max-width: 200px;
         }
 
-        .panel-stack-top {
-            margin-top: 18px;
-        }
-
-        .panel-stack-top-lg {
-            margin-top: 22px;
-        }
-
         .table-wrap-top {
             margin-top: 10px;
         }
@@ -617,18 +572,6 @@
             gap: 6px;
         }
 
-        .workspace-quick-grid {
-            gap: 8px;
-        }
-
-        .workspace-quick-item .field-label {
-            margin-bottom: 3px;
-        }
-
-        .login-form {
-            max-width: 420px;
-        }
-
         .inline-form-row {
             display: flex;
             gap: 8px;
@@ -639,26 +582,6 @@
         .inline-form-row .command-button,
         .inline-form-row .command-button-primary {
             min-height: 30px;
-        }
-
-        .inline-input-120 {
-            width: 120px;
-            max-width: 120px;
-        }
-
-        .inline-input-132 {
-            width: 132px;
-            max-width: 132px;
-        }
-
-        .inline-input-180 {
-            width: 180px;
-            max-width: 180px;
-        }
-
-        .inline-input-210 {
-            width: 210px;
-            max-width: 210px;
         }
 
         .muted-text {
@@ -677,15 +600,6 @@
         .field-control.is-focused {
             border-color: var(--app-primary);
             box-shadow: 0 0 0 2px rgba(27, 117, 208, 0.15);
-        }
-
-        .status-dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 999px;
-            background: var(--app-warning);
-            display: inline-block;
-            margin-right: 8px;
         }
 
         .data-panel {
@@ -1070,11 +984,6 @@
             width: 320px;
         }
 
-        .table-action-col-xl {
-            min-width: 420px;
-            width: 420px;
-        }
-
         .table-col-short {
             width: 90px;
             min-width: 90px;
@@ -1329,22 +1238,6 @@
             min-height: 34px;
         }
 
-        .report-template-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 10px;
-        }
-
-        .report-template-form {
-            border: 1px solid var(--app-border);
-            border-radius: 7px;
-            background: var(--app-surface);
-            padding: 10px;
-            display: grid;
-            gap: 8px;
-            align-content: start;
-        }
-
         .report-summary-grid {
             display: grid;
             grid-template-columns: repeat(7, minmax(130px, 1fr));
@@ -1572,11 +1465,6 @@
                 max-width: 100%;
             }
 
-            .document-grid-compact {
-                grid-template-columns: 1fr;
-                max-width: 100%;
-            }
-
             .form-panel {
                 border-right: 0;
                 border-bottom: 1px solid var(--app-border);
@@ -1590,10 +1478,6 @@
 
             .report-filter-grid {
                 grid-template-columns: repeat(3, minmax(160px, 1fr));
-            }
-
-            .report-template-grid {
-                grid-template-columns: 1fr;
             }
 
             .report-summary-grid {
@@ -2172,26 +2056,7 @@ textarea.field-control:focus {
 }
 *::-webkit-scrollbar-thumb:hover { background-color: color-mix(in srgb, var(--color-text-muted) 50%, transparent); }
 
-/* Footer brand line */
-.app-footer-brand,
-.app-shell > footer,
-footer.app-footer {
-    color: var(--color-text-muted);
-    font-size: var(--text-sm);
-    padding: var(--space-4) 0;
-}
-
 /* Status dot */
-.status-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    border-radius: var(--radius-full);
-    background: var(--color-success);
-    margin-right: 6px;
-    vertical-align: middle;
-}
-
 /* Wizard stepper modernization */
 .wizard-stepper { background: var(--color-bg); }
 .wizard-step-button {
@@ -2433,25 +2298,6 @@ body[data-theme="dark"] {
 .form-grid-span-full { grid-column: 1 / -1; }
 .form-stack { display: grid; gap: var(--space-3); }
 
-/* Toast / messages container (used by Django messages framework if present) */
-.messages-stack { display: grid; gap: var(--space-2); margin-bottom: var(--space-4); }
-.messages-stack li,
-.messages-stack .alert {
-    padding: 10px var(--space-3);
-    border-radius: var(--radius-md);
-    background: var(--color-accent-soft);
-    color: var(--color-accent-hover);
-    border: 1px solid color-mix(in srgb, var(--color-accent) 25%, transparent);
-    list-style: none;
-    font-size: var(--text-base);
-}
-.messages-stack .error,
-.messages-stack .alert.error  { background: var(--color-danger-soft); color: #991b1b; border-color: color-mix(in srgb, var(--color-danger) 25%, transparent); }
-.messages-stack .warning,
-.messages-stack .alert.warning { background: var(--color-warning-soft); color: #854d0e; border-color: color-mix(in srgb, var(--color-warning) 25%, transparent); }
-.messages-stack .success,
-.messages-stack .alert.success { background: var(--color-success-soft); color: #166534; border-color: color-mix(in srgb, var(--color-success) 25%, transparent); }
-
 /* Messages framework overrides */
 .message-list {
     display: grid;
@@ -2631,7 +2477,6 @@ dialog.modal::backdrop {
         grid-template-columns: 320px minmax(0, 1fr);
         gap: var(--space-4);
     }
-    .document-grid-compact { grid-template-columns: 240px minmax(0, 1fr); }
 }
 
 /* Sticky filters panel */

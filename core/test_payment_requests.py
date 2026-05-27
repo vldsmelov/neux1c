@@ -638,9 +638,7 @@ class PaymentRequestWorkflowTests(TestCase):
         """Утверждение корректировки, уменьшающей лимит, должно перевести
         ранее ‘в норме’ pending-заявку в превышение и уведомить участников."""
         from core.models import (
-            BudgetLimitAdjustment,
             BudgetLimitPlan,
-            BudgetPlanStatus,
             Currency,
             Notification,
             NotificationKind,
@@ -705,7 +703,7 @@ class PaymentRequestWorkflowTests(TestCase):
         from datetime import timedelta
         from django.core.management import call_command
         from django.utils import timezone
-        from core.models import Currency, Notification, NotificationKind, Organization
+        from core.models import Currency, Notification, Organization
 
         org = Organization.objects.first()
         # Две просроченные pending-заявки одного согласующего
@@ -924,7 +922,6 @@ class PaymentRequestWorkflowTests(TestCase):
 
     def test_justification_download_is_access_controlled(self):
         """Author, approver и administrator получают файл; посторонний → 403; чужой/без файла → 404."""
-        from django.contrib.auth.models import Group
         from core.models import Currency, Organization
 
         # Создаём заявку с приложенным PDF-файлом
