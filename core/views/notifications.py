@@ -18,7 +18,9 @@ PAGE_SIZE = 30
 def notifications(request):
     """Show the user's notifications. POST actions: mark_read, mark_all_read."""
     if request.method == "POST":
-        action = request.POST.get("action")
+        # `notif_action` is sent by the global header dropdown; the full page
+        # uses `action`. Accept either so both surfaces share this view.
+        action = request.POST.get("action") or request.POST.get("notif_action")
         if action == "mark_all_read":
             count = mark_read(user=request.user)
             if count:

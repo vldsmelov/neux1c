@@ -54,15 +54,23 @@ def ui_theme(request):
 
 
 def notifications_summary(request):
-    """Expose unread notification count to the global app shell."""
+    """Expose unread count + the latest few notifications for the header dropdown."""
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"unread_notifications": 0}
+        return {"unread_notifications": 0, "recent_notifications": []}
     try:
+        from .models import Notification
         from .services.notifications import unread_count
-        return {"unread_notifications": unread_count(user)}
+
+        recent = list(
+            Notification.objects.filter(recipient=user).order_by("-created_at")[:6]
+        )
+        return {
+            "unread_notifications": unread_count(user),
+            "recent_notifications": recent,
+        }
     except (OperationalError, ProgrammingError):
-        return {"unread_notifications": 0}
+        return {"unread_notifications": 0, "recent_notifications": []}
 
 
 def current_user_flags(request):

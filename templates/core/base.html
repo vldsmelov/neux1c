@@ -190,10 +190,39 @@
                             <button class="density-button" type="button" data-table-density="normal" title="Стандартная плотность таблиц" aria-label="Стандартная плотность таблиц">☰</button>
                             <button class="density-button" type="button" data-table-density="compact" title="Компактная плотность таблиц" aria-label="Компактная плотность таблиц">≣</button>
                         </div>
-                        <a class="notif-bell {% if unread_notifications %}has-unread{% endif %}" href="{% url 'notifications' %}" title="Уведомления" aria-label="Уведомления, непрочитанных: {{ unread_notifications }}">
-                            <span aria-hidden="true">⌾</span>
-                            {% if unread_notifications %}<span class="notif-bell-count">{{ unread_notifications }}</span>{% endif %}
-                        </a>
+                        <details class="notif-menu" data-notif-menu>
+                            <summary class="notif-bell {% if unread_notifications %}has-unread{% endif %}" title="Уведомления" aria-label="Уведомления, непрочитанных: {{ unread_notifications }}">
+                                <span aria-hidden="true">⌾</span>
+                                {% if unread_notifications %}<span class="notif-bell-count">{{ unread_notifications }}</span>{% endif %}
+                            </summary>
+                            <div class="notif-dropdown" role="menu">
+                                <div class="notif-dropdown-head">
+                                    <span class="notif-dropdown-title">Уведомления</span>
+                                    {% if unread_notifications %}
+                                        <form method="post" action="{% url 'notifications' %}">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="notif_action" value="mark_all_read">
+                                            <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                                            <button class="notif-dropdown-clear" type="submit">Прочитать все</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                                <div class="notif-dropdown-list">
+                                    {% for n in recent_notifications %}
+                                        <a class="notif-dropdown-item {% if not n.is_read %}is-unread{% endif %}" href="{% url 'notification_follow' n.id %}">
+                                            <span class="notif-dropdown-dot notif-kind-{{ n.kind }}" aria-hidden="true"></span>
+                                            <span class="notif-dropdown-body">
+                                                <span class="notif-dropdown-item-title">{{ n.title }}</span>
+                                                <span class="notif-dropdown-item-time">{{ n.created_at|timesince }} назад</span>
+                                            </span>
+                                        </a>
+                                    {% empty %}
+                                        <div class="notif-dropdown-empty">Пока нет уведомлений</div>
+                                    {% endfor %}
+                                </div>
+                                <a class="notif-dropdown-foot" href="{% url 'notifications' %}">Открыть все уведомления →</a>
+                            </div>
+                        </details>
                         <span>{{ request.user.username }}</span>
                         <form class="logout-form" method="post" action="{% url 'logout' %}">
                             {% csrf_token %}
@@ -225,6 +254,19 @@
             <span class="app-rail-button" role="img" aria-label="Меню">≡</span>
         </aside>
     </div>
+    <script>
+        // Close the notifications dropdown when clicking outside it.
+        (() => {
+            const menu = document.querySelector("[data-notif-menu]");
+            if (!menu) return;
+            document.addEventListener("click", (e) => {
+                if (menu.open && !menu.contains(e.target)) menu.removeAttribute("open");
+            });
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && menu.open) menu.removeAttribute("open");
+            });
+        })();
+    </script>
     <script>
         (() => {
             const DENSITY_STORAGE_KEY = "ui.tableDensity";
