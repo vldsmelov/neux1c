@@ -28,3 +28,6 @@ Thumbs.db
 # Docker volumes / local data
 db_data/
 docs/user-guide/images/raw/ui_audit_*/
+
+# Local agent/preview config
+.claude/

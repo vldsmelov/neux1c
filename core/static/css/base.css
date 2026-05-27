@@ -693,6 +693,13 @@
             text-align: center;
         }
 
+        .section-tab-panel {
+            /* Grid item of .data-panel.stack: without min-width:0 a wide journal
+               table forces this panel past its track and blows out the whole
+               page horizontally. Keep it shrinkable so .data-table-wrap scrolls. */
+            min-width: 0;
+        }
+
         .section-tab-panel[hidden] {
             display: none !important;
         }
