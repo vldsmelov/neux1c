@@ -22,13 +22,18 @@
 </head>
 <body>
     <div class="mobile-nav">
-        <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
-        <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">Планирование</a>
-        <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">Платежи</a>
-        <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/register/">Договоры</a>
-        <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">Отчеты</a>
-        <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
-        <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">Настройки</a>
+        {% if show_internal %}
+            <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
+            <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">Планирование</a>
+            <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">Платежи</a>
+            <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/register/">Договоры</a>
+            <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">Отчеты</a>
+            <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
+            <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">Настройки</a>
+        {% endif %}
+        {% if show_external %}
+            <a class="app-tab {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">Внешний контур</a>
+        {% endif %}
         <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">Помощь</a>
     </div>
     <div class="app-shell">
@@ -38,6 +43,7 @@
                 <span class="app-logo-text">NE UX<br>пилот</span>
             </a>
             <nav class="app-nav app-sidebar-primary" aria-label="Рабочие разделы">
+                {% if show_internal %}
                 <details class="app-nav-group" {% if active_section == 'workspace' %}open{% endif %}>
                     <summary class="app-nav-group-title">Рабочий день</summary>
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'workspace' %}is-active{% endif %}" href="/">
@@ -121,7 +127,9 @@
                         <span class="app-nav-icon">¤</span><span>Валюты</span><span>›</span>
                     </a>
                 </details>
+                {% endif %}
 
+                {% if show_external %}
                 <details class="app-nav-group" {% if active_section == 'external_accounting' %}open{% endif %}>
                     <summary class="app-nav-group-title">Внешний контур</summary>
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">
@@ -131,6 +139,7 @@
                         <span class="app-nav-icon">₽</span><span>Платеж в 1С:БП</span><span>›</span>
                     </a>
                 </details>
+                {% endif %}
             </nav>
             <div class="app-sidebar-secondary">
                 <nav class="app-nav" aria-label="Сервисные разделы">
@@ -142,12 +151,14 @@
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'instruction' %}is-active{% endif %}" href="/instruction/">
                         <span class="app-nav-icon">☰</span><span>Инструкция</span><span>›</span>
                     </a>
+                    {% if show_internal %}
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'integration_requests' %}is-active{% endif %}" href="/settings/integration-requests/">
                         <span class="app-nav-icon">⚙</span><span>Настройки</span><span>›</span>
                     </a>
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'integration_request_wizard' %}is-active{% endif %}" href="/settings/integration-requests/wizard/">
                         <span class="app-nav-icon">+</span><span>Заявка на интеграцию</span><span>›</span>
                     </a>
+                    {% endif %}
                     {% if is_admin_user %}
                         <a class="app-nav-link {% if request.resolver_match.url_name == 'audit_log' %}is-active{% endif %}" href="{% url 'audit_log' %}">
                             <span class="app-nav-icon">⎙</span><span>Журнал действий</span><span>›</span>

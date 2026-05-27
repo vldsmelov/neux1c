@@ -74,18 +74,42 @@ def notifications_summary(request):
 
 
 def current_user_flags(request):
-    """Expose role-derived booleans to every template (e.g. for sidebar gating).
+    """Expose role-derived booleans to every template, primarily for gating
+    the navigation so users never see links that would 403 for them.
 
-    Computed once per request; values are cheap (no extra DB queries beyond
-    the AuthenticationMiddleware-loaded profile).
+    - is_admin_user : superuser or administrator role
+    - is_accountant : accountant role (external contour only)
+    - show_internal : may use the internal contour (planning/payments/
+                      contracts/reports/НСИ/settings) — everyone except accountant
+    - show_external : may use the external 1С:БП contour — accountant + admin
+
+    Computed once per request; cheap (profile is already loaded by auth).
     """
     user = getattr(request, "user", None)
     if user is None or not user.is_authenticated:
-        return {"is_admin_user": False}
+        return {
+            "is_admin_user": False,
+            "is_accountant": False,
+            "show_internal": False,
+            "show_external": False,
+        }
     if user.is_superuser:
-        return {"is_admin_user": True}
+        return {
+            "is_admin_user": True,
+            "is_accountant": False,
+            "show_internal": True,
+            "show_external": True,
+        }
     profile = getattr(user, "profile", None)
-    return {"is_admin_user": bool(profile and profile.role == "administrator")}
+    role = profile.role if profile else ""
+    is_admin = role == "administrator"
+    is_accountant = role == "accountant"
+    return {
+        "is_admin_user": is_admin,
+        "is_accountant": is_accountant,
+        "show_internal": not is_accountant,
+        "show_external": is_accountant or is_admin,
+    }
 
 
 def working_organization(request):
