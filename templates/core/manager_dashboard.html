@@ -110,7 +110,7 @@
                                     {% if row.has_limit_overrun %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
                                 <td>
-                                    <div class="usage-bar is-{{ row.usage_level }}" style="--usage: {{ row.usage_pct }}%;">
+                                    <div class="usage-bar is-{{ row.usage_level }}" style="--usage: {{ row.usage_pct|stringformat:'g' }}%;">
                                         <div class="usage-bar-meta">
                                             <span><b>{{ row.usage_pct|stringformat:'g' }}%</b> использовано</span>
                                             {% if row.overrun_pct %}<span>+{{ row.overrun_pct|stringformat:'g' }}% сверх</span>{% endif %}
@@ -229,7 +229,7 @@
                 {% if requests_total %}
                     <div class="status-bar-list">
                         {% for status_row in status_rows %}
-                            <div class="status-bar-row is-{{ status_row.kind }}" style="--share: {{ status_row.share_pct }}%;">
+                            <div class="status-bar-row is-{{ status_row.kind }}" style="--share: {{ status_row.share_pct|stringformat:'g' }}%;">
                                 <div class="status-bar-head">
                                     <span>{{ status_row.label }} · <span class="status-bar-total">{{ status_row.total }}</span></span>
                                     <span class="status-bar-share">{{ status_row.share_pct|stringformat:'g' }}%</span>
