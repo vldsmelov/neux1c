@@ -151,7 +151,6 @@ def approve_budget_plan(plan: BudgetLimitPlan, user) -> BudgetLimitPlan:
     recalculate_pending_requests_for_limit(
         article=plan.article,
         organization=plan.organization,
-        actor=user,
     )
     return plan
 
@@ -356,13 +355,11 @@ def approve_limit_adjustment(adjustment: BudgetLimitAdjustment, user) -> BudgetL
     recalculate_pending_requests_for_limit(
         article=base_plan.article,
         organization=base_plan.organization,
-        actor=user,
     )
     if adjustment.target_plan_id:
         recalculate_pending_requests_for_limit(
             article=adjustment.target_plan.article,
             organization=adjustment.target_plan.organization,
-            actor=user,
         )
     return adjustment
 

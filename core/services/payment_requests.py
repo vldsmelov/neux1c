@@ -410,7 +410,6 @@ def cancel_payment_request(request: PaymentRequest, user, reason: str = "") -> P
         recalculate_pending_requests_for_limit(
             article=request.article,
             organization=request.organization,
-            actor=user,
         )
     return request
 
@@ -444,13 +443,13 @@ def transfer_payment_request_to_do(request: PaymentRequest, user) -> PaymentRequ
     return request
 
 
-def recalculate_pending_requests_for_limit(*, article, organization, actor) -> int:
+def recalculate_pending_requests_for_limit(*, article, organization) -> int:
     """Refresh limit_remaining/exceeded on PENDING_APPROVAL requests after a
     limit change. Returns the number of requests updated.
 
-    When the exceeded flag flips, notify the author (and the approver if
-    different) so they see why the document changed shape: a budget action
-    by someone else just made their request over/under limit.
+    When the exceeded flag flips, notify the author and the approver so they
+    see why the document changed shape: a budget action by someone else just
+    made their request over/under limit.
     """
     pending = (
         PaymentRequest.objects.filter(
@@ -497,10 +496,9 @@ def recalculate_pending_requests_for_limit(*, article, organization, actor) -> i
                 if flipped_to_exceeded
                 else f"Заявка {pr.number}: вошла в лимит после пересчёта"
             )
-            # Уведомляем обе стороны заявки даже когда actor совпадает с одним
-            # из них: actor только что совершил действие по другому документу
-            # (корректировка / новый лимит), а side-effect на свою собственную
-            # pending-заявку он мог не заметить.
+            # Уведомляем обе стороны заявки: смена статуса превышения — это
+            # side-effect действия по другому документу (корректировка / новый
+            # лимит), который автор и согласующий могли не заметить.
             for recipient in {pr.author, pr.approver}:
                 if recipient is None:
                     continue
