@@ -369,6 +369,55 @@ class PlanFactReportTests(TestCase):
         msgs = [m.message for m in response.context["messages"]]
         self.assertTrue(any("создано 0" in m and "CFO-NOPE" in m for m in msgs), msgs)
 
+    def test_template_builder_renders(self):
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(reverse("planning_template_builder"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Конструктор шаблона плана")
+        self.assertContains(response, "Сгенерировать заготовки")
+
+    def test_template_builder_csv_only_headers_minimal(self):
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(reverse("planning_template_builder"), {})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        body = response.content.decode("utf-8-sig")
+        header = body.splitlines()[0]
+        # Обязательные колонки всегда включены
+        self.assertIn("ЦФО (код)", header)
+        self.assertIn("Статья ДДС (код)", header)
+        self.assertIn("Валюта (код)", header)
+        self.assertIn("Годовая сумма", header)
+        # Опциональные по умолчанию НЕ включены — проверим что хотя бы Янв отсутствует
+        self.assertNotIn("Янв", header)
+        self.assertNotIn("Комментарий", header)
+        # Должна быть одна строка-пример
+        self.assertEqual(len(body.strip().splitlines()), 2)
+
+    def test_template_builder_csv_with_monthly_and_pregenerated_rows(self):
+        from core.models import Department, CashFlowArticle
+
+        depts = list(Department.objects.order_by("code")[:2])
+        articles = list(CashFlowArticle.objects.order_by("code")[:3])
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("planning_template_builder"),
+            {
+                "columns": ["monthly", "comment"],
+                "department_ids": [str(d.id) for d in depts],
+                "article_ids": [str(a.id) for a in articles],
+                "generate_rows": "1",
+            },
+        )
+        body = response.content.decode("utf-8-sig")
+        header = body.splitlines()[0]
+        self.assertIn("Янв", header)
+        self.assertIn("Дек", header)
+        self.assertIn("Комментарий", header)
+        # 2 ЦФО × 3 статьи = 6 строк-заготовок + 1 заголовок
+        self.assertEqual(len(body.strip().splitlines()), 1 + len(depts) * len(articles))
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

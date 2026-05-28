@@ -36,5 +36,6 @@ from .planning import (  # noqa: F401
 )
 from .reports import manager_dashboard, plan_fact_report  # noqa: F401
 from .scenarios import planning_scenarios  # noqa: F401
+from .template_builder import planning_template_builder  # noqa: F401
 from .workflow import document_action_wizard  # noqa: F401
 from .workspace import workspace  # noqa: F401

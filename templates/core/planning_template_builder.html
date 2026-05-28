@@ -1,0 +1,107 @@
+{% extends "core/base.html" %}
+
+{% block title %}Конструктор шаблона плана · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/planning/wizard/">Первичный ввод</a>
+    <a class="app-tab" href="/planning/budgets/">Бюджеты</a>
+    <a class="app-tab" href="/planning/limits/">Лимиты</a>
+    <a class="app-tab" href="/planning/scenarios/">Сценарии</a>
+    <a class="app-tab is-active" href="/planning/templates/">Конструктор шаблона</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Конструктор шаблона плана</h1>
+            <p class="app-subtitle">Соберите CSV под свою задачу: выберите колонки, ЦФО и статьи, и система сгенерирует заготовку под все нужные комбинации. Заполните годовые суммы в Excel и загрузите обратно через «Импорт лимитов» на странице сценариев.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="post" class="form-stack">
+            {% csrf_token %}
+
+            <details class="stack-section" open>
+                <summary>1. Куда заливать (сценарий)</summary>
+                <div class="form-grid form-grid-2">
+                    <label><span class="field-label">Целевой сценарий</span>
+                        <select class="field-control-select" name="scenario_id">
+                            <option value="">— укажите при импорте на странице сценариев —</option>
+                            {% for scenario in scenarios %}
+                                <option value="{{ scenario.id }}">
+                                    {{ scenario.name }} · {{ scenario.year }} · {{ scenario.organization.name }}{% if scenario.is_baseline %} · базовый{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <p class="hint">Сценарий нужен, чтобы подписать строку-пример комментарием — сам импорт указывает сценарий отдельно.</p>
+                </div>
+            </details>
+
+            <details class="stack-section" open>
+                <summary>2. Колонки шаблона</summary>
+                <div class="form-grid form-grid-3">
+                    {% for key, label, required in selectable_columns %}
+                        <label class="inline-form-row">
+                            <input type="checkbox" name="columns" value="{{ key }}" {% if required %}checked disabled{% else %}checked{% endif %}>
+                            <span>{{ label }}{% if required %} <em>(обязательно)</em>{% endif %}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+                <p class="hint">Обязательные колонки нельзя отключить: без них импорт не поймёт строку.</p>
+            </details>
+
+            <details class="stack-section">
+                <summary>3. Фильтр ЦФО и статей (опционально)</summary>
+                <div class="form-grid form-grid-2">
+                    <label><span class="field-label">ЦФО (несколько через Ctrl/Cmd)</span>
+                        <select class="field-control-select" name="department_ids" multiple size="8">
+                            {% for department in departments %}
+                                <option value="{{ department.id }}">{{ department.code }} · {{ department.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label><span class="field-label">Статьи ДДС</span>
+                        <select class="field-control-select" name="article_ids" multiple size="8">
+                            {% for article in articles %}
+                                <option value="{{ article.id }}">{{ article.code }} · {{ article.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                </div>
+                <p class="hint">Если ничего не выбрано — используются все ЦФО / все статьи. Полезно для генерации заготовок.</p>
+            </details>
+
+            <details class="stack-section">
+                <summary>4. Значения по умолчанию</summary>
+                <div class="form-grid form-grid-3">
+                    <label><span class="field-label">Валюта по умолчанию</span>
+                        <select class="field-control-select" name="default_currency_id">
+                            {% for currency in currencies %}
+                                <option value="{{ currency.id }}" {% if currency.code == "RUB" %}selected{% endif %}>{{ currency.code }} · {{ currency.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label><span class="field-label">Согласующий (логин)</span>
+                        <input class="field-control" name="default_approver" placeholder="manager">
+                    </label>
+                </div>
+            </details>
+
+            <details class="stack-section" open>
+                <summary>5. Что положить в файл</summary>
+                <label class="inline-form-row">
+                    <input type="checkbox" name="generate_rows" value="1">
+                    <span>Сгенерировать заготовки строк (все выбранные ЦФО × все выбранные статьи)</span>
+                </label>
+                <p class="hint">Без галочки — только заголовки + одна строка-пример. С галочкой — пустые годовые суммы для каждой комбинации, бери Excel и заполняй.</p>
+            </details>
+
+            <div class="inline-form-row">
+                <button class="command-button-primary" type="submit">⬇ Скачать шаблон CSV</button>
+                <a class="command-button" href="/planning/scenarios/">К сценариям и импорту</a>
+            </div>
+        </form>
+    </section>
+{% endblock %}
