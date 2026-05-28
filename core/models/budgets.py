@@ -4,8 +4,89 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from .enums import BudgetPeriodicity, BudgetPlanStatus, BudgetScope
+from .enums import BudgetPeriodicity, BudgetPlanStatus, BudgetScope, PlanningScenarioKind
 from .nsi import CashFlowArticle, Currency, Department, Organization
+
+
+class PlanningScenario(models.Model):
+    """Сценарий планирования: версия плана (базовая / оптимистичная / своя).
+
+    Все бюджеты и лимиты привязаны к сценарию. Активным (для отчётов
+    по умолчанию) считается сценарий с is_baseline=True.
+    """
+
+    name = models.CharField("Название", max_length=120)
+    year = models.PositiveSmallIntegerField("Год планирования")
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Компания",
+        on_delete=models.CASCADE,
+        related_name="planning_scenarios",
+    )
+    kind = models.CharField(
+        "Тип",
+        max_length=16,
+        choices=PlanningScenarioKind.choices,
+        default=PlanningScenarioKind.BASE,
+    )
+    is_baseline = models.BooleanField(
+        "Базовый для компании/года",
+        default=False,
+        help_text="Только один сценарий компании в году может быть базовым; используется в отчётах по умолчанию",
+    )
+    comment = models.TextField("Комментарий", blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Автор",
+        on_delete=models.PROTECT,
+        related_name="planning_scenarios",
+        null=True,
+        blank=True,
+    )
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        ordering = ["-year", "organization__name", "name"]
+        verbose_name = "Сценарий планирования"
+        verbose_name_plural = "Сценарии планирования"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "year", "name"],
+                name="uniq_scenario_org_year_name",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        baseline = " · базовый" if self.is_baseline else ""
+        return f"{self.name} ({self.year}, {self.organization.name}){baseline}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Гарантируем единственный baseline на (organization, year)
+        if self.is_baseline:
+            PlanningScenario.objects.filter(
+                organization_id=self.organization_id,
+                year=self.year,
+            ).exclude(pk=self.pk).update(is_baseline=False)
+
+    @classmethod
+    def baseline_for(cls, organization, year):
+        return cls.objects.filter(organization=organization, year=year, is_baseline=True).first()
+
+    @classmethod
+    def ensure_baseline(cls, organization, year, *, author=None):
+        existing = cls.baseline_for(organization, year)
+        if existing is not None:
+            return existing
+        return cls.objects.create(
+            name="Базовый",
+            year=year,
+            organization=organization,
+            kind=PlanningScenarioKind.BASE,
+            is_baseline=True,
+            author=author,
+        )
 
 
 class BudgetPlan(models.Model):
@@ -18,6 +99,14 @@ class BudgetPlan(models.Model):
         related_name="budgets",
     )
     budget_year = models.PositiveSmallIntegerField("Период бюджета")
+    scenario = models.ForeignKey(
+        "core.PlanningScenario",
+        verbose_name="Сценарий планирования",
+        on_delete=models.PROTECT,
+        related_name="budgets",
+        null=True,
+        blank=True,
+    )
     periodicity = models.CharField(
         "Периодичность",
         max_length=16,
@@ -104,6 +193,14 @@ class BudgetLimitPlan(models.Model):
         blank=True,
     )
     planning_year = models.PositiveSmallIntegerField("Период планирования")
+    scenario = models.ForeignKey(
+        "core.PlanningScenario",
+        verbose_name="Сценарий планирования",
+        on_delete=models.PROTECT,
+        related_name="limits",
+        null=True,
+        blank=True,
+    )
     planning_horizon = models.PositiveSmallIntegerField("Горизонт планирования", default=1)
     department = models.ForeignKey(Department, verbose_name="ЦФО", on_delete=models.PROTECT)
     article = models.ForeignKey(CashFlowArticle, verbose_name="Статья ДДС", on_delete=models.PROTECT)

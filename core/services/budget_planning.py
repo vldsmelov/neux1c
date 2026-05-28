@@ -13,6 +13,7 @@ from core.models import (
     BudgetPlanStatus,
     NotificationKind,
     Organization,
+    PlanningScenario,
 )
 from core.services.budgets import validate_limit_within_budget
 from core.services.document_numbers import next_document_number
@@ -38,6 +39,7 @@ def create_budget_plan(
     approver,
     monthly_amounts: dict[int, Decimal] | None = None,
     comment: str = "",
+    scenario: PlanningScenario | None = None,
 ) -> BudgetLimitPlan:
     organization = budget.organization if budget is not None else (organization or _default_organization())
     if planning_horizon not in (1, 2, 3):
@@ -47,11 +49,19 @@ def create_budget_plan(
     validate_monthly_amounts(annual_amount, monthly_amounts)
     validate_limit_within_budget(budget=budget, department=department, annual_amount=annual_amount)
 
+    if scenario is None:
+        scenario = (
+            budget.scenario
+            if budget is not None and budget.scenario_id
+            else PlanningScenario.ensure_baseline(organization, planning_year, author=author)
+        )
+
     plan = BudgetLimitPlan.objects.create(
         number=next_budget_plan_number(),
         document_date=timezone.localdate(),
         organization=organization,
         budget=budget,
+        scenario=scenario,
         planning_year=planning_year,
         planning_horizon=planning_horizon,
         department=department,

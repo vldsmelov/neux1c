@@ -16,6 +16,7 @@ from ..models import (
     Counterparty,
     Organization,
     PaymentRequestStatus,
+    PlanningScenario,
     ReportTemplate,
     ReportTemplateType,
     UserRole,
@@ -94,6 +95,19 @@ def plan_fact_report(request):
     selected_organization_id = _read_filter_int(request.GET, base_filters, "organization_id") or org.id
     selected_customer_contract_id = _read_filter_int(request.GET, base_filters, "customer_contract_id")
     selected_supplier_contract_id = _read_filter_int(request.GET, base_filters, "supplier_contract_id")
+    selected_scenario_id = _read_filter_int(request.GET, base_filters, "scenario_id")
+
+    # Сценарии для выбранной компании+года; по умолчанию — baseline.
+    scenarios = list(
+        PlanningScenario.objects.filter(
+            organization_id=selected_organization_id,
+            year=selected_year,
+        ).order_by("-is_baseline", "name")
+    )
+    if not selected_scenario_id:
+        baseline = next((s for s in scenarios if s.is_baseline), None)
+        if baseline is not None:
+            selected_scenario_id = baseline.id
 
     filters = PlanFactFilters(
         year=selected_year,
@@ -103,6 +117,7 @@ def plan_fact_report(request):
         customer_contract_id=selected_customer_contract_id,
         supplier_contract_id=selected_supplier_contract_id,
         request_status=selected_status,
+        scenario_id=selected_scenario_id,
     )
     rows, summary = build_plan_fact_report(filters)
 
@@ -132,6 +147,8 @@ def plan_fact_report(request):
             "selected_customer_contract_id": selected_customer_contract_id,
             "selected_supplier_contract_id": selected_supplier_contract_id,
             "selected_request_status": selected_status,
+            "scenarios": scenarios,
+            "selected_scenario_id": selected_scenario_id,
             "report_templates": templates,
             "selected_template_id": selected_template_id,
             "working_organization": org,
@@ -144,6 +161,7 @@ def plan_fact_report(request):
                 "customer_contract_id": selected_customer_contract_id,
                 "supplier_contract_id": selected_supplier_contract_id,
                 "request_status": selected_status,
+                "scenario_id": selected_scenario_id,
             },
         },
     )
@@ -210,6 +228,7 @@ def _collect_plan_fact_filter_payload(data, *, default_year: int) -> dict:
         "customer_contract_id": parse_optional_int(data.get("customer_contract_id")),
         "supplier_contract_id": parse_optional_int(data.get("supplier_contract_id")),
         "request_status": request_status,
+        "scenario_id": parse_optional_int(data.get("scenario_id")),
     }
 
 

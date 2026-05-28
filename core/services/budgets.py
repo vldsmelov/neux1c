@@ -17,6 +17,7 @@ from core.models import (
     BudgetScope,
     NotificationKind,
     Organization,
+    PlanningScenario,
     UserRole,
 )
 from core.services.document_numbers import next_document_number
@@ -39,6 +40,7 @@ def create_budget(
     total_amount: Decimal | None = None,
     department_amounts: dict[int, Decimal] | None = None,
     comment: str = "",
+    scenario: PlanningScenario | None = None,
 ) -> BudgetPlan:
     organization = organization or _default_organization()
     if scope not in BudgetScope.values:
@@ -64,11 +66,15 @@ def create_budget(
             raise ValueError("Сумма бюджета ЦФО должна быть больше нуля")
         normalized_total = quant_money(sum(department_amounts.values(), Decimal("0")))
 
+    if scenario is None:
+        scenario = PlanningScenario.ensure_baseline(organization, budget_year, author=author)
+
     budget = BudgetPlan.objects.create(
         number=next_document_number("BUD"),
         document_date=timezone.localdate(),
         organization=organization,
         budget_year=budget_year,
+        scenario=scenario,
         scope=scope,
         currency=currency,
         total_amount=normalized_total,
@@ -161,6 +167,7 @@ def create_primary_budget_package(
     department_amounts: dict[int, Decimal] | None = None,
     limit_rows: list[dict] | None = None,
     comment: str = "",
+    scenario: PlanningScenario | None = None,
 ) -> tuple[BudgetPlan, list[BudgetLimitPlan]]:
     if not limit_rows:
         raise ValueError("Добавьте минимум один лимит")
@@ -176,6 +183,7 @@ def create_primary_budget_package(
         total_amount=total_amount,
         department_amounts=department_amounts,
         comment=comment,
+        scenario=scenario,
     )
     submit_budget(budget, author)
 

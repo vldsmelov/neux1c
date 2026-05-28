@@ -41,6 +41,7 @@ class PlanFactFilters:
     customer_contract_id: int | None = None
     supplier_contract_id: int | None = None
     request_status: str = ""
+    scenario_id: int | None = None
 
     @property
     def request_statuses(self) -> tuple[str, ...]:
@@ -59,8 +60,8 @@ def build_plan_fact_report(filters: PlanFactFilters) -> tuple[list[dict], dict]:
 
     articles_by_id = {article.id: article for article in articles}
     article_ids = list(articles_by_id.keys())
-    plans_by_article = _plans_by_article(article_ids, filters.year, filters.organization_id)
-    adjustments_by_article = _adjustments_by_article(article_ids, filters.year, filters.organization_id)
+    plans_by_article = _plans_by_article(article_ids, filters.year, filters.organization_id, filters.scenario_id)
+    adjustments_by_article = _adjustments_by_article(article_ids, filters.year, filters.organization_id, filters.scenario_id)
 
     rows_by_key: dict[tuple, dict] = {}
     _accumulate_requested_rows(rows_by_key, articles_by_id, filters)
@@ -378,7 +379,7 @@ def _build_row(*, article, organization, counterparty, customer_contract, suppli
     }
 
 
-def _plans_by_article(article_ids: list[int], year: int, organization_id: int | None) -> dict[int, Decimal]:
+def _plans_by_article(article_ids: list[int], year: int, organization_id: int | None, scenario_id: int | None) -> dict[int, Decimal]:
     query = BudgetLimitPlan.objects.filter(
         article_id__in=article_ids,
         status=BudgetPlanStatus.APPROVED,
@@ -386,13 +387,15 @@ def _plans_by_article(article_ids: list[int], year: int, organization_id: int | 
     )
     if organization_id:
         query = query.filter(organization_id=organization_id)
+    if scenario_id:
+        query = query.filter(scenario_id=scenario_id)
     return {
         row["article_id"]: row["total"] or MONEY_ZERO
         for row in query.values("article_id").annotate(total=Sum("annual_amount"))
     }
 
 
-def _adjustments_by_article(article_ids: list[int], year: int, organization_id: int | None) -> dict[int, Decimal]:
+def _adjustments_by_article(article_ids: list[int], year: int, organization_id: int | None, scenario_id: int | None) -> dict[int, Decimal]:
     query = BudgetLimitAdjustment.objects.filter(
         article_id__in=article_ids,
         status=BudgetPlanStatus.APPROVED,
@@ -400,6 +403,8 @@ def _adjustments_by_article(article_ids: list[int], year: int, organization_id: 
     )
     if organization_id:
         query = query.filter(base_plan__organization_id=organization_id)
+    if scenario_id:
+        query = query.filter(base_plan__scenario_id=scenario_id)
     latest_ids = {
         row["base_plan_id"]: row["latest_id"]
         for row in query.values("base_plan_id").annotate(latest_id=Max("id"))

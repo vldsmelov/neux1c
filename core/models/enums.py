@@ -102,6 +102,13 @@ class BudgetPlanStatus(models.TextChoices):
     CLOSED = "closed", "Закрыт"
 
 
+class PlanningScenarioKind(models.TextChoices):
+    BASE = "base", "Базовый"
+    OPTIMISTIC = "optimistic", "Оптимистичный"
+    PESSIMISTIC = "pessimistic", "Пессимистичный"
+    CUSTOM = "custom", "Пользовательский"
+
+
 class BudgetPeriodicity(models.TextChoices):
     YEAR = "year", "Год"
 

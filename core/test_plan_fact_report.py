@@ -201,6 +201,86 @@ class PlanFactReportTests(TestCase):
             ).exists()
         )
 
+    def test_plan_fact_filters_by_planning_scenario(self):
+        from core.models import PlanningScenario, PlanningScenarioKind
+
+        baseline = PlanningScenario.objects.create(
+            name="Базовый",
+            year=2026,
+            organization=self.organization,
+            kind=PlanningScenarioKind.BASE,
+            is_baseline=True,
+        )
+        optimistic = PlanningScenario.objects.create(
+            name="Оптимистичный",
+            year=2026,
+            organization=self.organization,
+            kind=PlanningScenarioKind.OPTIMISTIC,
+        )
+        # Привяжем существующий план к базовому, добавим вторую план под оптимистичный
+        self.plan.organization = self.organization
+        self.plan.scenario = baseline
+        self.plan.save(update_fields=["organization", "scenario"])
+        BudgetLimitPlan.objects.create(
+            number="PLN-2026-900002",
+            document_date=date(2026, 1, 11),
+            organization=self.organization,
+            scenario=optimistic,
+            planning_year=2026,
+            planning_horizon=1,
+            department=self.department,
+            article=self.article_ops,
+            currency=self.currency_rub,
+            annual_amount=Decimal("5000000.00"),
+            status=BudgetPlanStatus.APPROVED,
+            approver=self.manager,
+            approved_at=timezone.now(),
+            author=self.economist,
+        )
+
+        self.client.login(username="economist", password="demo12345")
+
+        baseline_resp = self.client.get(
+            reverse("plan_fact_report"),
+            {"year": 2026, "organization_id": self.organization.id, "scenario_id": baseline.id},
+        )
+        baseline_plan_total = sum(
+            row["plan"] for row in baseline_resp.context["rows"] if row["article"].code == "DDS-010"
+        )
+        self.assertEqual(baseline_plan_total, Decimal("1200000.00"))
+
+        optimistic_resp = self.client.get(
+            reverse("plan_fact_report"),
+            {"year": 2026, "organization_id": self.organization.id, "scenario_id": optimistic.id},
+        )
+        optimistic_plan_total = sum(
+            row["plan"] for row in optimistic_resp.context["rows"] if row["article"].code == "DDS-010"
+        )
+        self.assertEqual(optimistic_plan_total, Decimal("5000000.00"))
+
+    def test_economist_can_create_planning_scenario(self):
+        from core.models import PlanningScenario
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("planning_scenarios"),
+            {
+                "action": "create",
+                "name": "Пессимистичный 2026",
+                "year": 2026,
+                "organization_id": self.organization.id,
+                "kind": "pessimistic",
+                "is_baseline": "1",
+                "comment": "Снижение оборотов на 20%",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        scenario = PlanningScenario.objects.get(name="Пессимистичный 2026")
+        self.assertTrue(scenario.is_baseline)
+        self.assertEqual(scenario.kind, "pessimistic")
+        self.assertEqual(scenario.organization_id, self.organization.id)
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

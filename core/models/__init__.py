@@ -23,6 +23,7 @@ from .enums import (  # noqa: F401
     PaymentLimitControlMode,
     PaymentRequestKind,
     PaymentRequestStatus,
+    PlanningScenarioKind,
     ReportTemplateType,
     SourceSystem,
     SyncStatus,
@@ -51,6 +52,7 @@ from .budgets import (  # noqa: F401
     BudgetLimitMonth,
     BudgetLimitPlan,
     BudgetPlan,
+    PlanningScenario,
 )
 from .payment_requests import PaymentRequest, PaymentRequestControlSettings  # noqa: F401
 from .external import ExternalPaymentDocument  # noqa: F401
