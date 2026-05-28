@@ -120,7 +120,7 @@ class PaymentRequest(models.Model):
     @property
     def is_overdue(self) -> bool:
         """True если заявка PENDING_APPROVAL и висит дольше SLA."""
-        if self.status != PaymentRequestStatus.PENDING_APPROVAL or not self.submitted_at:
+        if self.status not in (PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL) or not self.submitted_at:
             return False
         from datetime import timedelta
         from django.utils import timezone as _tz

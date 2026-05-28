@@ -154,7 +154,7 @@ def _bulk_handle(request, action: str) -> None:
             raise ValueError("Согласовывать заявки может только назначенный руководитель")
         _bulk_apply(
             request,
-            queryset.filter(status=PaymentRequestStatus.PENDING_APPROVAL),
+            queryset.filter(status__in=[PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL]),
             lambda pr: approve_payment_request(pr, request.user),
             verb_done="Согласовано",
             verb_skipped_reason="не в статусе ‘На согласовании’",
@@ -169,7 +169,7 @@ def _bulk_handle(request, action: str) -> None:
             raise ValueError("Для массового отклонения укажите комментарий")
         _bulk_apply(
             request,
-            queryset.filter(status=PaymentRequestStatus.PENDING_APPROVAL),
+            queryset.filter(status__in=[PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL]),
             lambda pr: reject_payment_request(pr, request.user, comment),
             verb_done="Отклонено",
             verb_skipped_reason="не в статусе ‘На согласовании’",
@@ -204,7 +204,7 @@ def _bulk_handle(request, action: str) -> None:
         # Отменять можно только свои черновики/pending. Cервис проверит owner.
         only_mine = queryset.filter(
             author=request.user,
-            status__in=[PaymentRequestStatus.DRAFT, PaymentRequestStatus.PENDING_APPROVAL],
+            status__in=[PaymentRequestStatus.DRAFT, PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL],
         )
         reason = (request.POST.get("approver_comment") or "").strip()
         _bulk_apply(

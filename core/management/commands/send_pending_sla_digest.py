@@ -45,7 +45,7 @@ class Command(BaseCommand):
 
         overdue = (
             PaymentRequest.objects.filter(
-                status=PaymentRequestStatus.PENDING_APPROVAL,
+                status__in=[PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL],
                 submitted_at__lt=cutoff,
                 approver__isnull=False,
             )

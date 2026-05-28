@@ -21,6 +21,22 @@ class Currency(IntegrationTrackedModel):
 class Organization(IntegrationTrackedModel):
     name = models.CharField("Наименование", max_length=255, unique=True)
     inn = models.CharField("ИНН", max_length=12, blank=True)
+    escalation_threshold_rub = models.DecimalField(
+        "Порог эскалации, RUB",
+        max_digits=16,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Заявки на сумму ≥ порога после первого согласования уходят на финальное согласование",
+    )
+    secondary_approver = models.ForeignKey(
+        "auth.User",
+        verbose_name="Финальный согласующий",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="secondary_approver_for_organizations",
+    )
 
     class Meta:
         ordering = ["name"]

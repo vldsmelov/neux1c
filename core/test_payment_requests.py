@@ -161,6 +161,42 @@ class PaymentRequestWorkflowTests(PaymentRequestTestBase):
         payment_request.refresh_from_db()
         self.assertEqual(payment_request.status, PaymentRequestStatus.PENDING_APPROVAL)
 
+    def test_escalation_routes_large_request_to_secondary_approver(self):
+        from django.contrib.auth.models import User
+        from core.services.payment_requests import approve_payment_request
+
+        org = Organization.objects.first()
+        admin = User.objects.get(username="admin")
+        org.escalation_threshold_rub = Decimal("50000.00")
+        org.secondary_approver = admin
+        org.save(update_fields=["escalation_threshold_rub", "secondary_approver"])
+
+        payment_request = create_payment_request(
+            author=self.economist,
+            request_kind=PaymentRequestKind.BY_CONTRACT,
+            organization=org,
+            article=self.article,
+            counterparty=self.contract.counterparty,
+            contract=self.contract,
+            currency=Currency.objects.get(code="RUB"),
+            amount=Decimal("250000.00"),
+            manual_exchange_rate=Decimal("1.0000"),
+            approver=self.manager,
+            payment_purpose="Крупная закупка",
+        )
+        submit_payment_request(payment_request, self.economist)
+
+        # Первое согласование — должно отправить заявку на финальное согласование
+        approve_payment_request(payment_request, self.manager)
+        payment_request.refresh_from_db()
+        self.assertEqual(payment_request.status, PaymentRequestStatus.PENDING_FINAL_APPROVAL)
+        self.assertEqual(payment_request.approver_id, admin.id)
+
+        # Финальное согласование от secondary_approver — финализирует
+        approve_payment_request(payment_request, admin)
+        payment_request.refresh_from_db()
+        self.assertEqual(payment_request.status, PaymentRequestStatus.APPROVED)
+
     def test_invoice_request_requires_invoice_number(self):
 
         with self.assertRaises(ValueError):

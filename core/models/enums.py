@@ -120,6 +120,7 @@ class PaymentRequestKind(models.TextChoices):
 class PaymentRequestStatus(models.TextChoices):
     DRAFT = "draft", "Черновик"
     PENDING_APPROVAL = "pending_approval", "На согласовании"
+    PENDING_FINAL_APPROVAL = "pending_final_approval", "На финальном согласовании"
     APPROVED = "approved", "Согласована"
     TRANSFERRED = "transferred", "Передана в 1С:ДО"
     REJECTED = "rejected", "Отклонена"

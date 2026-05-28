@@ -123,7 +123,7 @@
                                     {% if request_row.limit_exceeded %}<span class="badge badge-danger">превышение</span>{% endif %}
                                 </td>
                                 <td class="table-col-status">
-                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-success{% elif request_row.status == status.PENDING_APPROVAL %}badge-info{% elif request_row.status == status.REJECTED %}badge-danger{% elif request_row.status == status.CANCELLED %}badge-muted{% endif %}">
+                                    <span class="badge {% if request_row.status == status.APPROVED or request_row.status == status.TRANSFERRED %}badge-success{% elif request_row.status == status.PENDING_APPROVAL or request_row.status == status.PENDING_FINAL_APPROVAL %}badge-info{% elif request_row.status == status.REJECTED %}badge-danger{% elif request_row.status == status.CANCELLED %}badge-muted{% endif %}">
                                         {{ request_row.get_status_display }}
                                     </span>
                                     {% if request_row.is_overdue %}
@@ -139,7 +139,7 @@
                                                 <a class="command-button is-danger" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'cancel' %}">Отменить</a>
                                             {% endif %}
                                         </div>
-                                    {% elif request_row.status == status.PENDING_APPROVAL and can_approve_payment_requests %}
+                                    {% elif request_row.status == status.PENDING_APPROVAL or request_row.status == status.PENDING_FINAL_APPROVAL and can_approve_payment_requests %}
                                         <div class="form-stack-compact">
                                             <a class="command-button-primary" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'approve' %}">Согласовать</a>
                                             <a class="command-button" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'reject' %}">Отклонить</a>
@@ -147,7 +147,7 @@
                                                 <a class="command-button is-danger" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'cancel' %}">Отозвать</a>
                                             {% endif %}
                                         </div>
-                                    {% elif request_row.status == status.PENDING_APPROVAL and request_row.author_id == request.user.id %}
+                                    {% elif request_row.status == status.PENDING_APPROVAL or request_row.status == status.PENDING_FINAL_APPROVAL and request_row.author_id == request.user.id %}
                                         <a class="command-button is-danger" href="{% url 'document_action_wizard' 'payment-request' request_row.id 'cancel' %}">Отозвать</a>
                                     {% elif request_row.status == status.REJECTED and can_manage_payment_requests %}
                                         <a class="command-button" href="{% url 'payment_request_edit_wizard' request_row.id %}">Исправить</a>

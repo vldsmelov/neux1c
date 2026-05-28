@@ -150,7 +150,7 @@ def _build_workday_context(user, organization) -> dict:
     if can_approve_payment_requests(user):
         payment_query = PaymentRequest.objects.filter(
             organization=organization,
-            status=PaymentRequestStatus.PENDING_APPROVAL,
+            status__in=[PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL],
         ).select_related("counterparty", "currency", "approver")
         if not user.is_superuser:
             payment_query = payment_query.filter(approver=user)

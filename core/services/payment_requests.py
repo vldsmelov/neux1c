@@ -32,9 +32,14 @@ RUB_CODE = "RUB"
 WORKFLOW_PATH = "/payments/requests/"
 RESERVED_REQUEST_STATUSES = [
     PaymentRequestStatus.PENDING_APPROVAL,
+    PaymentRequestStatus.PENDING_FINAL_APPROVAL,
     PaymentRequestStatus.APPROVED,
     PaymentRequestStatus.TRANSFERRED,
 ]
+PENDING_APPROVAL_STATUSES = (
+    PaymentRequestStatus.PENDING_APPROVAL,
+    PaymentRequestStatus.PENDING_FINAL_APPROVAL,
+)
 
 
 @transaction.atomic
@@ -287,7 +292,7 @@ def submit_payment_request(request: PaymentRequest, user) -> PaymentRequest:
 
 @transaction.atomic
 def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
-    if request.status != PaymentRequestStatus.PENDING_APPROVAL:
+    if request.status not in PENDING_APPROVAL_STATUSES:
         raise ValueError("Согласовать можно только заявку в статусе 'На согласовании'")
     if request.approver_id != user.id and not user.is_superuser:
         raise ValueError("Заявку может согласовать только назначенный руководитель")
@@ -300,6 +305,52 @@ def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
     )
     control_settings = PaymentRequestControlSettings.active_or_default()
     _enforce_limit_control_mode(control_settings.control_mode, is_exceeded)
+
+    # Escalation: first approval of a request whose amount crosses the
+    # organization threshold transitions to PENDING_FINAL_APPROVAL with the
+    # configured secondary approver instead of finalizing.
+    if request.status == PaymentRequestStatus.PENDING_APPROVAL:
+        org = request.organization
+        threshold = org.escalation_threshold_rub
+        secondary = org.secondary_approver
+        if (
+            threshold is not None
+            and secondary is not None
+            and request.amount_rub >= threshold
+            and secondary.id != user.id
+        ):
+            request.status = PaymentRequestStatus.PENDING_FINAL_APPROVAL
+            request.approver = secondary
+            request.limit_remaining_before_rub = before_limit
+            request.limit_remaining_after_rub = after_limit
+            request.limit_exceeded = is_exceeded
+            request.save(
+                update_fields=[
+                    "status",
+                    "approver",
+                    "limit_remaining_before_rub",
+                    "limit_remaining_after_rub",
+                    "limit_exceeded",
+                    "updated_at",
+                ]
+            )
+            AuditLog.objects.create(
+                user=user,
+                action=AuditAction.APPROVE,
+                path=WORKFLOW_PATH,
+                object_type="PaymentRequest",
+                object_id=str(request.pk),
+                message=f"Заявка {request.number}: первичное согласование, передано на финальное согласование",
+            )
+            notify(
+                recipient=secondary,
+                kind=NotificationKind.PAYMENT_SUBMITTED,
+                title=f"Финальное согласование: заявка {request.number}",
+                text=f"{request.counterparty.name} · {request.amount} {request.currency.code}",
+                link="/payments/requests/",
+                related=request,
+            )
+            return request
 
     request.status = PaymentRequestStatus.APPROVED
     request.approved_at = timezone.now()
@@ -338,7 +389,7 @@ def approve_payment_request(request: PaymentRequest, user) -> PaymentRequest:
 
 @transaction.atomic
 def reject_payment_request(request: PaymentRequest, user, approver_comment: str) -> PaymentRequest:
-    if request.status != PaymentRequestStatus.PENDING_APPROVAL:
+    if request.status not in PENDING_APPROVAL_STATUSES:
         raise ValueError("Отклонить можно только заявку в статусе 'На согласовании'")
     if request.approver_id != user.id and not user.is_superuser:
         raise ValueError("Заявку может отклонить только назначенный руководитель")
@@ -377,12 +428,12 @@ def cancel_payment_request(request: PaymentRequest, user, reason: str = "") -> P
     requests on the same article need to be recomputed. The approver is
     notified that the request was withdrawn.
     """
-    if request.status not in (PaymentRequestStatus.DRAFT, PaymentRequestStatus.PENDING_APPROVAL):
+    if request.status not in (PaymentRequestStatus.DRAFT, *PENDING_APPROVAL_STATUSES):
         raise ValueError("Отменить можно только черновик или заявку на согласовании")
     if request.author_id != user.id and not user.is_superuser:
         raise ValueError("Заявку может отменить только её автор")
 
-    was_pending = request.status == PaymentRequestStatus.PENDING_APPROVAL
+    was_pending = request.status in PENDING_APPROVAL_STATUSES
     request.status = PaymentRequestStatus.CANCELLED
     request.cancelled_at = timezone.now()
     request.cancellation_reason = (reason or "").strip()[:255]
@@ -455,7 +506,7 @@ def recalculate_pending_requests_for_limit(*, article, organization) -> int:
         PaymentRequest.objects.filter(
             article=article,
             organization=organization,
-            status=PaymentRequestStatus.PENDING_APPROVAL,
+            status__in=PENDING_APPROVAL_STATUSES,
         )
         .select_related("author", "approver", "currency", "counterparty")
     )

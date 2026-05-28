@@ -43,7 +43,7 @@ def build_manager_dashboard(*, year: int, organization_id: int | None = None) ->
 
     overdue_cutoff = timezone.now() - timedelta(days=PENDING_SLA_DAYS)
     overdue_query = PaymentRequest.objects.filter(
-        status=PaymentRequestStatus.PENDING_APPROVAL,
+        status__in=[PaymentRequestStatus.PENDING_APPROVAL, PaymentRequestStatus.PENDING_FINAL_APPROVAL],
         submitted_at__lt=overdue_cutoff,
     )
     if organization_id:

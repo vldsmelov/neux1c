@@ -26,6 +26,7 @@ RUB_CODE = "RUB"
 MONEY_ZERO = Decimal("0.00")
 DEFAULT_REQUEST_STATUSES = (
     PaymentRequestStatus.PENDING_APPROVAL,
+    PaymentRequestStatus.PENDING_FINAL_APPROVAL,
     PaymentRequestStatus.APPROVED,
     PaymentRequestStatus.TRANSFERRED,
 )
