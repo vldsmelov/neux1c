@@ -4,13 +4,17 @@
 шести справочников) + два view и набор приватных helpers для CRUD/валидации.
 """
 
+import csv
+from io import StringIO, TextIOWrapper
+
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.db import IntegrityError
+from django.db import IntegrityError, transaction
 from django.db.models.deletion import ProtectedError
-from django.http import Http404
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 
 from ..access import role_required
 from ..integrations.one_c.mock import MockOneCProvider
@@ -141,6 +145,9 @@ def nsi_directory(request, directory: str):
     model = config["model"]
     path = reverse("nsi_directory", kwargs={"directory": directory})
 
+    if request.method == "GET" and request.GET.get("export") == "csv":
+        return _export_nsi_csv(directory, config)
+
     if request.method == "POST":
         action = request.POST.get("action")
         try:
@@ -158,6 +165,12 @@ def nsi_directory(request, directory: str):
             elif action == "delete":
                 item_name = _delete_nsi_item(request, path=path)
                 messages.success(request, f"Запись удалена: {item_name}")
+            elif action == "import_csv":
+                stats = _import_nsi_csv(request, directory, config, path=path)
+                messages.success(
+                    request,
+                    f"Импорт CSV: создано {stats['created']}, пропущено {stats['skipped']}, ошибок {stats['errors']}",
+                )
             else:
                 raise ValueError("Неизвестное действие НСИ")
         except (IntegrityError, ProtectedError, ValidationError, ValueError) as exc:
@@ -332,6 +345,110 @@ def _format_nsi_error(exc) -> str:
     if isinstance(exc, IntegrityError):
         return "Такой элемент НСИ уже существует или нарушает уникальность справочника"
     return str(exc)
+
+
+def _export_nsi_csv(directory: str, config: dict) -> HttpResponse:
+    model = config["model"]
+    field_names = [field["name"] for field in config["fields"]]
+    headers = [field["label"] for field in config["fields"]] + ["Источник"]
+    buffer = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow(headers)
+    for obj in model.objects.order_by(*config["ordering"]).iterator():
+        row = []
+        for name in field_names:
+            value = getattr(obj, name)
+            if isinstance(value, bool):
+                row.append("1" if value else "0")
+            else:
+                row.append("" if value is None else str(value))
+        row.append(obj.get_source_system_display())
+        writer.writerow(row)
+    response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
+    stamp = timezone.localdate().strftime("%Y%m%d")
+    response["Content-Disposition"] = f'attachment; filename="nsi_{directory}_{stamp}.csv"'
+    return response
+
+
+def _import_nsi_csv(request, directory: str, config: dict, *, path: str) -> dict:
+    model = config["model"]
+    if not has_model_permission(request.user, model, "add"):
+        raise ValueError("Недостаточно прав для импорта элементов НСИ")
+    upload = request.FILES.get("csv_file")
+    if upload is None:
+        raise ValueError("Не выбран CSV-файл для импорта")
+
+    text_stream = TextIOWrapper(upload.file, encoding="utf-8-sig", newline="")
+    sample = text_stream.read(4096)
+    text_stream.seek(0)
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=";,\t")
+    except csv.Error:
+        dialect = csv.excel
+        dialect.delimiter = ";"
+    reader = csv.DictReader(text_stream, dialect=dialect)
+    if reader.fieldnames is None:
+        raise ValueError("CSV-файл пустой или поврежден")
+
+    label_to_field = {field["label"].strip().lower(): field for field in config["fields"]}
+    name_to_field = {field["name"]: field for field in config["fields"]}
+    column_map: dict[str, dict] = {}
+    for column in reader.fieldnames:
+        key = (column or "").strip().lower()
+        if key in label_to_field:
+            column_map[column] = label_to_field[key]
+        elif key in name_to_field:
+            column_map[column] = name_to_field[key]
+
+    required_missing = [f["label"] for f in config["fields"] if f.get("required") and f not in column_map.values()]
+    if required_missing:
+        raise ValueError(f"В CSV отсутствуют обязательные колонки: {', '.join(required_missing)}")
+
+    created = skipped = errors = 0
+    with transaction.atomic():
+        for row_index, row in enumerate(reader, start=2):
+            values: dict = {}
+            try:
+                for column, field in column_map.items():
+                    raw = (row.get(column) or "").strip()
+                    if field.get("kind") == "checkbox":
+                        values[field["name"]] = raw.lower() in {"1", "true", "yes", "да", "x"}
+                        continue
+                    if field.get("transform") == "upper":
+                        raw = raw.upper()
+                    if field.get("required") and not raw:
+                        raise ValueError(f"строка {row_index}: пустое значение в колонке «{field['label']}»")
+                    values[field["name"]] = raw
+                # Defaults for checkbox fields not present in CSV
+                for field in config["fields"]:
+                    if field["name"] not in values and field.get("kind") == "checkbox":
+                        values[field["name"]] = bool(field.get("default"))
+                values.update(config.get("create_defaults", {}))
+                item = model(**values, source_system=SourceSystem.MANUAL)
+                item.full_clean()
+                item.save()
+                created += 1
+            except (ValidationError, ValueError) as exc:
+                # Duplicates -> skipped; other validation problems -> errors
+                if isinstance(exc, ValidationError) and any(
+                    "уже сущест" in m.lower() or "unique" in m.lower()
+                    for m in getattr(exc, "messages", [])
+                ):
+                    skipped += 1
+                else:
+                    errors += 1
+            except IntegrityError:
+                skipped += 1
+
+    AuditLog.objects.create(
+        user=request.user,
+        action=AuditAction.CREATE,
+        path=path,
+        object_type=model.__name__,
+        object_id="",
+        message=f"CSV-импорт НСИ {directory}: создано {created}, пропущено {skipped}, ошибок {errors}",
+    )
+    return {"created": created, "skipped": skipped, "errors": errors}
 
 
 def can_create_nsi(user) -> bool:

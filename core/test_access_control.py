@@ -184,6 +184,41 @@ class AccessControlTests(TestCase):
         self.assertTrue(Organization.objects.filter(name='ООО "Гладиолус"').exists())
         self.assertTrue(Department.objects.filter(code="CFO-001").exists())
 
+    def test_economist_can_export_and_import_nsi_csv(self):
+        from io import BytesIO
+
+        self.client.login(username="economist", password="demo12345")
+
+        export = self.client.get(
+            reverse("nsi_directory", kwargs={"directory": "departments"}),
+            {"export": "csv"},
+        )
+        self.assertEqual(export.status_code, 200)
+        self.assertEqual(export["Content-Type"], "text/csv; charset=utf-8")
+        body = export.content.decode("utf-8-sig")
+        self.assertIn("Код;Наименование", body.splitlines()[0])
+
+        upload = BytesIO("Код;Наименование\nCFO-IMP1;Импорт 1\nCFO-IMP2;Импорт 2\n".encode("utf-8-sig"))
+        upload.name = "departments.csv"
+        response = self.client.post(
+            reverse("nsi_directory", kwargs={"directory": "departments"}),
+            {"action": "import_csv", "directory": "departments", "csv_file": upload},
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("Импорт CSV" in m for m in msgs))
+        self.assertTrue(Department.objects.filter(code="CFO-IMP1").exists())
+        self.assertTrue(Department.objects.filter(code="CFO-IMP2").exists())
+        self.assertTrue(
+            AuditLog.objects.filter(
+                user__username="economist",
+                action=AuditAction.CREATE,
+                object_type="Department",
+                message__contains="CSV-импорт",
+            ).exists()
+        )
+
     def test_manager_can_open_workspace_and_nsi_read_only(self):
         self.client.login(username="manager", password="demo12345")
 

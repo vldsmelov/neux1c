@@ -12,14 +12,28 @@
             <h1 class="app-title">{{ directory.label }}</h1>
             <p class="app-subtitle">{{ directory.description }}</p>
         </div>
-        {% if can_sync_mock_1c %}
-            <form class="command-bar" method="post">
-                {% csrf_token %}
-                <input type="hidden" name="action" value="sync">
-                <input type="hidden" name="directory" value="{{ directory_key }}">
-                <button class="command-button" type="submit">Синхронизировать Mock-1С</button>
-            </form>
-        {% endif %}
+        <div class="command-bar">
+            <a class="command-button" href="?export=csv" title="Скачать справочник в CSV">⬇ CSV</a>
+            {% if can_create_nsi %}
+                <form method="post" enctype="multipart/form-data" class="inline-form-row">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="import_csv">
+                    <input type="hidden" name="directory" value="{{ directory_key }}">
+                    <label class="command-button" style="cursor: pointer;">
+                        ⬆ Импорт CSV
+                        <input type="file" name="csv_file" accept=".csv,text/csv" style="display:none;" onchange="this.form.submit()">
+                    </label>
+                </form>
+            {% endif %}
+            {% if can_sync_mock_1c %}
+                <form method="post" class="inline-form-row">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="sync">
+                    <input type="hidden" name="directory" value="{{ directory_key }}">
+                    <button class="command-button" type="submit">Синхронизировать Mock-1С</button>
+                </form>
+            {% endif %}
+        </div>
     </div>
 
     <section class="data-panel stack">
