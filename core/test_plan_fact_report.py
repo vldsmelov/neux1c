@@ -281,6 +281,94 @@ class PlanFactReportTests(TestCase):
         self.assertEqual(scenario.kind, "pessimistic")
         self.assertEqual(scenario.organization_id, self.organization.id)
 
+    def test_scenario_template_csv_download(self):
+        from core.models import PlanningScenario
+
+        scenario = PlanningScenario.objects.create(
+            name="Базовый",
+            year=2026,
+            organization=self.organization,
+            is_baseline=True,
+        )
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(reverse("planning_scenarios"), {"template": scenario.id})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        body = response.content.decode("utf-8-sig")
+        first_line = body.splitlines()[0]
+        self.assertIn("ЦФО (код)", first_line)
+        self.assertIn("Статья ДДС (код)", first_line)
+        self.assertIn("Янв", first_line)
+        # Должна быть строка-пример со ссылкой на сценарий
+        self.assertIn("Пример строки", body)
+
+    def test_economist_can_import_limits_csv_into_scenario(self):
+        from io import BytesIO
+        from core.models import BudgetLimitPlan, PlanningScenario
+
+        scenario = PlanningScenario.objects.create(
+            name="Оптимистичный 2026",
+            year=2026,
+            organization=self.organization,
+            kind="optimistic",
+        )
+        before = BudgetLimitPlan.objects.filter(scenario=scenario).count()
+
+        csv_text = (
+            "ЦФО (код);Статья ДДС (код);Валюта (код);Годовая сумма;"
+            "Янв;Фев;Мар;Апр;Май;Июн;Июл;Авг;Сен;Окт;Ноя;Дек;"
+            "Согласующий (логин);Комментарий\n"
+            f"{self.department.code};{self.article_ops.code};{self.currency_rub.code};1200000.00;"
+            "100000.00;100000.00;100000.00;100000.00;100000.00;100000.00;"
+            "100000.00;100000.00;100000.00;100000.00;100000.00;100000.00;"
+            "manager;Импортированный лимит\n"
+            f"{self.department.code};{self.article_ops.code};{self.currency_rub.code};600000.00;"
+            ";;;;;;;;;;;;manager;Распределим равномерно\n"
+        )
+        upload = BytesIO(csv_text.encode("utf-8-sig"))
+        upload.name = "limits.csv"
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("planning_scenarios"),
+            {
+                "action": "import_limits",
+                "scenario_id": scenario.id,
+                "csv_file": upload,
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("создано 2" in m for m in msgs), msgs)
+        self.assertEqual(BudgetLimitPlan.objects.filter(scenario=scenario).count(), before + 2)
+
+    def test_limits_import_reports_bad_department_code(self):
+        from io import BytesIO
+        from core.models import PlanningScenario
+
+        scenario = PlanningScenario.objects.create(
+            name="Тест ошибок",
+            year=2026,
+            organization=self.organization,
+        )
+        csv_text = (
+            "ЦФО (код);Статья ДДС (код);Валюта (код);Годовая сумма;Комментарий\n"
+            f"CFO-NOPE;{self.article_ops.code};{self.currency_rub.code};1000000.00;Bad dept\n"
+        )
+        upload = BytesIO(csv_text.encode("utf-8-sig"))
+        upload.name = "limits.csv"
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("planning_scenarios"),
+            {"action": "import_limits", "scenario_id": scenario.id, "csv_file": upload},
+            follow=True,
+        )
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("создано 0" in m and "CFO-NOPE" in m for m in msgs), msgs)
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

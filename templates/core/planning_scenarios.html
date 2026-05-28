@@ -114,8 +114,18 @@
                             <td class="table-col-short">{{ scenario.limits.count }}</td>
                             <td>{{ scenario.comment|default:"—" }}</td>
                             <td class="table-action-col">
-                                {% if can_edit %}
-                                    <div class="form-stack-compact">
+                                <div class="form-stack-compact">
+                                    <a class="command-button is-sm" href="?template={{ scenario.id }}" title="Скачать CSV-шаблон лимитов для этого сценария">⬇ Шаблон</a>
+                                    {% if can_edit %}
+                                        <form method="post" enctype="multipart/form-data" class="inline-form-row">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="import_limits">
+                                            <input type="hidden" name="scenario_id" value="{{ scenario.id }}">
+                                            <label class="command-button is-sm" style="cursor:pointer;" title="Загрузить заполненный CSV — лимиты создадутся в этом сценарии">
+                                                ⬆ Импорт лимитов
+                                                <input type="file" name="csv_file" accept=".csv,text/csv" style="display:none" onchange="this.form.submit()">
+                                            </label>
+                                        </form>
                                         {% if not scenario.is_baseline %}
                                             <form method="post" style="display:inline">
                                                 {% csrf_token %}
@@ -132,10 +142,8 @@
                                         {% else %}
                                             <span class="badge">активен</span>
                                         {% endif %}
-                                    </div>
-                                {% else %}
-                                    <span class="badge">read-only</span>
-                                {% endif %}
+                                    {% endif %}
+                                </div>
                             </td>
                         </tr>
                     {% empty %}
