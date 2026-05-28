@@ -41,11 +41,11 @@
 
             <details class="stack-section" open>
                 <summary>2. Колонки шаблона</summary>
-                <div class="form-grid form-grid-3">
+                <div class="template-columns-grid">
                     {% for key, label, required in selectable_columns %}
                         <label class="inline-form-row">
                             <input type="checkbox" name="columns" value="{{ key }}" {% if required %}checked disabled{% else %}checked{% endif %}>
-                            <span>{{ label }}{% if required %} <em>(обязательно)</em>{% endif %}</span>
+                            <span>{{ label }}{% if required %}<em>обязательно</em>{% endif %}</span>
                         </label>
                     {% endfor %}
                 </div>

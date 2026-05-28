@@ -166,10 +166,10 @@
                 <div>
                     <label class="field-label" for="scenario_id">Сценарий планирования</label>
                     <select class="field-control-select" id="scenario_id" name="scenario_id">
-                        <option value="">Базовый</option>
+                        <option value="">— автоматически (базовый) —</option>
                         {% for scenario in scenarios %}
                             <option value="{{ scenario.id }}" {% if selected_scenario_id == scenario.id %}selected{% endif %}>
-                                {{ scenario.name }}{% if scenario.is_baseline %} · базовый{% endif %} · {{ scenario.get_kind_display }}
+                                {{ scenario.name }}{% if scenario.is_baseline and scenario.kind != 'base' %} · базовый{% endif %}
                             </option>
                         {% endfor %}
                     </select>

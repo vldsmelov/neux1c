@@ -15,9 +15,42 @@
     <div class="app-page-head">
         <div>
             <h1 class="app-title">Сценарии планирования</h1>
-            <p class="app-subtitle">Каждый бюджет и лимит относятся к сценарию. Базовый сценарий используется в план-факте по умолчанию; вы можете завести оптимистичный, пессимистичный или произвольный сценарий и переключаться между ними в отчёте.</p>
+            <p class="app-subtitle">Каждый бюджет и лимит относятся к сценарию. Базовый используется в план-факте по умолчанию; рядом можно держать оптимистичный, пессимистичный или свои варианты и переключаться между ними в отчёте.</p>
         </div>
     </div>
+
+    <section class="data-panel stack workflow-hint">
+        <div class="workflow-steps">
+            <div class="workflow-step">
+                <span class="workflow-step-num">1</span>
+                <div>
+                    <strong>Создайте сценарий</strong>
+                    <span>Заведите версию плана — базовую, what-if или специфичную для компании.</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">2</span>
+                <div>
+                    <strong>Соберите шаблон</strong>
+                    <span><a href="/planning/templates/">Конструктор шаблона</a> → выберите ЦФО, статьи и колонки → CSV.</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">3</span>
+                <div>
+                    <strong>Заполните в Excel</strong>
+                    <span>Сохраните CSV (UTF-8) — система понимает разделители ; , ⇥ и помесячные или годовые суммы.</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">4</span>
+                <div>
+                    <strong>Загрузите обратно</strong>
+                    <span>Кнопка «⬆ Импорт лимитов» в строке сценария — лимиты создадутся пакетно.</span>
+                </div>
+            </div>
+        </div>
+    </section>
 
     <section class="data-panel stack">
         <form method="get" class="form-grid form-grid-3">
@@ -87,33 +120,39 @@
             <span class="table-toolbar-note">Сценариев: <strong>{{ scenarios|length }}</strong></span>
         </div>
         <div class="data-table-wrap desktop-scroll">
-            <table class="data-table">
+            <table class="data-table data-table-narrow">
                 <thead>
                     <tr>
-                        <th scope="col">Название</th>
-                        <th scope="col" class="table-col-short">Год</th>
-                        <th scope="col">Компания</th>
-                        <th scope="col" class="table-col-short">Тип</th>
-                        <th scope="col" class="table-col-short">Базовый</th>
-                        <th scope="col" class="table-col-short">Бюджеты</th>
-                        <th scope="col" class="table-col-short">Лимиты</th>
-                        <th scope="col">Комментарий</th>
+                        <th scope="col">Сценарий</th>
+                        <th scope="col">Компания · год</th>
                         <th scope="col" class="table-action-col">Действие</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for scenario in scenarios %}
                         <tr>
-                            <td>{{ scenario.name }}</td>
-                            <td class="table-col-short">{{ scenario.year }}</td>
-                            <td>{{ scenario.organization.name }}</td>
-                            <td class="table-col-short">{{ scenario.get_kind_display }}</td>
-                            <td class="table-col-short">
-                                {% if scenario.is_baseline %}<span class="badge badge-success">базовый</span>{% else %}—{% endif %}
+                            <td>
+                                <div class="scenario-name-cell">
+                                    <strong>{{ scenario.name }}</strong>
+                                    <div class="scenario-name-badges">
+                                        {% if scenario.is_baseline %}<span class="badge badge-success">базовый</span>{% endif %}
+                                        {% if scenario.kind != 'base' %}
+                                            <span class="badge badge-muted">{{ scenario.get_kind_display }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if scenario.comment %}
+                                        <div class="cell-secondary" title="{{ scenario.comment }}">{{ scenario.comment|truncatechars:80 }}</div>
+                                    {% endif %}
+                                </div>
                             </td>
-                            <td class="table-col-short">{{ scenario.budgets.count }}</td>
-                            <td class="table-col-short">{{ scenario.limits.count }}</td>
-                            <td>{{ scenario.comment|default:"—" }}</td>
+                            <td>
+                                <div>{{ scenario.organization.name }}</div>
+                                <div class="cell-secondary">{{ scenario.year }} г.</div>
+                                <div class="scenario-usage-chips">
+                                    <span class="badge">{{ scenario.budgets.count }} бюдж.</span>
+                                    <span class="badge">{{ scenario.limits.count }} лим.</span>
+                                </div>
+                            </td>
                             <td class="table-action-col">
                                 <div class="form-stack-compact">
                                     <a class="command-button is-sm" href="?template={{ scenario.id }}" title="Скачать CSV-шаблон лимитов для этого сценария">⬇ Шаблон</a>
@@ -148,7 +187,7 @@
                             </td>
                         </tr>
                     {% empty %}
-                        <tr><td colspan="9">Сценариев нет. Создайте первый.</td></tr>
+                        <tr><td colspan="3">Сценариев нет. Создайте первый — кнопка «Создать сценарий» выше.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

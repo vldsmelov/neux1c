@@ -898,3 +898,89 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     text-decoration: none;
 }
 .notif-dropdown-foot:hover { background: var(--color-accent-soft); }
+
+/* Planning scenarios workflow tip */
+.workflow-hint { background: linear-gradient(135deg, var(--color-accent-soft) 0%, transparent 70%); }
+.workflow-steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+}
+.workflow-step {
+    display: flex;
+    gap: var(--space-3);
+    align-items: flex-start;
+    padding: var(--space-3);
+    border-radius: var(--radius-md);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+}
+.workflow-step strong { display: block; margin-bottom: 4px; font-size: var(--text-sm); }
+.workflow-step > div > span { display: block; font-size: var(--text-xs); color: var(--color-text-muted); line-height: 1.4; }
+.workflow-step > .workflow-step-num {
+    flex-shrink: 0;
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--color-accent);
+    color: #fff;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    line-height: 1;
+}
+
+/* A narrow data-table variant for screens with few columns (scenarios) */
+.data-table.data-table-narrow { min-width: 0; }
+.data-table.data-table-narrow .table-action-col { width: 200px; min-width: 200px; }
+
+/* Scenario row layout */
+.scenario-name-cell { display: flex; flex-direction: column; gap: 4px; }
+.scenario-name-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.scenario-usage-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.cell-secondary { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: 2px; }
+
+/* Sticky right action column inside desktop-scroll wraps */
+.data-table-wrap.desktop-scroll .table-action-col {
+    position: sticky;
+    right: 0;
+    background: var(--color-bg-surface);
+    box-shadow: -8px 0 8px -8px rgba(0,0,0,.08);
+}
+.data-table-wrap.desktop-scroll tbody tr:nth-child(even) .table-action-col {
+    background: var(--color-bg-elevated, var(--color-bg-surface));
+}
+
+/* Tighter compact action stack */
+.form-stack-compact { display: flex; flex-direction: column; gap: 4px; align-items: stretch; }
+.form-stack-compact > form { margin: 0; }
+.form-stack-compact .command-button,
+.form-stack-compact .command-button-primary,
+.form-stack-compact label.command-button { white-space: nowrap; }
+
+/* Template builder section 2: clean checkbox grid */
+.template-columns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: var(--space-2) var(--space-3);
+    align-items: start;
+}
+.template-columns-grid label.inline-form-row {
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-surface);
+    align-items: center;
+    cursor: pointer;
+}
+.template-columns-grid label.inline-form-row:has(input:checked) {
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+}
+.template-columns-grid label.inline-form-row em {
+    margin-left: 6px;
+    color: var(--color-text-muted);
+    font-style: normal;
+    font-size: var(--text-xs);
+}
