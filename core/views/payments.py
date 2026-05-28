@@ -60,6 +60,7 @@ from ._shared import (
 from ._payments_support import (
     _bulk_handle,
     _create_payment_request_from_request,
+    _export_payment_facts_csv,
     _export_payment_requests_csv,
     _payment_request_reference_context,
     _update_payment_request_from_request,
@@ -318,6 +319,9 @@ def payment_facts(request):
         facts_query = facts_query.filter(article_id=selected_article_id)
     if selected_counterparty_id:
         facts_query = facts_query.filter(counterparty_id=selected_counterparty_id)
+
+    if request.GET.get("export") == "csv":
+        return _export_payment_facts_csv(facts_query.order_by("-date", "-id"))
 
     facts = list(facts_query.order_by("-date", "-id"))
     fact_ids = [fact.id for fact in facts]

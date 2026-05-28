@@ -1,9 +1,12 @@
 """Planning domain: budgets, limits, primary input wizard, limit adjustments."""
 
+import csv
 from decimal import InvalidOperation
+from io import StringIO
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
@@ -244,12 +247,18 @@ def planning_limits(request):
             messages.error(request, str(exc))
         return redirect("planning_limits")
 
+    plans_qs = BudgetLimitPlan.objects.filter(organization=org).select_related(
+        "budget", "department", "article", "currency", "approver", "author"
+    )
+    if request.GET.get("export") == "csv":
+        return _export_limits_csv(plans_qs)
+
     return render(
         request,
         "core/planning_limits.html",
         {
             "active_section": "planning",
-            "plans": BudgetLimitPlan.objects.filter(organization=org).select_related("budget", "department", "article", "currency", "approver", "author"),
+            "plans": plans_qs,
             "adjustments": BudgetLimitAdjustment.objects.filter(base_plan__organization=org).select_related("base_plan", "article", "approver", "author", "target_plan", "target_organization"),
             "approved_plans": BudgetLimitPlan.objects.filter(organization=org, status=BudgetPlanStatus.APPROVED).select_related("currency"),
             "budgets": BudgetPlan.objects.filter(organization=org, status=BudgetPlanStatus.APPROVED).select_related("currency"),
@@ -475,3 +484,33 @@ def _planning_wizard_row_has_input(submitted, index: int) -> bool:
     ) or any(
         submitted.get(f"limit_{index}_month_{month}") for month in range(1, 13)
     )
+
+
+def _export_limits_csv(queryset) -> HttpResponse:
+    """Export approved-and-draft limit plans as an Excel-friendly CSV
+    (';' separator + UTF-8 BOM), matching the payments-journal export."""
+    buffer = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow([
+        "Номер", "Бюджет", "Компания", "ЦФО", "Статья", "Год",
+        "Годовая сумма", "Валюта", "Версия", "Статус", "Согласующий", "Автор",
+    ])
+    for plan in queryset.iterator():
+        writer.writerow([
+            plan.number,
+            plan.budget.number if plan.budget_id else "",
+            plan.organization.name if plan.organization_id else "",
+            plan.department.name if plan.department_id else "",
+            f"{plan.article.code} · {plan.article.name}" if plan.article_id else "",
+            plan.planning_year,
+            f"{plan.annual_amount}",
+            plan.currency.code if plan.currency_id else "",
+            f"v{plan.version}",
+            plan.get_status_display(),
+            plan.approver.username if plan.approver_id else "",
+            plan.author.username if plan.author_id else "",
+        ])
+    response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
+    stamp = timezone.localdate().strftime("%Y%m%d")
+    response["Content-Disposition"] = f'attachment; filename="budget_limits_{stamp}.csv"'
+    return response

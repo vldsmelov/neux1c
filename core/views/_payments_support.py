@@ -92,10 +92,41 @@ def _export_payment_requests_csv(queryset) -> HttpResponse:
             pr.cancellation_reason,
             "да" if pr.limit_exceeded else "нет",
         ])
-    # UTF-8 BOM, чтобы Excel сразу распознавал кириллицу.
+    return _csv_response(buffer, "payment_requests")
+
+
+def _export_payment_facts_csv(queryset) -> HttpResponse:
+    """Render the filtered payment-fact queryset as CSV (same Excel-friendly
+    conventions as the requests export: ';' separator + UTF-8 BOM)."""
+    buffer = StringIO()
+    writer = csv.writer(buffer, delimiter=";")
+    writer.writerow([
+        "Дата", "Учёт", "Счёт", "Статья", "Контрагент", "Договор",
+        "Сумма", "Валюта", "Источник", "Версия корректировки",
+    ])
+    for fact in queryset.iterator():
+        latest_adjustment = fact.adjustments.order_by("-version").first()
+        writer.writerow([
+            fact.date.strftime("%Y-%m-%d") if fact.date else "",
+            fact.get_accounting_kind_display(),
+            fact.account,
+            f"{fact.article.code} · {fact.article.name}" if fact.article_id else "",
+            fact.counterparty.name if fact.counterparty_id else "",
+            fact.contract.number if fact.contract_id else "",
+            f"{fact.amount}",
+            fact.currency.code if fact.currency_id else "",
+            fact.get_source_system_display(),
+            f"v{latest_adjustment.version}" if latest_adjustment else "база",
+        ])
+    return _csv_response(buffer, "payment_facts")
+
+
+def _csv_response(buffer: StringIO, basename: str) -> HttpResponse:
+    """Wrap a CSV buffer in an attachment response with a UTF-8 BOM so Excel
+    renders Cyrillic correctly, and a date-stamped filename."""
     response = HttpResponse("﻿" + buffer.getvalue(), content_type="text/csv; charset=utf-8")
     stamp = timezone.localdate().strftime("%Y%m%d")
-    response["Content-Disposition"] = f'attachment; filename="payment_requests_{stamp}.csv"'
+    response["Content-Disposition"] = f'attachment; filename="{basename}_{stamp}.csv"'
     return response
 
 

@@ -17,6 +17,47 @@ from core.test_payments_base import PaymentRequestTestBase
 
 
 class PaymentBulkAndFilterTests(PaymentRequestTestBase):
+    def test_facts_journal_csv_export(self):
+        from core.models import Organization, PaymentFact
+
+        org = Organization.objects.first()
+        # Mock-1C seeded BU/NU facts; pick a year that has data.
+        fact = PaymentFact.objects.filter(organization=org).order_by("-date").first()
+        self.assertIsNotNone(fact)
+
+        self.client.login(username="economist", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = org.id
+        session.save()
+
+        response = self.client.get(reverse("payment_facts"), {"year": fact.date.year, "export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("attachment", response["Content-Disposition"])
+        body = response.content.decode("utf-8-sig")
+        self.assertIn("Дата;Учёт;Счёт", body.splitlines()[0])
+        # CSV escapes embedded quotes by doubling them, so check on a quote-free fragment
+        self.assertIn(str(fact.amount), body)
+
+    def test_limits_journal_csv_export(self):
+        from core.models import BudgetLimitPlan, Organization
+
+        org = Organization.objects.first()
+        plan = BudgetLimitPlan.objects.filter(organization=org).first()
+        self.assertIsNotNone(plan)
+
+        self.client.login(username="economist", password="demo12345")
+        session = self.client.session
+        session["working_organization_id"] = org.id
+        session.save()
+
+        response = self.client.get(reverse("planning_limits"), {"export": "csv"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        body = response.content.decode("utf-8-sig")
+        self.assertIn("Номер;Бюджет;Компания", body.splitlines()[0])
+        self.assertIn(plan.number, body)
+
     def test_journal_csv_export_respects_filters(self):
 
         org = Organization.objects.first()
