@@ -17,6 +17,7 @@ from .enums import (  # noqa: F401
     BudgetScope,
     ContractKind,
     ExternalPaymentStatus,
+    FundingCaseStatus,
     IntegrationRequestStatus,
     IntegrationTrackedModel,
     NotificationKind,
@@ -41,6 +42,7 @@ from .nsi import (  # noqa: F401
     Organization,
 )
 from .contracts import AdditionalAgreement, Contract  # noqa: F401
+from .funding import FundingCase  # noqa: F401
 from .payment_facts import (  # noqa: F401
     PaymentFact,
     PaymentFactAdjustment,

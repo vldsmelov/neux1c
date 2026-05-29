@@ -1,0 +1,203 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}{{ case.code }} · Кейс · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/funding/cases/">Все кейсы</a>
+    <a class="app-tab is-active" href="{% url 'funding_case_detail' case.id %}">{{ case.code }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">{{ case.code }} · {{ case.name }}</h1>
+            <p class="app-subtitle">
+                {{ case.organization.name }} ·
+                <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
+                {% if case.owner %} · ответственный: {{ case.owner.username }}{% endif %}
+                · открыт {{ case.opened_at|date:"d.m.Y" }}{% if case.closed_at %} · закрыт {{ case.closed_at|date:"d.m.Y" }}{% endif %}
+            </p>
+            {% if case.description %}<p class="hint">{{ case.description }}</p>{% endif %}
+        </div>
+    </div>
+
+    {% if overview.alerts %}
+        <section class="data-panel stack alert-panel">
+            {% for alert in overview.alerts %}
+                <div class="alert-row">⚠ {{ alert }}</div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <section class="case-summary-grid">
+        <div class="case-summary-cell case-summary-positive">
+            <div class="case-summary-label">Пришло (факт)</div>
+            <div class="case-summary-value">{{ overview.total_inflow|ru_number }} ₽</div>
+        </div>
+        <div class="case-summary-cell case-summary-negative">
+            <div class="case-summary-label">Ушло (факт)</div>
+            <div class="case-summary-value">{{ overview.total_outflow|ru_number }} ₽</div>
+        </div>
+        <div class="case-summary-cell">
+            <div class="case-summary-label">Зарезервировано заявками</div>
+            <div class="case-summary-value">{{ overview.total_requested|ru_number }} ₽</div>
+        </div>
+        <div class="case-summary-cell case-summary-now">
+            <div class="case-summary-label">Доступно сейчас</div>
+            <div class="case-summary-value">{{ overview.available_now|ru_number }} ₽</div>
+        </div>
+        <div class="case-summary-cell case-summary-positive">
+            <div class="case-summary-label">Ожидаем прихода</div>
+            <div class="case-summary-value">{{ overview.expected_inflow_remaining|ru_number }} ₽</div>
+            <div class="case-summary-sub">по доходным договорам и выданным займам</div>
+        </div>
+        <div class="case-summary-cell case-summary-negative">
+            <div class="case-summary-label">Должны заплатить</div>
+            <div class="case-summary-value">{{ overview.expected_outflow_remaining|ru_number }} ₽</div>
+            <div class="case-summary-sub">поставщикам + возврат полученных займов с %</div>
+        </div>
+        <div class="case-summary-cell case-summary-projected case-summary-{{ overview.status_class }}">
+            <div class="case-summary-label">Прогноз сальдо к закрытию</div>
+            <div class="case-summary-value">
+                {% if overview.projected_balance > 0 %}+{% endif %}{{ overview.projected_balance|ru_number }} ₽
+            </div>
+            <div class="case-summary-sub">{{ overview.status_label }}</div>
+        </div>
+    </section>
+
+    {% for kind, label in kind_labels.items %}
+        {% with stats=overview.contracts_by_kind|dict_get:kind %}
+        {% if stats %}
+            <section class="data-panel stack">
+                <h2 class="section-title">{{ label }} <span class="cell-secondary">({{ stats|length }})</span></h2>
+                <div class="data-table-wrap desktop-scroll">
+                    <table class="data-table data-table-narrow">
+                        <thead>
+                            <tr>
+                                <th>Договор</th>
+                                <th>Контрагент</th>
+                                <th class="table-col-number">Сумма</th>
+                                <th class="table-col-number">Пришло</th>
+                                <th class="table-col-number">Ушло</th>
+                                <th class="table-col-number">Заявки</th>
+                                <th class="table-col-number">К получению / возврату</th>
+                                <th class="table-action-col">Действие</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in stats %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ stat.contract.number }}</strong>
+                                        <div class="cell-secondary">от {{ stat.contract.date|date:"d.m.Y" }}{% if stat.contract.interest_rate %} · {{ stat.contract.interest_rate }}% год.{% endif %}{% if stat.contract.maturity_date %} · до {{ stat.contract.maturity_date|date:"d.m.Y" }}{% endif %}</div>
+                                    </td>
+                                    <td>{{ stat.contract.counterparty.name }}</td>
+                                    <td class="table-col-number">{{ stat.contract.amount|ru_number }} {{ stat.contract.currency.code }}</td>
+                                    <td class="table-col-number">{{ stat.inflow|ru_number }}</td>
+                                    <td class="table-col-number">{{ stat.outflow|ru_number }}</td>
+                                    <td class="table-col-number">{{ stat.requested|ru_number }}</td>
+                                    <td class="table-col-number"><strong>{{ stat.expected_remaining|ru_number }}</strong></td>
+                                    <td class="table-action-col">
+                                        <form method="post" style="display:inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="detach_contract">
+                                            <input type="hidden" name="contract_id" value="{{ stat.contract.id }}">
+                                            <button class="command-button is-sm is-danger" type="submit" title="Отвязать договор от кейса">Отвязать</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+        {% endwith %}
+    {% endfor %}
+
+    <section class="data-panel stack">
+        <details class="stack-section" {% if not overview.contracts_by_kind %}open{% endif %}>
+            <summary>Привязать договор к кейсу</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="attach_contract">
+                <label class="form-grid-span-full"><span class="field-label">Договор</span>
+                    <select class="field-control-select" name="contract_id" required>
+                        <option value="">— выберите договор —</option>
+                        {% for contract in attachable_contracts %}
+                            <option value="{{ contract.id }}">
+                                {{ contract.get_kind_display }} · {{ contract.number }} от {{ contract.date|date:"d.m.Y" }} · {{ contract.counterparty.name }} · {{ contract.amount|ru_number }} {{ contract.currency.code }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Привязать</button>
+                    <span class="hint">Показаны 30 свежих договоров без кейса. Заводите новые договоры в обычных разделах (Договоры / Платежи).</span>
+                </div>
+            </form>
+        </details>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Хронология движений по кейсу</h2>
+        {% if overview.facts %}
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th class="table-col-date">Дата</th>
+                            <th>Договор</th>
+                            <th>Статья ДДС</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-short">Направление</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for fact in overview.facts %}
+                            <tr>
+                                <td class="table-col-date">{{ fact.date|date:"d.m.Y" }}</td>
+                                <td>{{ fact.contract.number }} · {{ fact.contract.counterparty.name }}</td>
+                                <td>{{ fact.article.code }} · {{ fact.article.name }}</td>
+                                <td class="table-col-number">{{ fact.amount|ru_number }} {{ fact.currency.code }}</td>
+                                <td class="table-col-short">
+                                    {% if fact.direction == "inflow" %}<span class="badge badge-success">приход</span>
+                                    {% else %}<span class="badge badge-danger">расход</span>{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="hint">По кейсу пока нет фактов оплат. Привяжите договоры выше и фиксируйте платежи в журнале фактов — они подхватятся автоматически.</p>
+        {% endif %}
+    </section>
+
+    <section class="data-panel stack">
+        <details class="stack-section">
+            <summary>Редактировать кейс</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                <label><span class="field-label">Название</span>
+                    <input class="field-control" name="name" value="{{ case.name }}">
+                </label>
+                <label><span class="field-label">Статус</span>
+                    <select class="field-control-select" name="status">
+                        {% for value, label in status_choices %}
+                            <option value="{{ value }}" {% if case.status == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-full"><span class="field-label">Описание</span>
+                    <textarea class="field-control" name="description" rows="3">{{ case.description }}</textarea>
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Сохранить</button>
+                </div>
+            </form>
+        </details>
+    </section>
+{% endblock %}

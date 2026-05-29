@@ -33,6 +33,27 @@ class Contract(IntegrationTrackedModel):
         decimal_places=4,
         default=1,
     )
+    funding_case = models.ForeignKey(
+        "core.FundingCase",
+        verbose_name="Кейс финансирования",
+        on_delete=models.SET_NULL,
+        related_name="contracts",
+        null=True,
+        blank=True,
+    )
+    interest_rate = models.DecimalField(
+        "Процентная ставка (для займов), % годовых",
+        max_digits=6,
+        decimal_places=3,
+        default=0,
+        help_text="Заполняется для kind=LOAN_RECEIVED / LOAN_GIVEN",
+    )
+    maturity_date = models.DateField(
+        "Дата возврата / погашения",
+        null=True,
+        blank=True,
+        help_text="Заполняется для договоров займа",
+    )
 
     class Meta:
         ordering = ["date", "number"]

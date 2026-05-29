@@ -1,0 +1,136 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Кейсы финансирования · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/funding/cases/">Кейсы</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">Кейсы финансирования</h1>
+            <p class="app-subtitle">Сделка как единый объект: доходные договоры, расходные, займы и факт. На одной карточке — сколько пришло, сколько ушло, что должны, кто должен нам, и хватает ли покрытия.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <div class="workflow-steps">
+            <div class="workflow-step">
+                <span class="workflow-step-num">1</span>
+                <div>
+                    <strong>Заведи кейс</strong>
+                    <span>Например «Закупка стройматериалов по ТЗ материнской на Q2-2026».</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">2</span>
+                <div>
+                    <strong>Подвяжи договоры</strong>
+                    <span>Доходный от мамы, расходный с поставщиком, заём с третьей фирмой.</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">3</span>
+                <div>
+                    <strong>Веди факты как обычно</strong>
+                    <span>Заявки, оплаты, поступления — всё через привычные журналы.</span>
+                </div>
+            </div>
+            <div class="workflow-step">
+                <span class="workflow-step-num">4</span>
+                <div>
+                    <strong>Смотри сальдо кейса</strong>
+                    <span>Профицит/дефицит, что ждёт прихода, кому должны — в одной карточке.</span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <div>
+                <label class="field-label" for="status">Статус</label>
+                <select class="field-control-select" id="status" name="status" onchange="this.form.submit()">
+                    {% for value, label in status_choices %}
+                        <option value="{{ value }}" {% if selected_status == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </form>
+
+        <details class="stack-section" {% if not cases_with_balance %}open{% endif %}>
+            <summary>Создать новый кейс</summary>
+            <form method="post" class="form-grid form-grid-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label><span class="field-label">Код</span>
+                    <input class="field-control" name="code" required placeholder="FUND-2026-001">
+                </label>
+                <label><span class="field-label">Название</span>
+                    <input class="field-control" name="name" required placeholder="Закупка стройматериалов по ТЗ материнской">
+                </label>
+                <label><span class="field-label">Компания</span>
+                    <select class="field-control-select" name="organization_id">
+                        {% for organization in organizations %}
+                            <option value="{{ organization.id }}" {% if working_organization and working_organization.id == organization.id %}selected{% endif %}>{{ organization.name }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-full"><span class="field-label">Описание / цель</span>
+                    <textarea class="field-control" name="description" rows="2" placeholder="ТЗ от материнской на 2 000 000 ₽, ищем поставщика, при дефиците — заём"></textarea>
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Создать кейс</button>
+                </div>
+            </form>
+        </details>
+
+        <div class="data-table-wrap desktop-scroll">
+            <table class="data-table data-table-narrow">
+                <thead>
+                    <tr>
+                        <th scope="col">Кейс</th>
+                        <th scope="col" class="table-col-short">Статус</th>
+                        <th scope="col" class="table-col-number">Доступно сейчас</th>
+                        <th scope="col" class="table-col-number">Прогноз сальдо</th>
+                        <th scope="col" class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in cases_with_balance %}
+                        {% with case=item.case overview=item.overview %}
+                        <tr>
+                            <td>
+                                <div class="scenario-name-cell">
+                                    <strong><a href="{% url 'funding_case_detail' case.id %}">{{ case.code }}</a></strong>
+                                    <span>{{ case.name }}</span>
+                                    <div class="cell-secondary">{{ case.organization.name }} · открыт {{ case.opened_at|date:"d.m.Y" }}</div>
+                                </div>
+                            </td>
+                            <td class="table-col-short">
+                                <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
+                            </td>
+                            <td class="table-col-number">{{ overview.available_now|ru_number }} ₽</td>
+                            <td class="table-col-number">
+                                <strong class="forecast-num forecast-{{ overview.status_class }}">
+                                    {% if overview.projected_balance > 0 %}+{% endif %}{{ overview.projected_balance|ru_number }} ₽
+                                </strong>
+                                <div class="cell-secondary">{{ overview.status_label }}</div>
+                            </td>
+                            <td class="table-action-col">
+                                <div class="form-stack-compact">
+                                    <a class="command-button is-sm" href="{% url 'funding_case_detail' case.id %}">Открыть</a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                    {% empty %}
+                        <tr><td colspan="5">Кейсов пока нет. Создайте первый.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}

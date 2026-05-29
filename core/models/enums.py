@@ -24,6 +24,15 @@ class SourceSystem(models.TextChoices):
 class ContractKind(models.TextChoices):
     CUSTOMER = "customer", "Договор с покупателем"
     SOLE_SUPPLIER = "sole_supplier", "Договор с единственным поставщиком"
+    LOAN_RECEIVED = "loan_received", "Договор займа (получен нами)"
+    LOAN_GIVEN = "loan_given", "Договор займа (выдан нами)"
+
+
+class FundingCaseStatus(models.TextChoices):
+    DRAFT = "draft", "Черновик"
+    ACTIVE = "active", "В работе"
+    CLOSED = "closed", "Закрыт"
+    CANCELLED = "cancelled", "Отменён"
 
 
 class PaymentDirection(models.TextChoices):
