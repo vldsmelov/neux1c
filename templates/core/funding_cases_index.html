@@ -15,6 +15,29 @@
         </div>
     </div>
 
+    <section class="funding-hero">
+        <div class="funding-hero-cell">
+            <div class="funding-hero-num">{{ hero_stats.total }}</div>
+            <div class="funding-hero-lbl">Всего кейсов</div>
+        </div>
+        <div class="funding-hero-cell funding-hero-active">
+            <div class="funding-hero-num">{{ hero_stats.active }}</div>
+            <div class="funding-hero-lbl">В работе</div>
+        </div>
+        <div class="funding-hero-cell {% if hero_stats.deficit %}funding-hero-deficit{% endif %}">
+            <div class="funding-hero-num">{{ hero_stats.deficit }}</div>
+            <div class="funding-hero-lbl">С дефицитом</div>
+        </div>
+        <div class="funding-hero-cell funding-hero-flow">
+            <div class="funding-hero-num">{{ hero_stats.total_inflow|ru_number }} ₽</div>
+            <div class="funding-hero-lbl">Совокупный приход</div>
+        </div>
+        <div class="funding-hero-cell funding-hero-flow">
+            <div class="funding-hero-num">{{ hero_stats.total_outflow|ru_number }} ₽</div>
+            <div class="funding-hero-lbl">Совокупный расход</div>
+        </div>
+    </section>
+
     <section class="data-panel stack">
         <div class="workflow-steps">
             <div class="workflow-step">
@@ -87,50 +110,53 @@
             </form>
         </details>
 
-        <div class="data-table-wrap desktop-scroll">
-            <table class="data-table data-table-narrow">
-                <thead>
-                    <tr>
-                        <th scope="col">Кейс</th>
-                        <th scope="col" class="table-col-short">Статус</th>
-                        <th scope="col" class="table-col-number">Доступно сейчас</th>
-                        <th scope="col" class="table-col-number">Прогноз сальдо</th>
-                        <th scope="col" class="table-action-col">Действие</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for item in cases_with_balance %}
-                        {% with case=item.case overview=item.overview %}
-                        <tr>
-                            <td>
-                                <div class="scenario-name-cell">
-                                    <strong><a href="{% url 'funding_case_detail' case.id %}">{{ case.code }}</a></strong>
-                                    <span>{{ case.name }}</span>
-                                    <div class="cell-secondary">{{ case.organization.name }} · открыт {{ case.opened_at|date:"d.m.Y" }}</div>
-                                </div>
-                            </td>
-                            <td class="table-col-short">
-                                <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
-                            </td>
-                            <td class="table-col-number">{{ overview.available_now|ru_number }} ₽</td>
-                            <td class="table-col-number">
-                                <strong class="forecast-num forecast-{{ overview.status_class }}">
-                                    {% if overview.projected_balance > 0 %}+{% endif %}{{ overview.projected_balance|ru_number }} ₽
-                                </strong>
-                                <div class="cell-secondary">{{ overview.status_label }}</div>
-                            </td>
-                            <td class="table-action-col">
-                                <div class="form-stack-compact">
-                                    <a class="command-button is-sm" href="{% url 'funding_case_detail' case.id %}">Открыть</a>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endwith %}
-                    {% empty %}
-                        <tr><td colspan="5">Кейсов пока нет. Создайте первый.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+        <div class="funding-card-grid">
+            {% for item in cases_with_balance %}
+                {% with case=item.case overview=item.overview %}
+                <a class="funding-card funding-card-{{ overview.status_class }}" href="{% url 'funding_case_detail' case.id %}">
+                    <header class="funding-card-head">
+                        <div class="funding-card-code">{{ case.code }}</div>
+                        <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
+                    </header>
+                    <h3 class="funding-card-title">{{ case.name }}</h3>
+                    <div class="funding-card-meta">{{ case.organization.name }} · открыт {{ case.opened_at|date:"d.m.Y" }}{% if case.owner %} · {{ case.owner.username }}{% endif %}</div>
+
+                    <div class="funding-card-progress" aria-label="Прогресс кейса">
+                        <div class="funding-card-progress-bar" style="width: {{ item.progress }}%;"></div>
+                        <span class="funding-card-progress-label">{{ item.progress }}% оборота прошло фактом</span>
+                    </div>
+
+                    <div class="funding-card-numbers">
+                        <div>
+                            <span class="funding-card-num-lbl">Пришло</span>
+                            <span class="funding-card-num funding-pos">{{ overview.total_inflow|ru_number }} ₽</span>
+                        </div>
+                        <div>
+                            <span class="funding-card-num-lbl">Ушло</span>
+                            <span class="funding-card-num funding-neg">{{ overview.total_outflow|ru_number }} ₽</span>
+                        </div>
+                        <div>
+                            <span class="funding-card-num-lbl">Доступно</span>
+                            <span class="funding-card-num">{{ overview.available_now|ru_number }} ₽</span>
+                        </div>
+                    </div>
+
+                    <footer class="funding-card-footer">
+                        <span class="funding-card-balance-lbl">Прогноз сальдо</span>
+                        <span class="funding-card-balance funding-card-balance-{{ overview.status_class }}">
+                            {% if overview.projected_balance > 0 %}+{% endif %}{{ overview.projected_balance|ru_number }} ₽
+                        </span>
+                        <span class="funding-card-status-text">{{ overview.status_label }}</span>
+                    </footer>
+
+                    {% if overview.alerts %}
+                        <div class="funding-card-alert">⚠ {{ overview.alerts|length }} {{ overview.alerts|length|pluralize:"алёрт,алёрта,алёртов" }}</div>
+                    {% endif %}
+                </a>
+                {% endwith %}
+            {% empty %}
+                <div class="funding-card-empty">Кейсов пока нет. Создайте первый — форма выше.</div>
+            {% endfor %}
         </div>
     </section>
 {% endblock %}

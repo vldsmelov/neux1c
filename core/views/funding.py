@@ -57,12 +57,38 @@ def funding_cases_index(request):
         cases_qs = cases_qs.filter(status=status_filter)
 
     cases_with_balance = []
+    from decimal import Decimal as _D
+    hero_stats = {
+        "total": 0,
+        "active": 0,
+        "closed": 0,
+        "deficit": 0,
+        "total_inflow": _D("0"),
+        "total_outflow": _D("0"),
+    }
     for case in cases_qs[:50]:
         overview = build_case_overview(case)
+        # Прогресс по обороту: какая доля от max(inflow+expected, outflow+expected) уже прошла фактом
+        total_flow = overview["total_inflow"] + overview["total_outflow"]
+        future_flow = overview["expected_inflow_remaining"] + overview["expected_outflow_remaining"]
+        progress = 100
+        if (total_flow + future_flow) > 0:
+            progress = int(round(float(total_flow) / float(total_flow + future_flow) * 100))
         cases_with_balance.append({
             "case": case,
             "overview": overview,
+            "progress": min(100, max(0, progress)),
+            "is_deficit": overview["projected_balance"] < 0,
         })
+        hero_stats["total"] += 1
+        if case.status == FundingCaseStatus.ACTIVE:
+            hero_stats["active"] += 1
+        if case.status == FundingCaseStatus.CLOSED:
+            hero_stats["closed"] += 1
+        if overview["projected_balance"] < 0:
+            hero_stats["deficit"] += 1
+        hero_stats["total_inflow"] += overview["total_inflow"]
+        hero_stats["total_outflow"] += overview["total_outflow"]
 
     return render(
         request,
@@ -70,6 +96,7 @@ def funding_cases_index(request):
         {
             "active_section": "funding",
             "cases_with_balance": cases_with_balance,
+            "hero_stats": hero_stats,
             "organizations": Organization.objects.order_by("name"),
             "working_organization": org,
             "status_choices": [("", "Все статусы")] + list(FundingCaseStatus.choices),
