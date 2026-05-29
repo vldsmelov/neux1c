@@ -15,6 +15,7 @@ from ..models import (
     Contract,
     ContractKind,
     Counterparty,
+    FundingCase,
     Organization,
     PaymentRequestStatus,
     PlanningScenario,
@@ -100,6 +101,7 @@ def plan_fact_report(request):
     selected_direction = _read_filter_text(
         request.GET, base_filters, "direction", allowed_values=CashFlowDirection.values,
     )
+    selected_funding_case_id = _read_filter_int(request.GET, base_filters, "funding_case_id")
 
     # Сценарии для выбранной компании+года; по умолчанию — baseline.
     scenarios = list(
@@ -123,6 +125,7 @@ def plan_fact_report(request):
         request_status=selected_status,
         scenario_id=selected_scenario_id,
         direction=selected_direction,
+        funding_case_id=selected_funding_case_id,
     )
     rows, summary = build_plan_fact_report(filters)
 
@@ -156,6 +159,8 @@ def plan_fact_report(request):
             "selected_scenario_id": selected_scenario_id,
             "direction_choices": [("", "Все направления")] + list(CashFlowDirection.choices),
             "selected_direction": selected_direction,
+            "funding_cases": FundingCase.objects.filter(organization_id=selected_organization_id).order_by("-opened_at") if selected_organization_id else FundingCase.objects.none(),
+            "selected_funding_case_id": selected_funding_case_id,
             "report_templates": templates,
             "selected_template_id": selected_template_id,
             "working_organization": org,
@@ -170,6 +175,7 @@ def plan_fact_report(request):
                 "request_status": selected_status,
                 "scenario_id": selected_scenario_id,
                 "direction": selected_direction,
+                "funding_case_id": selected_funding_case_id,
             },
         },
     )
@@ -238,6 +244,7 @@ def _collect_plan_fact_filter_payload(data, *, default_year: int) -> dict:
         "request_status": request_status,
         "scenario_id": parse_optional_int(data.get("scenario_id")),
         "direction": (data.get("direction") or "").strip(),
+        "funding_case_id": parse_optional_int(data.get("funding_case_id")),
     }
 
 

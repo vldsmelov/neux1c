@@ -66,6 +66,42 @@
         </div>
     </section>
 
+    {% if overview.counterparty_saldo %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Сальдо по контрагентам в кейсе</h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Контрагент</th>
+                            <th class="table-col-number">Пришло</th>
+                            <th class="table-col-number">Ушло</th>
+                            <th class="table-col-number">Должны нам</th>
+                            <th class="table-col-number">Мы должны</th>
+                            <th class="table-col-number">Нетто</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for bucket in overview.counterparty_saldo %}
+                            <tr>
+                                <td><strong>{{ bucket.counterparty.name }}</strong></td>
+                                <td class="table-col-number">{{ bucket.inflow|ru_number }}</td>
+                                <td class="table-col-number">{{ bucket.outflow|ru_number }}</td>
+                                <td class="table-col-number text-success">{{ bucket.owed_to_us|ru_number }}</td>
+                                <td class="table-col-number text-danger">{{ bucket.we_owe|ru_number }}</td>
+                                <td class="table-col-number">
+                                    <strong class="{% if bucket.net > 0 %}text-success{% elif bucket.net < 0 %}text-danger{% endif %}">
+                                        {% if bucket.net > 0 %}+{% endif %}{{ bucket.net|ru_number }}
+                                    </strong>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
     {% for kind, label in kind_labels.items %}
         {% with stats=overview.contracts_by_kind|dict_get:kind %}
         {% if stats %}
@@ -91,6 +127,11 @@
                                     <td>
                                         <strong>{{ stat.contract.number }}</strong>
                                         <div class="cell-secondary">от {{ stat.contract.date|date:"d.m.Y" }}{% if stat.contract.interest_rate %} · {{ stat.contract.interest_rate }}% год.{% endif %}{% if stat.contract.maturity_date %} · до {{ stat.contract.maturity_date|date:"d.m.Y" }}{% endif %}</div>
+                                        {% if kind == "loan_received" and stat.interest_estimate %}
+                                            <div class="cell-secondary">
+                                                Возвращено: тело {{ stat.principal_repaid|ru_number }} · проценты {{ stat.interest_paid|ru_number }} / расчётные {{ stat.interest_estimate|ru_number }}
+                                            </div>
+                                        {% endif %}
                                     </td>
                                     <td>{{ stat.contract.counterparty.name }}</td>
                                     <td class="table-col-number">{{ stat.contract.amount|ru_number }} {{ stat.contract.currency.code }}</td>

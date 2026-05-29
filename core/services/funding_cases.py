@@ -7,6 +7,8 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.db import models
+
 from core.models import (
     ContractKind,
     FundingCase,
@@ -34,6 +36,10 @@ class ContractStat:
     outflow: Decimal = MONEY_ZERO
     requested: Decimal = MONEY_ZERO  # активные заявки, ещё не оплачены
     expected_remaining: Decimal = MONEY_ZERO  # сколько ещё должны / ждём по договору
+    # Поля для займов:
+    principal_repaid: Decimal = MONEY_ZERO
+    interest_paid: Decimal = MONEY_ZERO
+    interest_estimate: Decimal = MONEY_ZERO
 
 
 def build_case_overview(case: FundingCase) -> dict:
@@ -47,19 +53,36 @@ def build_case_overview(case: FundingCase) -> dict:
 
     contract_ids = [c.id for c in contracts]
 
-    # Все факты по договорам кейса
+    # Все факты по договорам кейса — собственным + те, что гасят займы кейса
     facts = list(
-        PaymentFact.objects.filter(contract_id__in=contract_ids)
-        .select_related("article", "counterparty", "currency", "contract")
+        PaymentFact.objects.filter(
+            models.Q(contract_id__in=contract_ids)
+            | models.Q(loan_repayment_contract_id__in=contract_ids)
+        )
+        .select_related("article", "counterparty", "currency", "contract", "loan_repayment_contract")
         .order_by("-date", "-id")
     )
+    loan_repayment_totals: dict[int, Decimal] = defaultdict(lambda: MONEY_ZERO)
+    loan_interest_totals: dict[int, Decimal] = defaultdict(lambda: MONEY_ZERO)
     for fact in facts:
-        stat = contract_stats[fact.contract_id]
-        amount = quant_money(fact.amount * (fact.contract.manual_exchange_rate or Decimal("1")))
-        if fact.direction == PaymentDirection.INFLOW:
-            stat.inflow = quant_money(stat.inflow + amount)
-        else:
-            stat.outflow = quant_money(stat.outflow + amount)
+        # 1. факт привязан к договору кейса → классический inflow/outflow на этот договор
+        if fact.contract_id in contract_stats:
+            stat = contract_stats[fact.contract_id]
+            rate = (fact.contract.manual_exchange_rate or Decimal("1")) if fact.contract else Decimal("1")
+            amount = quant_money(fact.amount * rate)
+            if fact.direction == PaymentDirection.INFLOW:
+                stat.inflow = quant_money(stat.inflow + amount)
+            else:
+                stat.outflow = quant_money(stat.outflow + amount)
+        # 2. факт-погашение займа (целевой платёж по конкретному займу кейса)
+        if fact.loan_repayment_contract_id in contract_stats:
+            principal_part = quant_money(fact.amount - (fact.loan_interest_portion or MONEY_ZERO))
+            loan_repayment_totals[fact.loan_repayment_contract_id] = quant_money(
+                loan_repayment_totals[fact.loan_repayment_contract_id] + principal_part
+            )
+            loan_interest_totals[fact.loan_repayment_contract_id] = quant_money(
+                loan_interest_totals[fact.loan_repayment_contract_id] + (fact.loan_interest_portion or MONEY_ZERO)
+            )
 
     # Активные заявки на оплату — ещё не факт, но «в трубе»
     active_requests = list(
@@ -83,16 +106,23 @@ def build_case_overview(case: FundingCase) -> dict:
             # Расходный: должны заплатить = сумма − что уже ушло − что зарезервировано заявками
             stat.expected_remaining = quant_money(contract_total - stat.outflow - stat.requested)
         elif c.kind == ContractKind.LOAN_RECEIVED:
-            # Заём получен: пришло − возвращено (тело + проценты)
-            # остаток к возврату = принципал − что уже отдали + (примерно начисленные проценты — упрощённо берём фиксированный % от тела)
-            principal_left = contract_total - stat.outflow
+            # Заём получен: тело должны вернуть − что уже отдали по телу;
+            # проценты — оценочные минус что уже выплатили процентами.
+            principal_repaid = loan_repayment_totals.get(c.id, MONEY_ZERO)
+            interest_paid = loan_interest_totals.get(c.id, MONEY_ZERO)
             interest_estimate = quant_money(contract_total * c.interest_rate / Decimal("100"))
-            stat.expected_remaining = quant_money(principal_left + max(MONEY_ZERO, interest_estimate))
+            principal_left = max(MONEY_ZERO, contract_total - principal_repaid)
+            interest_left = max(MONEY_ZERO, interest_estimate - interest_paid)
+            stat.expected_remaining = quant_money(principal_left + interest_left)
+            stat.principal_repaid = principal_repaid
+            stat.interest_paid = interest_paid
+            stat.interest_estimate = interest_estimate
         elif c.kind == ContractKind.LOAN_GIVEN:
             # Заём выдан: мы должны получить обратно тело + проценты
-            principal_left = contract_total - stat.inflow
+            principal_left = max(MONEY_ZERO, contract_total - stat.inflow)
             interest_estimate = quant_money(contract_total * c.interest_rate / Decimal("100"))
-            stat.expected_remaining = quant_money(principal_left + max(MONEY_ZERO, interest_estimate))
+            stat.expected_remaining = quant_money(principal_left + interest_estimate)
+            stat.interest_estimate = interest_estimate
         by_kind[c.kind].append(stat)
 
     # Итоги
@@ -148,9 +178,36 @@ def build_case_overview(case: FundingCase) -> dict:
     if loans_to_repay > MONEY_ZERO:
         alerts.append(f"К возврату по займам (тело + проценты): {loans_to_repay} ₽")
 
+    # Сальдо по контрагентам внутри кейса: «кто кому сколько должен»
+    saldo_by_cp: dict[int, dict] = {}
+    for c in contracts:
+        cp = c.counterparty
+        stat = contract_stats[c.id]
+        bucket = saldo_by_cp.setdefault(cp.id, {
+            "counterparty": cp,
+            "inflow": MONEY_ZERO,
+            "outflow": MONEY_ZERO,
+            "owed_to_us": MONEY_ZERO,    # они должны нам
+            "we_owe": MONEY_ZERO,        # мы должны им
+        })
+        bucket["inflow"] = quant_money(bucket["inflow"] + stat.inflow)
+        bucket["outflow"] = quant_money(bucket["outflow"] + stat.outflow)
+        if c.kind in (ContractKind.CUSTOMER, ContractKind.LOAN_GIVEN):
+            bucket["owed_to_us"] = quant_money(bucket["owed_to_us"] + stat.expected_remaining)
+        else:
+            bucket["we_owe"] = quant_money(bucket["we_owe"] + stat.expected_remaining)
+    for bucket in saldo_by_cp.values():
+        bucket["net"] = quant_money(bucket["owed_to_us"] - bucket["we_owe"])
+    counterparty_saldo = sorted(
+        saldo_by_cp.values(),
+        key=lambda b: abs(b["net"]),
+        reverse=True,
+    )
+
     return {
         "case": case,
         "contracts_by_kind": dict(by_kind),
+        "counterparty_saldo": counterparty_saldo,
         "facts": facts,
         "active_requests": active_requests,
         "total_inflow": total_inflow,

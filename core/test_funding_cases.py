@@ -135,6 +135,66 @@ class FundingCaseTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(FundingCase.objects.filter(code="FUND-DEMO-1").exists())
 
+    def test_loan_repayment_fact_reduces_loan_balance(self):
+        """Если факт-возврат привязан к договору займа, остаток к возврату по
+        этому займу уменьшается на сумму погашенного тела."""
+        case = FundingCase.objects.create(
+            code="FUND-LOAN-1",
+            name="Покрытие дефицита займом",
+            organization=self.organization,
+        )
+        loan = Contract.objects.create(
+            number="LOAN-T1", date=date(2026, 1, 1),
+            name="Заём", kind=ContractKind.LOAN_RECEIVED,
+            counterparty=self.lender, currency=self.rub,
+            amount=Decimal("500000.00"), interest_rate=Decimal("12.000"),
+            maturity_date=date(2026, 6, 30), funding_case=case,
+        )
+
+        # Возврат тела займа 300k + проценты 30k
+        article_repay = CashFlowArticle.objects.create(code="DDS-LOAN-OUT", name="Возврат займа", direction="outflow")
+        PaymentFact.objects.create(
+            external_id="loan-repay-1",
+            date=date(2026, 5, 10), organization=self.organization,
+            article=article_repay, counterparty=self.lender,
+            loan_repayment_contract=loan,
+            loan_interest_portion=Decimal("30000.00"),
+            amount=Decimal("330000.00"), currency=self.rub,
+            accounting_kind=AccountingKind.BU, direction=PaymentDirection.OUTFLOW,
+            account="51",
+        )
+
+        overview = build_case_overview(case)
+        loan_stat = overview["contracts_by_kind"][ContractKind.LOAN_RECEIVED][0]
+        # Тело погашено на 300k → осталось 200k
+        self.assertEqual(loan_stat.principal_repaid, Decimal("300000.00"))
+        # Проценты заплатили 30k из расчётных 60k → осталось 30k
+        self.assertEqual(loan_stat.interest_paid, Decimal("30000.00"))
+        # expected_remaining = 200k тело + 30k проценты = 230k
+        self.assertEqual(loan_stat.expected_remaining, Decimal("230000.00"))
+
+    def test_counterparty_saldo_collects_per_partner_balance(self):
+        case = FundingCase.objects.create(
+            code="FUND-SALDO-1", name="Сальдо тест", organization=self.organization,
+        )
+        Contract.objects.create(
+            number="MOM-001", date=date(2026, 1, 10), kind=ContractKind.CUSTOMER,
+            name="От мамы", counterparty=self.mother, currency=self.rub,
+            amount=Decimal("2000000.00"), funding_case=case,
+        )
+        Contract.objects.create(
+            number="SUP-001", date=date(2026, 1, 15), kind=ContractKind.SOLE_SUPPLIER,
+            name="Поставщику", counterparty=self.supplier, currency=self.rub,
+            amount=Decimal("1500000.00"), funding_case=case,
+        )
+        overview = build_case_overview(case)
+        # Должно быть два контрагента в сальдо
+        buckets = {b["counterparty"].id: b for b in overview["counterparty_saldo"]}
+        self.assertEqual(buckets[self.mother.id]["owed_to_us"], Decimal("2000000.00"))
+        self.assertEqual(buckets[self.supplier.id]["we_owe"], Decimal("1500000.00"))
+        self.assertGreater(buckets[self.mother.id]["net"], Decimal("0"))
+        self.assertLess(buckets[self.supplier.id]["net"], Decimal("0"))
+
     def test_case_detail_renders_with_attachable_contracts(self):
         case = FundingCase.objects.create(
             code="FUND-002", name="Пустой кейс",

@@ -121,6 +121,19 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% if funding_cases %}
+                    <div>
+                        <label class="field-label" for="funding_case_id">Кейс финансирования</label>
+                        <select class="field-control-select" id="funding_case_id" name="funding_case_id">
+                            <option value="">Все</option>
+                            {% for case in funding_cases %}
+                                <option value="{{ case.id }}" {% if selected_funding_case_id == case.id %}selected{% endif %}>
+                                    {{ case.code }} · {{ case.name|truncatechars:40 }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
                 <div>
                     <label class="field-label" for="direction">Направление потока</label>
                     <select class="field-control-select" id="direction" name="direction">

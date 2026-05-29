@@ -81,6 +81,8 @@ class NotificationKind(models.TextChoices):
     LIMIT_APPROVED = "limit_approved", "Лимит утверждён"
     LIMIT_ADJUSTMENT_SUBMITTED = "limit_adjustment_submitted", "Корректировка лимита на утверждении"
     LIMIT_OVERRUN = "limit_overrun", "Превышение лимита"
+    # Кейсы финансирования / займы
+    LOAN_MATURITY_NEAR = "loan_maturity_near", "Приближается срок возврата займа"
     # Внешний контур
     EXTERNAL_PAYMENT_POSTED = "external_payment_posted", "Внешняя оплата проведена"
     # Интеграции

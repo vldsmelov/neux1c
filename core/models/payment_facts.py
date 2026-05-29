@@ -26,6 +26,22 @@ class PaymentFact(IntegrationTrackedModel):
     amount = models.DecimalField("Сумма", max_digits=16, decimal_places=2)
     currency = models.ForeignKey(Currency, verbose_name="Валюта", on_delete=models.PROTECT)
     comment = models.CharField("Комментарий", max_length=255, blank=True)
+    loan_repayment_contract = models.ForeignKey(
+        Contract,
+        verbose_name="Гасит заём",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="repayment_facts",
+        help_text="Указывается, когда этот OUTFLOW-факт целевой платёж по погашению конкретного займа",
+    )
+    loan_interest_portion = models.DecimalField(
+        "Из них проценты по займу",
+        max_digits=16,
+        decimal_places=2,
+        default=0,
+        help_text="Сколько в этом возврате приходится на проценты (остальное — тело)",
+    )
 
     class Meta:
         ordering = ["date", "external_id"]

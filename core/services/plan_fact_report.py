@@ -44,6 +44,7 @@ class PlanFactFilters:
     request_status: str = ""
     scenario_id: int | None = None
     direction: str = ""
+    funding_case_id: int | None = None
 
     @property
     def request_statuses(self) -> tuple[str, ...]:
@@ -265,6 +266,8 @@ def _accumulate_requested_rows(rows_by_key: dict, articles_by_id: dict[int, Cash
             Q(contract__id=filters.customer_contract_id)
             | Q(contract__parent_customer_contract_id=filters.customer_contract_id)
         )
+    if filters.funding_case_id:
+        query = query.filter(contract__funding_case_id=filters.funding_case_id)
 
     for request in query:
         supplier_contract = request.contract if request.contract and request.contract.kind == ContractKind.SOLE_SUPPLIER else None
@@ -309,6 +312,8 @@ def _accumulate_fact_rows(rows_by_key: dict, articles_by_id: dict[int, CashFlowA
             Q(contract__id=filters.customer_contract_id)
             | Q(contract__parent_customer_contract_id=filters.customer_contract_id)
         )
+    if filters.funding_case_id:
+        query = query.filter(contract__funding_case_id=filters.funding_case_id)
 
     for fact in query:
         supplier_contract = fact.contract if fact.contract and fact.contract.kind == ContractKind.SOLE_SUPPLIER else None
