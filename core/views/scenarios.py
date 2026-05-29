@@ -70,6 +70,12 @@ def planning_scenarios(request):
             elif action == "delete":
                 _delete_scenario(request)
                 messages.success(request, "Сценарий удалён")
+            elif action == "clone":
+                stats = _clone_scenario(request)
+                messages.success(
+                    request,
+                    f"Сценарий «{stats['name']}» создан как копия с коэффициентом ×{stats['multiplier']}, лимитов скопировано: {stats['cloned']}",
+                )
             elif action == "import_limits":
                 stats = _import_limits_csv(request)
                 messages.success(
@@ -185,6 +191,87 @@ def _delete_scenario(request) -> None:
         object_id=pk,
         message=f"Удалён сценарий {name}",
     )
+
+
+def _clone_scenario(request) -> dict:
+    """Создаёт новый сценарий, копируя в него все approved-лимиты исходного,
+    умножая годовую сумму и помесячную разбивку на multiplier (по умолчанию 1).
+    """
+    if not can_create_plans(request.user):
+        raise ValueError("Недостаточно прав для копирования сценария")
+    source = get_object_or_404(PlanningScenario, pk=parse_optional_int(request.POST.get("scenario_id")))
+    new_name = (request.POST.get("new_name") or "").strip()
+    if not new_name:
+        raise ValueError("Укажите название нового сценария")
+    try:
+        multiplier = Decimal((request.POST.get("multiplier") or "1").replace(",", "."))
+    except InvalidOperation as exc:
+        raise ValueError("Некорректный коэффициент") from exc
+    if multiplier <= 0:
+        raise ValueError("Коэффициент должен быть больше нуля")
+    new_kind = request.POST.get("new_kind") or PlanningScenarioKind.CUSTOM
+    if new_kind not in PlanningScenarioKind.values:
+        new_kind = PlanningScenarioKind.CUSTOM
+
+    target = PlanningScenario.objects.create(
+        name=new_name,
+        year=source.year,
+        organization=source.organization,
+        kind=new_kind,
+        is_baseline=False,
+        comment=f"Копия сценария «{source.name}» × {multiplier}",
+        author=request.user,
+    )
+
+    cloned = 0
+    # Копируем только approved/draft лимиты — корректировки и зависимые
+    # документы не переносим (это уже зона корректировок в новом сценарии).
+    for plan in source.limits.select_related("department", "article", "currency").all():
+        new_annual = (plan.annual_amount * multiplier).quantize(Decimal("0.01"))
+        if new_annual <= 0:
+            continue
+        new_monthly = {m.month: (m.amount * multiplier).quantize(Decimal("0.01")) for m in plan.months.all()}
+        if new_monthly:
+            # Чиним невязку округления на декабре
+            diff = new_annual - sum(new_monthly.values())
+            if 12 in new_monthly:
+                new_monthly[12] += diff
+        else:
+            new_monthly = None
+        try:
+            create_budget_plan(
+                author=request.user,
+                organization=plan.organization,
+                department=plan.department,
+                article=plan.article,
+                currency=plan.currency,
+                planning_year=plan.planning_year,
+                planning_horizon=plan.planning_horizon,
+                annual_amount=new_annual,
+                approver=plan.approver,
+                monthly_amounts=new_monthly,
+                comment=f"Копия {plan.number} × {multiplier}",
+                scenario=target,
+            )
+            cloned += 1
+        except (ValueError, IntegrityError):
+            # Пропускаем лимиты, которые не вписались (например, бюджет
+            # старого сценария уже не покрывает новую сумму) — пользователь
+            # доберёт их вручную в новом сценарии.
+            continue
+
+    AuditLog.objects.create(
+        user=request.user,
+        action=AuditAction.CREATE,
+        path="/planning/scenarios/",
+        object_type="PlanningScenario",
+        object_id=str(target.pk),
+        message=(
+            f"Клонирован сценарий {source.name} → {target.name} × {multiplier}, "
+            f"скопировано лимитов: {cloned}"
+        ),
+    )
+    return {"name": target.name, "multiplier": str(multiplier), "cloned": cloned}
 
 
 def _format_error(exc) -> str:

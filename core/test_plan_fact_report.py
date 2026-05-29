@@ -418,6 +418,40 @@ class PlanFactReportTests(TestCase):
         # 2 ЦФО × 3 статьи = 6 строк-заготовок + 1 заголовок
         self.assertEqual(len(body.strip().splitlines()), 1 + len(depts) * len(articles))
 
+    def test_economist_can_clone_scenario_with_multiplier(self):
+        from core.models import PlanningScenario, BudgetLimitPlan
+
+        source = PlanningScenario.objects.create(
+            name="Базовый 2026",
+            year=2026,
+            organization=self.organization,
+            is_baseline=True,
+        )
+        self.plan.organization = self.organization
+        self.plan.scenario = source
+        self.plan.save(update_fields=["organization", "scenario"])
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("planning_scenarios"),
+            {
+                "action": "clone",
+                "scenario_id": source.id,
+                "new_name": "Оптимистичный × 1.5",
+                "new_kind": "optimistic",
+                "multiplier": "1.5",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        target = PlanningScenario.objects.get(name="Оптимистичный × 1.5")
+        self.assertEqual(target.kind, "optimistic")
+        self.assertFalse(target.is_baseline)
+
+        # Лимит исходного сценария — 1 200 000 → должен стать 1 800 000
+        cloned_plan = BudgetLimitPlan.objects.get(scenario=target)
+        self.assertEqual(cloned_plan.annual_amount, Decimal("1800000.00"))
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

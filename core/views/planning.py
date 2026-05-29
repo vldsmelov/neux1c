@@ -247,8 +247,17 @@ def planning_limits(request):
             messages.error(request, str(exc))
         return redirect("planning_limits")
 
+    from ..models import PlanningScenario
     plans_qs = BudgetLimitPlan.objects.filter(organization=org).select_related(
-        "budget", "department", "article", "currency", "approver", "author"
+        "budget", "department", "article", "currency", "approver", "author", "scenario"
+    )
+    selected_scenario_id = parse_optional_int(request.GET.get("scenario_id"))
+    if selected_scenario_id:
+        plans_qs = plans_qs.filter(scenario_id=selected_scenario_id)
+    scenarios_for_org = (
+        PlanningScenario.objects.filter(organization=org).order_by("-year", "-is_baseline", "name")
+        if org
+        else PlanningScenario.objects.none()
     )
     if request.GET.get("export") == "csv":
         return _export_limits_csv(plans_qs)
@@ -273,6 +282,8 @@ def planning_limits(request):
             "can_create_plans": can_create_plans(request.user),
             "can_create_limit_adjustments": can_create_limit_adjustments(request.user),
             "can_approve_plans": can_approve_plans(request.user),
+            "scenarios_for_org": scenarios_for_org,
+            "selected_scenario_id": selected_scenario_id,
             "plans_acl": {
                 "view": has_model_permission(request.user, BudgetLimitPlan, "view"),
                 "create": can_create_plans(request.user),

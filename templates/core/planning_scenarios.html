@@ -114,6 +114,39 @@
                     </div>
                 </form>
             </details>
+            <details class="stack-section">
+                <summary>Скопировать сценарий с коэффициентом (what-if)</summary>
+                <form method="post" class="form-grid form-grid-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="clone">
+                    <label><span class="field-label">Исходный сценарий</span>
+                        <select class="field-control-select" name="scenario_id" required>
+                            {% for scenario in scenarios %}
+                                <option value="{{ scenario.id }}">
+                                    {{ scenario.name }} · {{ scenario.year }} · {{ scenario.organization.name }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </label>
+                    <label><span class="field-label">Название нового</span>
+                        <input class="field-control" name="new_name" required placeholder="Оптимистичный (Базовый × 1.15)">
+                    </label>
+                    <label><span class="field-label">Тип</span>
+                        <select class="field-control-select" name="new_kind">
+                            <option value="optimistic">Оптимистичный</option>
+                            <option value="pessimistic">Пессимистичный</option>
+                            <option value="custom" selected>Пользовательский</option>
+                        </select>
+                    </label>
+                    <label><span class="field-label">Коэффициент</span>
+                        <input class="field-control" name="multiplier" required value="1.15" inputmode="decimal" placeholder="1.10">
+                    </label>
+                    <div class="form-grid-span-full inline-form-row">
+                        <button class="command-button-primary" type="submit">Скопировать × коэффициент</button>
+                        <span class="hint">Все approved-лимиты исходного сценария будут скопированы с умножением годовой и помесячных сумм на этот коэффициент. Корректировки не переносятся.</span>
+                    </div>
+                </form>
+            </details>
         {% endif %}
 
         <div class="table-toolbar">

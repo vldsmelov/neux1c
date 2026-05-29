@@ -941,14 +941,15 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 .scenario-usage-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
 .cell-secondary { color: var(--color-text-muted); font-size: var(--text-xs); margin-top: 2px; }
 
-/* Sticky right action column inside desktop-scroll wraps */
-.data-table-wrap.desktop-scroll .table-action-col {
+/* Sticky right action column — only on narrow data-tables (don't break the
+   existing wide journals where actions are part of the natural flow) */
+.data-table.data-table-narrow .table-action-col {
     position: sticky;
     right: 0;
     background: var(--color-bg-surface);
     box-shadow: -8px 0 8px -8px rgba(0,0,0,.08);
 }
-.data-table-wrap.desktop-scroll tbody tr:nth-child(even) .table-action-col {
+.data-table.data-table-narrow tbody tr:nth-child(even) .table-action-col {
     background: var(--color-bg-elevated, var(--color-bg-surface));
 }
 
@@ -984,3 +985,19 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     font-style: normal;
     font-size: var(--text-xs);
 }
+
+/* Compact inline filter inside a table toolbar */
+.toolbar-inline-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0;
+}
+.toolbar-inline-label {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+.toolbar-inline-filter .field-control-select { min-width: 180px; }

@@ -44,8 +44,19 @@
             <div class="section-tab-panel" data-tab-panel="limits">
                 <div class="table-toolbar">
                     <span class="table-toolbar-note">Лимитов в списке: <strong id="plans-table-count">{{ plans|length }}</strong></span>
+                    <form method="get" class="toolbar-inline-filter">
+                        <span class="toolbar-inline-label">Сценарий:</span>
+                        <select class="field-control-select field-control-sm" id="scenario-filter" name="scenario_id" onchange="this.form.submit()">
+                            <option value="">все</option>
+                            {% for scenario in scenarios_for_org %}
+                                <option value="{{ scenario.id }}" {% if selected_scenario_id == scenario.id %}selected{% endif %}>
+                                    {{ scenario.name }} · {{ scenario.year }}{% if scenario.is_baseline %} · базовый{% endif %}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </form>
                     <input class="field-control field-control-sm table-search-input" type="search" placeholder="Поиск по лимитам" data-table-search="#plans-table" data-table-count="#plans-table-count">
-                    <a class="command-button is-sm" href="?export=csv" title="Экспортировать лимиты в CSV">⬇ CSV</a>
+                    <a class="command-button is-sm" href="?export=csv{% if selected_scenario_id %}&scenario_id={{ selected_scenario_id }}{% endif %}" title="Экспортировать лимиты в CSV">⬇ CSV</a>
                 </div>
                 <div class="data-table-wrap desktop-scroll">
                     <table id="plans-table" class="data-table">
@@ -67,7 +78,12 @@
                             {% for plan in plans %}
                                 <tr>
                                     <td><span class="fake-checkbox"></span></td>
-                                    <td class="table-col-doc table-cell-nowrap">{{ plan.number }}</td>
+                                    <td class="table-col-doc table-cell-nowrap">
+                                        {{ plan.number }}
+                                        {% if plan.scenario and not plan.scenario.is_baseline %}
+                                            <div><span class="badge badge-info" title="Сценарий планирования">{{ plan.scenario.name }}</span></div>
+                                        {% endif %}
+                                    </td>
                                     <td class="table-col-doc table-cell-nowrap">{% if plan.budget %}{{ plan.budget.number }}{% else %}—{% endif %}</td>
                                     <td>{{ plan.organization.name }}</td>
                                     <td class="table-col-short">{{ plan.planning_year }}</td>
