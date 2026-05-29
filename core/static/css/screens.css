@@ -1001,3 +1001,11 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     white-space: nowrap;
 }
 .toolbar-inline-filter .field-control-select { min-width: 180px; }
+
+/* Plan-fact forecast cells */
+.report-summary-cell.forecast-cell { border-left: 3px solid var(--color-accent); }
+.report-summary-cell.forecast-over { border-left-color: var(--color-danger); }
+.report-summary-cell.forecast-over .report-summary-value { color: var(--color-danger); }
+.report-summary-cell.forecast-under { border-left-color: var(--color-success); }
+.report-summary-cell.forecast-under .report-summary-value { color: var(--color-success); }
+.report-summary-cell .cell-secondary { display: block; margin-top: 2px; font-weight: 400; font-size: var(--text-xs); color: var(--color-text-muted); }

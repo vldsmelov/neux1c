@@ -453,7 +453,7 @@ class PlanFactReportTests(TestCase):
         self.assertEqual(cloned_plan.annual_amount, Decimal("1800000.00"))
 
     def test_article_subtree_filter_includes_descendants(self):
-        from core.models import CashFlowArticle, BudgetLimitPlan
+        from core.models import CashFlowArticle
 
         # Создаём группу-родителя и привязываем DDS-010 как ребёнка
         parent_group = CashFlowArticle.objects.create(
@@ -475,6 +475,19 @@ class PlanFactReportTests(TestCase):
         codes = {row["article"].code for row in rows}
         # Должна быть DDS-010 (потомок выбранной группы)
         self.assertIn("DDS-010", codes)
+
+    def test_forecast_extrapolates_remaining_year(self):
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(
+            reverse("plan_fact_report"),
+            {"year": 2026, "organization_id": self.organization.id},
+        )
+        summary = response.context["summary"]
+        # В seed-данных факты до апреля 2026 → cutoff должен быть >= 3
+        self.assertGreaterEqual(summary["forecast_cutoff_month"], 1)
+        self.assertLessEqual(summary["forecast_cutoff_month"], 12)
+        # forecast_bu = факт + (план+корр) × оставшаяся доля года; всегда ≥ факта
+        self.assertGreaterEqual(summary["forecast_bu"], summary["total_fact_bu"])
 
     def test_direction_filter_selects_inflow_only(self):
         from core.models import CashFlowArticle

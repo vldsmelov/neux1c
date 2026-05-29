@@ -227,6 +227,26 @@
                 <div class="report-summary-value">{{ summary.total_balance_bu|ru_number }}</div>
                 <div class="report-summary-label">Итог остаток БУ, руб.</div>
             </div>
+            <div class="report-summary-cell forecast-cell">
+                <div class="report-summary-value">{{ summary.forecast_bu|ru_number }}</div>
+                <div class="report-summary-label">
+                    Прогноз исполнения БУ к концу года
+                    {% if summary.forecast_cutoff_month %}
+                        <span class="cell-secondary">(факт до {{ summary.forecast_cutoff_month }} мес.)</span>
+                    {% else %}
+                        <span class="cell-secondary">(факта пока нет, прогноз = план)</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="report-summary-cell forecast-cell {% if summary.forecast_excess_bu > 0 %}forecast-over{% elif summary.forecast_excess_bu < 0 %}forecast-under{% endif %}">
+                <div class="report-summary-value">
+                    {% if summary.forecast_excess_bu > 0 %}+{% endif %}{{ summary.forecast_excess_bu|ru_number }}
+                </div>
+                <div class="report-summary-label">
+                    Отклонение прогноза от плана+корр., руб.
+                    <span class="cell-secondary">{% if summary.forecast_excess_bu > 0 %}перерасход к концу года{% elif summary.forecast_excess_bu < 0 %}экономия к концу года{% else %}в плане{% endif %}</span>
+                </div>
+            </div>
         </section>
 
         <section class="data-panel stack section-tab-panel" data-tab-panel="table">

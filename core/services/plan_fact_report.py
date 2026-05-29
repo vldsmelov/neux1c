@@ -5,6 +5,7 @@ from decimal import Decimal
 from io import StringIO
 
 from django.db.models import Max, Q, Sum
+from django.utils import timezone
 
 from core.models import (
     AccountingKind,
@@ -121,20 +122,80 @@ def build_plan_fact_report(filters: PlanFactFilters) -> tuple[list[dict], dict]:
     overrun_article_ids = {row["article"].id for row in rows if row["has_limit_overrun"]}
     vgo_article_ids = {row["article"].id for row in rows if row["is_internal_turnover"]}
 
+    total_plan = quant_money(sum((row["plan"] for row in rows), MONEY_ZERO))
+    total_adjustments = quant_money(sum((row["adjustments"] for row in rows), MONEY_ZERO))
+    total_fact_bu = quant_money(sum((row["fact_bu"] for row in rows), MONEY_ZERO))
+    total_fact_nu = quant_money(sum((row["fact_nu"] for row in rows), MONEY_ZERO))
+
+    cutoff_month = _forecast_cutoff_month(filters, article_ids)
+    forecast_bu = _forecast_total(total_plan + total_adjustments, total_fact_bu, cutoff_month, filters.year)
+    forecast_nu = _forecast_total(total_plan + total_adjustments, total_fact_nu, cutoff_month, filters.year)
+    forecast_excess_bu = quant_money(forecast_bu - (total_plan + total_adjustments))
+    forecast_excess_nu = quant_money(forecast_nu - (total_plan + total_adjustments))
+
     summary = {
         "articles": len(unique_article_ids),
-        "total_plan": quant_money(sum((row["plan"] for row in rows), MONEY_ZERO)),
-        "total_adjustments": quant_money(sum((row["adjustments"] for row in rows), MONEY_ZERO)),
+        "total_plan": total_plan,
+        "total_adjustments": total_adjustments,
         "total_reserved": quant_money(sum((row["reserved"] for row in rows), MONEY_ZERO)),
         "total_requested": quant_money(sum((row["requested"] for row in rows), MONEY_ZERO)),
-        "total_fact_bu": quant_money(sum((row["fact_bu"] for row in rows), MONEY_ZERO)),
-        "total_fact_nu": quant_money(sum((row["fact_nu"] for row in rows), MONEY_ZERO)),
+        "total_fact_bu": total_fact_bu,
+        "total_fact_nu": total_fact_nu,
         "total_balance_bu": quant_money(sum((row["balance_bu"] for row in rows), MONEY_ZERO)),
         "total_balance_nu": quant_money(sum((row["balance_nu"] for row in rows), MONEY_ZERO)),
         "overrun_articles": len(overrun_article_ids),
         "vgo_articles": len(vgo_article_ids),
+        # Прогноз исполнения к концу года
+        "forecast_cutoff_month": cutoff_month,
+        "forecast_bu": forecast_bu,
+        "forecast_nu": forecast_nu,
+        "forecast_excess_bu": forecast_excess_bu,
+        "forecast_excess_nu": forecast_excess_nu,
     }
     return rows, summary
+
+
+def _forecast_cutoff_month(filters: PlanFactFilters, article_ids: list[int]) -> int:
+    """Последний месяц года, по которому есть данные факта (по этим фильтрам).
+
+    Если фактов нет вовсе — берём «сегодня − 1 месяц» (по локальной дате) или
+    0, если год ещё впереди.
+    """
+    query = PaymentFact.objects.filter(
+        date__year=filters.year,
+        article_id__in=article_ids,
+        direction=PaymentDirection.OUTFLOW,
+    )
+    if filters.organization_id:
+        query = query.filter(organization_id=filters.organization_id)
+    if filters.counterparty_id:
+        query = query.filter(counterparty_id=filters.counterparty_id)
+    last_fact_month = query.aggregate(m=Max("date__month"))["m"]
+    if last_fact_month:
+        return int(last_fact_month)
+    today = timezone.localdate()
+    if today.year < filters.year:
+        return 0
+    if today.year > filters.year:
+        return 12
+    # Текущий год без фактов — берём прошлый завершившийся месяц
+    return max(today.month - 1, 0)
+
+
+def _forecast_total(plan_plus_adjustments, fact_to_date, cutoff_month: int, year: int):
+    """Прогноз исполнения к концу года: факт + пропорция плана за оставшиеся месяцы.
+
+    При cutoff_month == 0 фактов нет, прогноз равен плану.
+    При cutoff_month == 12 год закрыт, прогноз равен факту.
+    """
+    if cutoff_month <= 0:
+        return quant_money(plan_plus_adjustments)
+    if cutoff_month >= 12:
+        return quant_money(fact_to_date)
+    from decimal import Decimal as _D
+    remaining_share = _D(12 - cutoff_month) / _D(12)
+    remaining_plan = plan_plus_adjustments * remaining_share
+    return quant_money(fact_to_date + remaining_plan)
 
 
 def to_csv(rows: list[dict]) -> str:
@@ -462,4 +523,9 @@ def _empty_summary() -> dict:
         "total_balance_nu": MONEY_ZERO,
         "overrun_articles": 0,
         "vgo_articles": 0,
+        "forecast_cutoff_month": 0,
+        "forecast_bu": MONEY_ZERO,
+        "forecast_nu": MONEY_ZERO,
+        "forecast_excess_bu": MONEY_ZERO,
+        "forecast_excess_nu": MONEY_ZERO,
     }
