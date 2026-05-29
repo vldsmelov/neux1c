@@ -42,6 +42,7 @@ class PlanFactFilters:
     supplier_contract_id: int | None = None
     request_status: str = ""
     scenario_id: int | None = None
+    direction: str = ""
 
     @property
     def request_statuses(self) -> tuple[str, ...]:
@@ -53,7 +54,16 @@ class PlanFactFilters:
 def build_plan_fact_report(filters: PlanFactFilters) -> tuple[list[dict], dict]:
     articles_query = CashFlowArticle.objects.order_by("code")
     if filters.article_id:
-        articles_query = articles_query.filter(pk=filters.article_id)
+        # Включаем все статьи поддерева — выбрав «Операционные расходы»
+        # пользователь хочет увидеть и все её дочерние статьи в отчёте.
+        try:
+            anchor = CashFlowArticle.objects.get(pk=filters.article_id)
+            subtree_ids = anchor.descendant_ids()
+            articles_query = articles_query.filter(pk__in=subtree_ids)
+        except CashFlowArticle.DoesNotExist:
+            articles_query = articles_query.none()
+    if filters.direction:
+        articles_query = articles_query.filter(direction=filters.direction)
     articles = list(articles_query)
     if not articles:
         return [], _empty_summary()

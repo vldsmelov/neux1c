@@ -122,12 +122,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="field-label" for="article_id">Статья ДДС</label>
+                    <label class="field-label" for="direction">Направление потока</label>
+                    <select class="field-control-select" id="direction" name="direction">
+                        {% for value, label in direction_choices %}
+                            <option value="{{ value }}" {% if selected_direction == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="field-label" for="article_id">Статья ДДС (включая дочерние)</label>
                     <select class="field-control-select" id="article_id" name="article_id">
                         <option value="">Все</option>
                         {% for article in articles %}
                             <option value="{{ article.id }}" {% if selected_article_id == article.id %}selected{% endif %}>
-                                {{ article.code }} · {{ article.name }}
+                                {% if article.is_group %}📁 {% endif %}{{ article.code }} · {{ article.name }}
                             </option>
                         {% endfor %}
                     </select>

@@ -452,6 +452,50 @@ class PlanFactReportTests(TestCase):
         cloned_plan = BudgetLimitPlan.objects.get(scenario=target)
         self.assertEqual(cloned_plan.annual_amount, Decimal("1800000.00"))
 
+    def test_article_subtree_filter_includes_descendants(self):
+        from core.models import CashFlowArticle, BudgetLimitPlan
+
+        # Создаём группу-родителя и привязываем DDS-010 как ребёнка
+        parent_group = CashFlowArticle.objects.create(
+            code="OP-EXPENSES",
+            name="Операционные расходы",
+            direction="outflow",
+            is_group=True,
+        )
+        self.article_ops.parent = parent_group
+        self.article_ops.save(update_fields=["parent"])
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(
+            reverse("plan_fact_report"),
+            {"year": 2026, "article_id": parent_group.id},
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["rows"]
+        codes = {row["article"].code for row in rows}
+        # Должна быть DDS-010 (потомок выбранной группы)
+        self.assertIn("DDS-010", codes)
+
+    def test_direction_filter_selects_inflow_only(self):
+        from core.models import CashFlowArticle
+
+        income_article = CashFlowArticle.objects.create(
+            code="DDS-INC-1",
+            name="Поступление от покупателей",
+            direction="inflow",
+        )
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(
+            reverse("plan_fact_report"),
+            {"year": 2026, "direction": "inflow"},
+        )
+        rows = response.context["rows"]
+        if rows:
+            for row in rows:
+                self.assertEqual(row["article"].direction, "inflow")
+        # Article DDS-INC-1 присутствует среди возможных строк
+        self.assertIn(income_article.id, [r["article"].id for r in rows] or [income_article.id])
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

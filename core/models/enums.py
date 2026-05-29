@@ -102,6 +102,13 @@ class BudgetPlanStatus(models.TextChoices):
     CLOSED = "closed", "Закрыт"
 
 
+class CashFlowDirection(models.TextChoices):
+    OUTFLOW = "outflow", "Выплаты"
+    INFLOW = "inflow", "Поступления"
+    INTERNAL = "internal", "Внутренние обороты"
+    TRANSFER = "transfer", "Переводы между счетами"
+
+
 class PlanningScenarioKind(models.TextChoices):
     BASE = "base", "Базовый"
     OPTIMISTIC = "optimistic", "Оптимистичный"

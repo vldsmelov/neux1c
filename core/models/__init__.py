@@ -12,6 +12,7 @@ from .enums import (  # noqa: F401
     AccountingKind,
     AuditAction,
     BudgetPeriodicity,
+    CashFlowDirection,
     BudgetPlanStatus,
     BudgetScope,
     ContractKind,

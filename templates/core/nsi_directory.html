@@ -66,6 +66,25 @@
                                 <input type="checkbox" name="{{ field.name }}" value="1" {% if field.default %}checked{% endif %}>
                                 <span>{{ field.label }}</span>
                             </label>
+                        {% elif field.kind == "choice" %}
+                            <label>
+                                <span class="field-label">{{ field.label }}</span>
+                                <select class="field-control-select" name="{{ field.name }}">
+                                    {% for value, label in field.choices %}
+                                        <option value="{{ value }}" {% if value == field.default %}selected{% endif %}>{{ label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
+                        {% elif field.kind == "fk_self" %}
+                            <label>
+                                <span class="field-label">{{ field.label }}</span>
+                                <select class="field-control-select" name="{{ field.name }}">
+                                    <option value="">— нет родителя —</option>
+                                    {% for opt in field.options %}
+                                        <option value="{{ opt.id }}">{{ opt.label }}</option>
+                                    {% endfor %}
+                                </select>
+                            </label>
                         {% else %}
                             <label>
                                 <span class="field-label">{{ field.label }}</span>
@@ -119,12 +138,27 @@
                                                     <input form="nsi-edit-{{ row.id }}" type="checkbox" name="{{ field.name }}" value="1" {% if field.checked %}checked{% endif %}>
                                                     <span>{% if field.checked %}Да{% else %}Нет{% endif %}</span>
                                                 </label>
+                                            {% elif field.kind == "choice" %}
+                                                <select form="nsi-edit-{{ row.id }}" class="field-control-select field-control-sm" name="{{ field.name }}">
+                                                    {% for value, label in field.choices %}
+                                                        <option value="{{ value }}" {% if value == field.input_value %}selected{% endif %}>{{ label }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            {% elif field.kind == "fk_self" %}
+                                                <select form="nsi-edit-{{ row.id }}" class="field-control-select field-control-sm" name="{{ field.name }}">
+                                                    <option value="">— нет —</option>
+                                                    {% for opt in field.options %}
+                                                        <option value="{{ opt.id }}" {% if opt.id == field.input_value %}selected{% endif %}>{{ opt.label }}</option>
+                                                    {% endfor %}
+                                                </select>
                                             {% else %}
                                                 <input form="nsi-edit-{{ row.id }}" class="field-control field-control-sm" name="{{ field.name }}" value="{{ field.input_value }}" {% if field.maxlength %}maxlength="{{ field.maxlength }}"{% endif %} {% if field.required %}required{% endif %}>
                                             {% endif %}
                                         {% else %}
                                             {% if field.kind == "checkbox" %}
                                                 {% if field.checked %}<span class="badge">Да</span>{% else %}<span class="badge badge-muted">Нет</span>{% endif %}
+                                            {% elif field.kind == "choice" or field.kind == "fk_self" %}
+                                                {{ field.display_value|default:"—" }}
                                             {% else %}
                                                 {{ field.value|default:"--" }}
                                             {% endif %}

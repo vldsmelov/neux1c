@@ -11,6 +11,7 @@ from django.utils import timezone
 from ..access import role_required
 from ..models import (
     CashFlowArticle,
+    CashFlowDirection,
     Contract,
     ContractKind,
     Counterparty,
@@ -96,6 +97,9 @@ def plan_fact_report(request):
     selected_customer_contract_id = _read_filter_int(request.GET, base_filters, "customer_contract_id")
     selected_supplier_contract_id = _read_filter_int(request.GET, base_filters, "supplier_contract_id")
     selected_scenario_id = _read_filter_int(request.GET, base_filters, "scenario_id")
+    selected_direction = _read_filter_text(
+        request.GET, base_filters, "direction", allowed_values=CashFlowDirection.values,
+    )
 
     # Сценарии для выбранной компании+года; по умолчанию — baseline.
     scenarios = list(
@@ -118,6 +122,7 @@ def plan_fact_report(request):
         supplier_contract_id=selected_supplier_contract_id,
         request_status=selected_status,
         scenario_id=selected_scenario_id,
+        direction=selected_direction,
     )
     rows, summary = build_plan_fact_report(filters)
 
@@ -149,6 +154,8 @@ def plan_fact_report(request):
             "selected_request_status": selected_status,
             "scenarios": scenarios,
             "selected_scenario_id": selected_scenario_id,
+            "direction_choices": [("", "Все направления")] + list(CashFlowDirection.choices),
+            "selected_direction": selected_direction,
             "report_templates": templates,
             "selected_template_id": selected_template_id,
             "working_organization": org,
@@ -162,6 +169,7 @@ def plan_fact_report(request):
                 "supplier_contract_id": selected_supplier_contract_id,
                 "request_status": selected_status,
                 "scenario_id": selected_scenario_id,
+                "direction": selected_direction,
             },
         },
     )
@@ -229,6 +237,7 @@ def _collect_plan_fact_filter_payload(data, *, default_year: int) -> dict:
         "supplier_contract_id": parse_optional_int(data.get("supplier_contract_id")),
         "request_status": request_status,
         "scenario_id": parse_optional_int(data.get("scenario_id")),
+        "direction": (data.get("direction") or "").strip(),
     }
 
 

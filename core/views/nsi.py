@@ -73,11 +73,31 @@ NSI_DIRECTORY_CONFIG = {
         "model": CashFlowArticle,
         "label": "Статьи ДДС",
         "singular": "статью ДДС",
-        "description": "Классификатор движения денежных средств",
+        "description": "Классификатор движения денежных средств (БДДС): иерархия + направление потока",
         "ordering": ["code"],
         "fields": [
             {"name": "code", "label": "Код", "required": True, "transform": "upper", "placeholder": "DDS-040"},
             {"name": "name", "label": "Наименование", "required": True, "placeholder": "Командировочные расходы"},
+            {
+                "name": "direction",
+                "label": "Направление потока",
+                "kind": "choice",
+                "choices": [
+                    ("outflow", "Выплаты"),
+                    ("inflow", "Поступления"),
+                    ("internal", "Внутренние обороты"),
+                    ("transfer", "Переводы"),
+                ],
+                "default": "outflow",
+                "required": True,
+            },
+            {
+                "name": "parent",
+                "label": "Родительская группа",
+                "kind": "fk_self",
+                "options_from": "self",
+            },
+            {"name": "is_group", "label": "Группа", "kind": "checkbox"},
             {"name": "is_internal_turnover", "label": "ВГО", "kind": "checkbox"},
         ],
         "create_defaults": {"exists_in_one_c": False},
@@ -178,13 +198,23 @@ def nsi_directory(request, directory: str):
         return redirect(path)
 
     objects = model.objects.order_by(*config["ordering"])
+    # Populate fk_self options at view time so the create form has them too
+    enriched_fields = []
+    for field in config["fields"]:
+        enriched = dict(field)
+        if field.get("kind") == "fk_self" and field.get("options_from") == "self":
+            enriched["options"] = [
+                {"id": item.pk, "label": str(item)} for item in model.objects.order_by(*config["ordering"])
+            ]
+        enriched_fields.append(enriched)
+    directory_context = {**config, "fields": enriched_fields}
     return render(
         request,
         "core/nsi_directory.html",
         {
             "latest_sync": SyncRun.objects.first(),
             "managed_directories": _nsi_directory_overview(),
-            "directory": config,
+            "directory": directory_context,
             "directory_key": directory,
             "directory_rows": [_nsi_directory_object_row(obj, config) for obj in objects],
             "can_create_nsi": has_model_permission(request.user, model, "add"),
@@ -294,6 +324,19 @@ def _nsi_values_from_post(request, config: dict) -> dict:
         if field.get("kind") == "checkbox":
             values[field_name] = bool(request.POST.get(field_name))
             continue
+        if field.get("kind") == "choice":
+            raw_value = (request.POST.get(field_name) or "").strip()
+            allowed = {value for value, _ in field.get("choices", [])}
+            if raw_value not in allowed:
+                if field.get("required"):
+                    raise ValueError(f"Заполните поле «{field['label']}»")
+                raw_value = field.get("default", "")
+            values[field_name] = raw_value
+            continue
+        if field.get("kind") == "fk_self":
+            raw_value = (request.POST.get(field_name) or "").strip()
+            values[field_name + "_id"] = int(raw_value) if raw_value.isdigit() else None
+            continue
         label = field["label"]
         raw_value = (
             _required_post_value(request, field_name, label)
@@ -317,6 +360,33 @@ def _nsi_directory_object_row(obj, config: dict) -> dict:
 
 
 def _nsi_directory_field_value(obj, field: dict) -> dict:
+    if field.get("kind") == "fk_self":
+        related = getattr(obj, field["name"])
+        value = related
+        input_value = related.pk if related else ""
+        display_value = str(related) if related else "—"
+        field_data = {
+            **field,
+            "value": value,
+            "input_value": input_value,
+            "display_value": display_value,
+            "options": [
+                {"id": item.pk, "label": str(item)}
+                for item in type(obj).objects.exclude(pk=obj.pk).order_by("code")
+            ] if field.get("options_from") == "self" else [],
+        }
+        return field_data
+    if field.get("kind") == "choice":
+        value = getattr(obj, field["name"])
+        display_method = getattr(obj, f"get_{field['name']}_display", None)
+        display_value = display_method() if callable(display_method) else value
+        field_data = {
+            **field,
+            "value": value,
+            "input_value": value or "",
+            "display_value": display_value,
+        }
+        return field_data
     value = getattr(obj, field["name"])
     field_data = {
         **field,
