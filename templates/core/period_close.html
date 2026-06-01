@@ -1,0 +1,112 @@
+{% extends "core/base.html" %}
+
+{% block title %}Закрытие учётных периодов · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab is-active" href="/settings/period-close/">Закрытие периодов</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🔒 Закрытие учётных периодов</h1>
+            <p class="app-subtitle">Enterprise feature: после закрытия месяца факт оплаты в этом периоде нельзя править без явного повторного открытия с указанием причины. Защищает финансовый периметр после сверки с банком и БУ.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <label><span class="field-label">Организация</span>
+                <select class="field-control-select" name="organization_id" onchange="this.form.submit()">
+                    <option value="">— выберите —</option>
+                    {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if selected_org_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
+    </section>
+
+    {% if selected_org %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Периоды · {{ selected_org.name }}</h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Период</th>
+                            <th class="table-col-short">Статус</th>
+                            <th>Кто закрыл</th>
+                            <th>Дата закрытия</th>
+                            <th>Комментарий / История</th>
+                            <th class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rows %}
+                            <tr>
+                                <td><strong>{{ r.label }}</strong>{% if r.is_current_or_future %} <span class="badge badge-muted">текущий/будущий</span>{% endif %}</td>
+                                <td class="table-col-short">
+                                    {% if r.is_locked %}
+                                        <span class="badge badge-danger">🔒 закрыт</span>
+                                    {% elif r.was_reopened %}
+                                        <span class="badge badge-warning">⚠ переоткрыт</span>
+                                    {% else %}
+                                        <span class="badge">открыт</span>
+                                    {% endif %}
+                                </td>
+                                <td>{% if r.lock %}{{ r.lock.locked_by.username }}{% else %}—{% endif %}</td>
+                                <td>{% if r.lock %}{{ r.lock.locked_at|date:"d.m.Y H:i" }}{% else %}—{% endif %}</td>
+                                <td>
+                                    {% if r.lock.comment %}{{ r.lock.comment }}{% endif %}
+                                    {% if r.was_reopened %}
+                                        <div class="cell-secondary">↺ {{ r.lock.unlocked_at|date:"d.m.Y H:i" }} {{ r.lock.unlocked_by.username }}: {{ r.lock.unlock_reason }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="table-action-col">
+                                    {% if r.is_locked %}
+                                        <details class="loan-repay-toggle">
+                                            <summary class="command-button is-sm">↺ Открыть для правок</summary>
+                                            <form method="post" class="loan-repay-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="reopen">
+                                                <input type="hidden" name="lock_id" value="{{ r.lock.id }}">
+                                                <input type="hidden" name="organization_id" value="{{ selected_org.id }}">
+                                                <label><span class="field-label">Причина (обязательно)</span>
+                                                    <input class="field-control field-control-sm" name="reason" required placeholder="Корректировка по запросу аудита">
+                                                </label>
+                                                <button class="command-button-primary is-sm" type="submit">Открыть</button>
+                                            </form>
+                                        </details>
+                                    {% elif not r.is_current_or_future %}
+                                        <details class="loan-repay-toggle">
+                                            <summary class="command-button-primary is-sm">🔒 Закрыть период</summary>
+                                            <form method="post" class="loan-repay-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="close">
+                                                <input type="hidden" name="organization_id" value="{{ selected_org.id }}">
+                                                <input type="hidden" name="year" value="{{ r.year }}">
+                                                <input type="hidden" name="month" value="{{ r.month }}">
+                                                <label><span class="field-label">Комментарий</span>
+                                                    <input class="field-control field-control-sm" name="comment" placeholder="Сверка с банком завершена">
+                                                </label>
+                                                <button class="command-button-primary is-sm" type="submit">Закрыть</button>
+                                            </form>
+                                        </details>
+                                    {% else %}
+                                        <span class="cell-secondary">нельзя закрыть текущий период</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="data-panel stack">
+            <p class="hint">Выберите организацию выше — для каждой свой график закрытия периодов.</p>
+        </section>
+    {% endif %}
+{% endblock %}

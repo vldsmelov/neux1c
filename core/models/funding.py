@@ -53,6 +53,67 @@ class FundingCase(models.Model):
         return f"{self.code} · {self.name}"
 
 
+class AccountingPeriodLock(models.Model):
+    """Закрытие учётного периода (Period Close) — enterprise-уровневая
+    функция финансового контроля. После закрытия месяца:
+    * нельзя создать факт оплаты с датой в закрытом периоде;
+    * нельзя редактировать существующий факт закрытого периода;
+    * нельзя добавить корректировку факта в закрытом периоде;
+    * требуется разблокировка финдиректором/админом для исправлений.
+
+    Закрытие выполняется по (organization, year, month) — каждая
+    компания закрывает свои месяцы независимо.
+    """
+
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Организация",
+        on_delete=models.CASCADE,
+        related_name="period_locks",
+    )
+    year = models.PositiveSmallIntegerField("Год")
+    month = models.PositiveSmallIntegerField("Месяц (1-12)")
+    locked_at = models.DateTimeField("Дата закрытия", auto_now_add=True)
+    locked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Кто закрыл",
+        on_delete=models.PROTECT,
+        related_name="period_locks",
+    )
+    comment = models.CharField("Комментарий", max_length=255, blank=True)
+    unlocked_at = models.DateTimeField("Дата открытия для правок", null=True, blank=True)
+    unlocked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Кто открыл",
+        on_delete=models.PROTECT,
+        related_name="period_unlocks",
+        null=True,
+        blank=True,
+    )
+    unlock_reason = models.CharField("Причина повторного открытия", max_length=255, blank=True)
+
+    class Meta:
+        ordering = ["-year", "-month", "organization__name"]
+        verbose_name = "Закрытие учётного периода"
+        verbose_name_plural = "Закрытия учётных периодов"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "year", "month"],
+                name="uniq_period_lock_org_year_month",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["organization", "year", "month"], name="period_lock_lookup_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.organization.name} · {self.year}-{self.month:02d}"
+
+    @property
+    def is_active(self) -> bool:
+        return self.unlocked_at is None
+
+
 class LoanScheduleLine(models.Model):
     """Строка графика платежей по займу: одна строка = один период
     (обычно месяц). Принципиальная конструкция аннуитета: PMT константный,

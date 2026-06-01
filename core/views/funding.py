@@ -25,6 +25,7 @@ from ..models import (
 )
 from ..services.funding_cases import build_case_overview
 from ..services.loan_schedule import apply_repayment_to_schedule, generate_annuity_schedule
+from ..services.period_close import PeriodLockedError, assert_period_open
 from ._shared import parse_decimal, parse_optional_int, working_organization
 
 
@@ -296,6 +297,14 @@ def _record_loan_repayment(request, case: FundingCase) -> PaymentFact:
     if interest < 0 or interest > amount:
         raise ValueError("Сумма процентов должна быть в диапазоне 0..сумма возврата")
 
+    # Period close: нельзя писать факт в закрытый период
+    from datetime import datetime as _dt
+    parsed_date = _dt.fromisoformat(fact_date).date() if isinstance(fact_date, str) else fact_date
+    try:
+        assert_period_open(case.organization, parsed_date)
+    except PeriodLockedError as exc:
+        raise ValueError(str(exc)) from exc
+
     fact = PaymentFact.objects.create(
         external_id=f"case-{case.pk}-loan-{loan.pk}-{int(timezone.now().timestamp())}",
         date=fact_date,
@@ -379,6 +388,13 @@ def _record_inflow(request, case: FundingCase) -> PaymentFact:
         raise ValueError(f"Некорректная сумма: {exc}") from exc
     if not amount or amount <= 0:
         raise ValueError("Сумма поступления должна быть больше нуля")
+
+    from datetime import datetime as _dt2
+    parsed_date = _dt2.fromisoformat(fact_date).date() if isinstance(fact_date, str) else fact_date
+    try:
+        assert_period_open(case.organization, parsed_date)
+    except PeriodLockedError as exc:
+        raise ValueError(str(exc)) from exc
 
     fact = PaymentFact.objects.create(
         external_id=f"case-{case.pk}-inflow-{contract.pk}-{int(timezone.now().timestamp())}",
