@@ -34,7 +34,14 @@ from .planning import (  # noqa: F401
     planning_limits,
     planning_wizard,
 )
-from .reports import executive_dashboard, fx_revaluation_report, manager_dashboard, plan_fact_report, profit_loss_report  # noqa: F401
+from .reports import (  # noqa: F401
+    executive_dashboard,
+    fx_revaluation_report,
+    manager_dashboard,
+    plan_fact_report,
+    profit_loss_report,
+    variance_analysis_report,
+)
 from .funding import funding_case_detail, funding_case_print, funding_cases_index  # noqa: F401
 from .exchange_rates import exchange_rates  # noqa: F401
 from .period_close import period_close  # noqa: F401

@@ -1,0 +1,113 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Variance Analysis · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/reports/executive/">CFO дашборд</a>
+    <a class="app-tab" href="/reports/plan-fact/">План-факт БДДС</a>
+    <a class="app-tab" href="/reports/profit-loss/">БДР</a>
+    <a class="app-tab is-active" href="/reports/variance/">Variance Analysis</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🎯 Variance Analysis · Анализ отклонений</h1>
+            <p class="app-subtitle">Автоматическое объяснение отклонений плана от факта: для каждой статьи с превышением показаны топ-3 драйвера (контрагента) с их вкладом. Enterprise-функция уровня SAP/Oracle — финансовому директору не надо вручную копать в каждую статью.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <label><span class="field-label">Год</span>
+                <select class="field-control-select" name="year">
+                    {% for y in years %}<option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                </select>
+            </label>
+            <label><span class="field-label">Организация</span>
+                <select class="field-control-select" name="organization_id">
+                    <option value="">— весь холдинг —</option>
+                    {% for org in organizations %}<option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>{% endfor %}
+                </select>
+            </label>
+            <label><span class="field-label">Порог отклонения, %</span>
+                <input class="field-control" type="number" name="threshold_pct" value="{{ threshold_pct }}" min="0" max="100" step="1">
+            </label>
+            <div class="inline-form-row form-grid-span-full">
+                <button class="command-button-primary" type="submit">Пересчитать</button>
+                <span class="hint">Статьи с отклонением меньше порога не показываются — фокусируемся на действительно проблемных.</span>
+            </div>
+        </form>
+    </section>
+
+    <section class="exec-kpis">
+        <div class="exec-kpi exec-kpi-negative">
+            <div class="exec-kpi-label">💸 Суммарный перерасход</div>
+            <div class="exec-kpi-value">+{{ total_overrun|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">по статьям где факт > план</div>
+        </div>
+        <div class="exec-kpi exec-kpi-positive">
+            <div class="exec-kpi-label">💰 Суммарная экономия</div>
+            <div class="exec-kpi-value">{{ total_savings|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">по статьям где факт < план</div>
+        </div>
+        <div class="exec-kpi {% if net_variance > 0 %}exec-kpi-negative{% elif net_variance < 0 %}exec-kpi-positive{% endif %}">
+            <div class="exec-kpi-label">🧮 Чистое отклонение</div>
+            <div class="exec-kpi-value">{% if net_variance > 0 %}+{% endif %}{{ net_variance|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">перерасход − экономия</div>
+        </div>
+        <div class="exec-kpi {% if critical_count %}exec-kpi-negative{% endif %}">
+            <div class="exec-kpi-label">🚨 Критичных статей</div>
+            <div class="exec-kpi-value">{{ critical_count }}<span class="exec-kpi-frac">/{{ variances_count }}</span></div>
+            <div class="exec-kpi-sub">отклонение ≥ 50%; всего проблемных {{ variances_count }}</div>
+        </div>
+    </section>
+
+    {% if variances %}
+        <section class="data-panel stack">
+            <h2 class="section-title">📊 Топ {{ variances|length }} статей с наибольшим отклонением</h2>
+            <div class="variance-list">
+                {% for v in variances %}
+                    <article class="variance-card variance-{{ v.severity }} {% if v.is_overrun %}variance-overrun{% else %}variance-saving{% endif %}">
+                        <header class="variance-card-head">
+                            <div>
+                                <strong>{{ v.article.code }}</strong> · {{ v.article.name }}
+                                {% if v.severity == "critical" %}<span class="badge badge-danger">критичное</span>
+                                {% elif v.severity == "warning" %}<span class="badge badge-warning">внимание</span>
+                                {% endif %}
+                            </div>
+                            <div class="variance-headline">
+                                <span class="variance-amount">{% if v.is_overrun %}+{% endif %}{{ v.variance|ru_number }} ₽</span>
+                                <span class="variance-pct">{% if v.variance_pct > 0 %}+{% endif %}{{ v.variance_pct }}%</span>
+                            </div>
+                        </header>
+                        <div class="variance-numbers">
+                            <span>План: <strong>{{ v.plan_amount|ru_number }} ₽</strong></span>
+                            <span>·</span>
+                            <span>Факт: <strong>{{ v.fact_amount|ru_number }} ₽</strong></span>
+                        </div>
+                        {% if v.top_drivers %}
+                            <div class="variance-drivers">
+                                <div class="variance-drivers-label">Топ-драйверы:</div>
+                                <ol class="variance-drivers-list">
+                                    {% for d in v.top_drivers %}
+                                        <li>
+                                            <span class="variance-driver-name">{{ d.counterparty_name|truncatechars:40 }}</span>
+                                            <span class="variance-driver-amount">{{ d.fact_amount|ru_number }} ₽</span>
+                                            <span class="variance-driver-pct">{{ d.contribution_pct }}% факта</span>
+                                        </li>
+                                    {% endfor %}
+                                </ol>
+                            </div>
+                        {% endif %}
+                    </article>
+                {% endfor %}
+            </div>
+        </section>
+    {% else %}
+        <section class="data-panel stack">
+            <p class="hint">✅ Отклонений выше порога {{ threshold_pct }}% не обнаружено. План и факт сходятся в пределах нормы.</p>
+        </section>
+    {% endif %}
+{% endblock %}

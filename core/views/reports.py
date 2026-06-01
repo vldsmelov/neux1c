@@ -28,6 +28,7 @@ from ..services.plan_fact_report import PlanFactFilters, build_plan_fact_report,
 from ..services.executive_dashboard import build_executive_dashboard
 from ..services.fx_revaluation import build_fx_revaluation
 from ..services.profit_loss_report import ProfitLossFilters, build_profit_loss
+from ..services.variance_analysis import build_variance_analysis
 from ._shared import has_model_permission, parse_optional_int, working_organization
 
 
@@ -180,6 +181,41 @@ def plan_fact_report(request):
                 "direction": selected_direction,
                 "funding_case_id": selected_funding_case_id,
             },
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def variance_analysis_report(request):
+    """Variance Analysis — анализ отклонений плана от факта по статьям с топ-драйверами."""
+    from decimal import Decimal
+    org = working_organization(request)
+    current_year = timezone.localdate().year
+    selected_year = parse_optional_int(request.GET.get("year")) or current_year
+    selected_org_id = parse_optional_int(request.GET.get("organization_id"))
+    threshold_raw = (request.GET.get("threshold_pct") or "10").strip()
+    try:
+        threshold_pct = Decimal(threshold_raw)
+    except Exception:
+        threshold_pct = Decimal("10")
+
+    payload = build_variance_analysis(
+        year=selected_year,
+        organization_id=selected_org_id,
+        threshold_pct=threshold_pct,
+    )
+    return render(
+        request,
+        "core/variance_analysis_report.html",
+        {
+            "active_section": "reports",
+            "years": list(range(current_year - 2, current_year + 2)),
+            "selected_year": selected_year,
+            "organizations": Organization.objects.order_by("name"),
+            "selected_organization_id": selected_org_id,
+            "working_organization": org,
+            "threshold_pct": threshold_pct,
+            **payload,
         },
     )
 
