@@ -31,6 +31,7 @@ class ContractKind(models.TextChoices):
 class FundingCaseStatus(models.TextChoices):
     DRAFT = "draft", "Черновик"
     ACTIVE = "active", "В работе"
+    WAITING_FOR_INFLOW = "waiting_for_inflow", "Ждём поступление"
     CLOSED = "closed", "Закрыт"
     CANCELLED = "cancelled", "Отменён"
 

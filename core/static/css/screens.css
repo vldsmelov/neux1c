@@ -1274,3 +1274,16 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 }
 .loan-repay-form label { display: grid; gap: 3px; }
 .loan-repay-form .field-label { font-size: var(--text-xs); }
+
+/* Suggested status hint panel */
+.suggested-status-panel {
+    background: linear-gradient(135deg, var(--color-accent-soft) 0%, transparent 70%);
+    border-left: 4px solid var(--color-accent);
+}
+.suggested-status-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+    justify-content: space-between;
+}

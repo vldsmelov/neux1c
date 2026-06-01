@@ -30,6 +30,20 @@
         </section>
     {% endif %}
 
+    {% if overview.suggested_status %}
+        <section class="data-panel stack suggested-status-panel">
+            <div class="suggested-status-row">
+                <span>💡 <strong>Рекомендация:</strong> {{ overview.suggested_status_reason }}</span>
+                <form method="post" style="display:inline">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="set_status">
+                    <input type="hidden" name="new_status" value="{{ overview.suggested_status }}">
+                    <button class="command-button-primary is-sm" type="submit">Применить →</button>
+                </form>
+            </div>
+        </section>
+    {% endif %}
+
     <section class="case-summary-grid">
         <div class="case-summary-cell case-summary-positive">
             <div class="case-summary-label">Пришло (факт)</div>
@@ -141,6 +155,32 @@
                                     <td class="table-col-number"><strong>{{ stat.expected_remaining|ru_number }}</strong></td>
                                     <td class="table-action-col">
                                         <div class="form-stack-compact">
+                                            {% if kind == "customer" or kind == "loan_given" %}
+                                                {% if stat.expected_remaining > 0 %}
+                                                <details class="loan-repay-toggle">
+                                                    <summary class="command-button-primary is-sm">{% if kind == "customer" %}Записать поступление →{% else %}Записать возврат заёма →{% endif %}</summary>
+                                                    <form method="post" class="loan-repay-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="record_inflow">
+                                                        <input type="hidden" name="contract_id" value="{{ stat.contract.id }}">
+                                                        <label><span class="field-label">Дата</span>
+                                                            <input class="field-control field-control-sm" type="date" name="date" value="{{ today|date:'Y-m-d' }}" required>
+                                                        </label>
+                                                        <label><span class="field-label">Сумма, ₽</span>
+                                                            <input class="field-control field-control-sm" type="text" inputmode="decimal" name="amount" placeholder="{{ stat.expected_remaining }}" required>
+                                                        </label>
+                                                        <label><span class="field-label">Статья ДДС</span>
+                                                            <select class="field-control-select field-control-sm" name="article_id" required>
+                                                                {% for art in inflow_articles %}
+                                                                    <option value="{{ art.id }}">{{ art.code }} · {{ art.name }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </label>
+                                                        <button class="command-button-primary is-sm" type="submit">Записать</button>
+                                                    </form>
+                                                </details>
+                                                {% endif %}
+                                            {% endif %}
                                             {% if kind == "loan_received" and stat.expected_remaining > 0 %}
                                                 <details class="loan-repay-toggle">
                                                     <summary class="command-button-primary is-sm">Записать возврат →</summary>

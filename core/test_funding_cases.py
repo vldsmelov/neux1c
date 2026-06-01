@@ -237,6 +237,61 @@ class FundingCaseTests(TestCase):
         loan_stat = overview["contracts_by_kind"][ContractKind.LOAN_RECEIVED][0]
         self.assertEqual(loan_stat.expected_remaining, Decimal("230000.00"))
 
+    def test_record_inflow_quick_action_for_customer_contract(self):
+        case = FundingCase.objects.create(
+            code="FUND-INF-1", name="Поступление от мамы", organization=self.organization,
+        )
+        customer = Contract.objects.create(
+            number="CUST-INF", date=date(2026, 1, 10), kind=ContractKind.CUSTOMER,
+            name="Доходный", counterparty=self.mother, currency=self.rub,
+            amount=Decimal("500000.00"), funding_case=case,
+        )
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("funding_case_detail", args=[case.id]),
+            {
+                "action": "record_inflow",
+                "contract_id": customer.id,
+                "article_id": self.article_in.id,
+                "date": "2026-04-15",
+                "amount": "500000.00",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        fact = PaymentFact.objects.get(contract=customer, direction=PaymentDirection.INFLOW)
+        self.assertEqual(fact.amount, Decimal("500000.00"))
+        # Сальдо: пришло 500k, expected_remaining по доходному = 0
+        overview = build_case_overview(case)
+        cust_stat = overview["contracts_by_kind"][ContractKind.CUSTOMER][0]
+        self.assertEqual(cust_stat.expected_remaining, Decimal("0.00"))
+        # Кейс должен быть профицитным — рекомендация «закрыть»
+        self.assertEqual(overview["suggested_status"], "closed")
+
+    def test_record_inflow_rejects_supplier_contract(self):
+        case = FundingCase.objects.create(
+            code="FUND-INF-NO", name="Test reject", organization=self.organization,
+        )
+        sup = Contract.objects.create(
+            number="SUP-NO", date=date(2026, 1, 10), kind=ContractKind.SOLE_SUPPLIER,
+            name="Поставщик", counterparty=self.supplier, currency=self.rub,
+            amount=Decimal("100000.00"), funding_case=case,
+        )
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("funding_case_detail", args=[case.id]),
+            {
+                "action": "record_inflow",
+                "contract_id": sup.id,
+                "article_id": self.article_in.id,
+                "date": "2026-04-15",
+                "amount": "100000.00",
+            },
+            follow=True,
+        )
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("доходному" in m.lower() for m in msgs), msgs)
+
     def test_record_loan_repayment_rejects_invalid_interest(self):
         case = FundingCase.objects.create(
             code="FUND-QA-2", name="QA invalid", organization=self.organization,

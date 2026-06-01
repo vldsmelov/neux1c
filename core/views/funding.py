@@ -153,6 +153,29 @@ def funding_case_detail(request, case_id: int):
                     f"Записан возврат займа {fact.loan_repayment_contract.number}: "
                     f"{fact.amount} ₽ (из них процентов {fact.loan_interest_portion})",
                 )
+            elif action == "record_inflow":
+                fact = _record_inflow(request, case)
+                messages.success(
+                    request,
+                    f"Записано поступление по договору {fact.contract.number}: {fact.amount} ₽",
+                )
+            elif action == "set_status":
+                new_status = request.POST.get("new_status")
+                if new_status not in FundingCaseStatus.values:
+                    raise ValueError("Неизвестный статус")
+                case.status = new_status
+                if new_status == FundingCaseStatus.CLOSED:
+                    case.closed_at = timezone.localdate()
+                case.save(update_fields=["status", "closed_at", "updated_at"])
+                AuditLog.objects.create(
+                    user=request.user,
+                    action=AuditAction.UPDATE,
+                    path=f"/funding/cases/{case.pk}/",
+                    object_type="FundingCase",
+                    object_id=str(case.pk),
+                    message=f"Статус кейса {case.code} → {case.get_status_display()}",
+                )
+                messages.success(request, f"Статус кейса → {case.get_status_display()}")
         except (IntegrityError, ValueError) as exc:
             messages.error(request, _format_err(exc))
         return redirect("funding_case_detail", case_id=case.id)
@@ -169,6 +192,10 @@ def funding_case_detail(request, case_id: int):
         direction="outflow",
         is_group=False,
     ).order_by("code")
+    inflow_articles = CashFlowArticle.objects.filter(
+        direction="inflow",
+        is_group=False,
+    ).order_by("code")
 
     return render(
         request,
@@ -179,6 +206,7 @@ def funding_case_detail(request, case_id: int):
             "overview": overview,
             "attachable_contracts": attachable_contracts,
             "repayment_articles": repayment_articles,
+            "inflow_articles": inflow_articles,
             "today": timezone.localdate(),
             "kind_labels": dict(ContractKind.choices),
             "status_choices": FundingCaseStatus.choices,
@@ -276,6 +304,52 @@ def _create_case(request, org) -> FundingCase:
         message=f"Создан кейс финансирования {case.code} ({case.name})",
     )
     return case
+
+
+def _record_inflow(request, case: FundingCase) -> PaymentFact:
+    """Симметрия к _record_loan_repayment: создаёт INFLOW PaymentFact
+    привязанный к доходному договору / выданному займу кейса."""
+    contract = get_object_or_404(
+        Contract,
+        pk=parse_optional_int(request.POST.get("contract_id")),
+        funding_case=case,
+    )
+    if contract.kind not in (ContractKind.CUSTOMER, ContractKind.LOAN_GIVEN):
+        raise ValueError("Поступление можно записать только по доходному договору или выданному займу")
+    article = get_object_or_404(
+        CashFlowArticle, pk=parse_optional_int(request.POST.get("article_id"))
+    )
+    fact_date = request.POST.get("date") or timezone.localdate().isoformat()
+    try:
+        amount = parse_decimal(request.POST.get("amount"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"Некорректная сумма: {exc}") from exc
+    if not amount or amount <= 0:
+        raise ValueError("Сумма поступления должна быть больше нуля")
+
+    fact = PaymentFact.objects.create(
+        external_id=f"case-{case.pk}-inflow-{contract.pk}-{int(timezone.now().timestamp())}",
+        date=fact_date,
+        organization=case.organization,
+        article=article,
+        counterparty=contract.counterparty,
+        contract=contract,
+        amount=amount,
+        currency=contract.currency,
+        accounting_kind=AccountingKind.BU,
+        direction=PaymentDirection.INFLOW,
+        account="51",
+        comment=f"Поступление · кейс {case.code}",
+    )
+    AuditLog.objects.create(
+        user=request.user,
+        action=AuditAction.CREATE,
+        path=f"/funding/cases/{case.pk}/",
+        object_type="PaymentFact",
+        object_id=str(fact.pk),
+        message=f"Записано поступление по договору {contract.number} в кейсе {case.code}: {amount} ₽",
+    )
+    return fact
 
 
 def _format_err(exc) -> str:

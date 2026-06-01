@@ -209,10 +209,31 @@ def build_case_overview(case: FundingCase) -> dict:
         reverse=True,
     )
 
+    # Подсказка по статусу: что разумно сделать со статусом кейса сейчас?
+    suggested_status = None
+    suggested_status_reason = ""
+    if case.status in ("active", "waiting_for_inflow"):
+        all_settled = (
+            available_now >= MONEY_ZERO
+            and expected_inflow_remaining <= MONEY_ZERO
+            and expected_outflow_remaining <= MONEY_ZERO
+        )
+        if all_settled:
+            suggested_status = "closed"
+            suggested_status_reason = "все обязательства закрыты, деньги в плюсе — кейс можно завершить"
+        elif case.status == "active" and expected_inflow_remaining > MONEY_ZERO and available_now < MONEY_ZERO:
+            suggested_status = "waiting_for_inflow"
+            suggested_status_reason = "деньги ушли, но ждём поступление по доходным договорам — перевести в ожидание возврата"
+        elif case.status == "waiting_for_inflow" and available_now >= MONEY_ZERO:
+            suggested_status = "active"
+            suggested_status_reason = "поступление пришло, кассовый разрыв закрыт — вернуть в активную работу"
+
     return {
         "case": case,
         "contracts_by_kind": dict(by_kind),
         "counterparty_saldo": counterparty_saldo,
+        "suggested_status": suggested_status,
+        "suggested_status_reason": suggested_status_reason,
         "facts": facts,
         "active_requests": active_requests,
         "total_inflow": total_inflow,

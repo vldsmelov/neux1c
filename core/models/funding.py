@@ -26,7 +26,7 @@ class FundingCase(models.Model):
     description = models.TextField("Описание / Цель", blank=True)
     status = models.CharField(
         "Статус",
-        max_length=16,
+        max_length=24,
         choices=FundingCaseStatus.choices,
         default=FundingCaseStatus.ACTIVE,
     )
