@@ -21,6 +21,33 @@ from core.services.payment_requests import quant_money
 
 
 MONEY_ZERO = Decimal("0.00")
+
+
+def _contract_icon(kind: str) -> str:
+    return {
+        "customer": "📥",
+        "sole_supplier": "📤",
+        "loan_received": "💰",
+        "loan_given": "💸",
+    }.get(kind, "📄")
+
+
+def _contract_kind_label(kind: str) -> str:
+    return {
+        "customer": "Доходный договор",
+        "sole_supplier": "Договор с поставщиком",
+        "loan_received": "Заём получен",
+        "loan_given": "Заём выдан",
+    }.get(kind, "Договор")
+
+
+def _contract_tone(kind: str) -> str:
+    return {
+        "customer": "success",
+        "sole_supplier": "danger",
+        "loan_received": "warning",
+        "loan_given": "info",
+    }.get(kind, "info")
 ACTIVE_REQUEST_STATUSES = (
     PaymentRequestStatus.PENDING_APPROVAL,
     PaymentRequestStatus.PENDING_FINAL_APPROVAL,
@@ -228,12 +255,48 @@ def build_case_overview(case: FundingCase) -> dict:
             suggested_status = "active"
             suggested_status_reason = "поступление пришло, кассовый разрыв закрыт — вернуть в активную работу"
 
+    # Хронология событий кейса — единая визуальная лента «что произошло когда»:
+    # привязка договоров, факты прихода/расхода, погашения займов, статусы.
+    timeline_events: list[dict] = []
+    for c in contracts:
+        timeline_events.append({
+            "date": c.date,
+            "kind": "contract",
+            "icon": _contract_icon(c.kind),
+            "title": f"{_contract_kind_label(c.kind)} {c.number}",
+            "subtitle": f"{c.counterparty.name} · {quant_money(c.amount)} {c.currency.code}",
+            "tone": _contract_tone(c.kind),
+            "object_id": c.id,
+        })
+    for fact in facts:
+        is_loan_repayment = fact.loan_repayment_contract_id in contract_stats
+        if fact.direction == PaymentDirection.INFLOW:
+            icon, tone, title = "↓", "success", "Поступление"
+        elif is_loan_repayment:
+            icon, tone, title = "↩", "warning", "Погашение займа"
+        else:
+            icon, tone, title = "↑", "danger", "Платёж"
+        contract_label = fact.contract.number if fact.contract else "—"
+        timeline_events.append({
+            "date": fact.date,
+            "kind": "fact",
+            "icon": icon,
+            "title": f"{title} · {fact.amount} {fact.currency.code}",
+            "subtitle": f"{contract_label} · {fact.counterparty.name} · {fact.article.code} {fact.article.name}",
+            "tone": tone,
+            "object_id": fact.id,
+            "interest_portion": fact.loan_interest_portion if is_loan_repayment else None,
+        })
+    # Сортируем по дате (от ранних к поздним — естественный порядок чтения timeline)
+    timeline_events.sort(key=lambda e: (e["date"], e["kind"] != "contract"))
+
     return {
         "case": case,
         "contracts_by_kind": dict(by_kind),
         "counterparty_saldo": counterparty_saldo,
         "suggested_status": suggested_status,
         "suggested_status_reason": suggested_status_reason,
+        "timeline_events": timeline_events,
         "facts": facts,
         "active_requests": active_requests,
         "total_inflow": total_inflow,

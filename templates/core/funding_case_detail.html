@@ -251,37 +251,25 @@
     </section>
 
     <section class="data-panel stack">
-        <h2 class="section-title">Хронология движений по кейсу</h2>
-        {% if overview.facts %}
-            <div class="data-table-wrap desktop-scroll">
-                <table class="data-table data-table-narrow">
-                    <thead>
-                        <tr>
-                            <th class="table-col-date">Дата</th>
-                            <th>Договор</th>
-                            <th>Статья ДДС</th>
-                            <th class="table-col-number">Сумма</th>
-                            <th class="table-col-short">Направление</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for fact in overview.facts %}
-                            <tr>
-                                <td class="table-col-date">{{ fact.date|date:"d.m.Y" }}</td>
-                                <td>{{ fact.contract.number }} · {{ fact.contract.counterparty.name }}</td>
-                                <td>{{ fact.article.code }} · {{ fact.article.name }}</td>
-                                <td class="table-col-number">{{ fact.amount|ru_number }} {{ fact.currency.code }}</td>
-                                <td class="table-col-short">
-                                    {% if fact.direction == "inflow" %}<span class="badge badge-success">приход</span>
-                                    {% else %}<span class="badge badge-danger">расход</span>{% endif %}
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
+        <h2 class="section-title">Хронология кейса</h2>
+        {% if overview.timeline_events %}
+            <ol class="case-timeline">
+                {% for ev in overview.timeline_events %}
+                    <li class="case-timeline-event case-timeline-{{ ev.tone }}">
+                        <div class="case-timeline-marker">{{ ev.icon }}</div>
+                        <div class="case-timeline-body">
+                            <div class="case-timeline-date">{{ ev.date|date:"d.m.Y" }}</div>
+                            <div class="case-timeline-title">{{ ev.title }}</div>
+                            <div class="case-timeline-subtitle">{{ ev.subtitle }}</div>
+                            {% if ev.interest_portion %}
+                                <div class="case-timeline-meta">в т.ч. проценты: {{ ev.interest_portion|ru_number }} ₽</div>
+                            {% endif %}
+                        </div>
+                    </li>
+                {% endfor %}
+            </ol>
         {% else %}
-            <p class="hint">По кейсу пока нет фактов оплат. Привяжите договоры выше и фиксируйте платежи в журнале фактов — они подхватятся автоматически.</p>
+            <p class="hint">По кейсу пока нет событий. Привяжите договоры и фиксируйте платежи — события появятся здесь автоматически.</p>
         {% endif %}
     </section>
 
