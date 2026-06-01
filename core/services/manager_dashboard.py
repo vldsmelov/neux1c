@@ -1,9 +1,18 @@
 from datetime import timedelta
+from decimal import Decimal
 
 from django.db.models import Count
 from django.utils import timezone
 
-from core.models import PaymentRequest, PaymentRequestStatus
+from core.models import (
+    Contract,
+    ContractKind,
+    FundingCase,
+    FundingCaseStatus,
+    PaymentRequest,
+    PaymentRequestStatus,
+)
+from core.services.funding_cases import build_case_overview
 from core.services.plan_fact_report import PlanFactFilters, build_plan_fact_report
 
 
@@ -51,6 +60,8 @@ def build_manager_dashboard(*, year: int, organization_id: int | None = None) ->
     overdue_pending = overdue_query.select_related("counterparty", "currency", "approver").order_by("submitted_at")[:10]
     overdue_pending_count = overdue_query.count()
 
+    funding_stats = _funding_stats(organization_id)
+
     return {
         "summary": summary,
         "top_overruns": top_overruns,
@@ -60,6 +71,62 @@ def build_manager_dashboard(*, year: int, organization_id: int | None = None) ->
         "overdue_pending": overdue_pending,
         "overdue_pending_count": overdue_pending_count,
         "overdue_threshold_days": PENDING_SLA_DAYS,
+        "funding_stats": funding_stats,
+    }
+
+
+def _funding_stats(organization_id: int | None) -> dict:
+    """Сводка по кейсам финансирования для дашборда руководителя:
+    активных, с дефицитом, top-3 по абсолютному дефициту, ближайшие
+    сроки возврата займов.
+
+    NB: вызывает build_case_overview() в цикле — на каждый активный
+    кейс это 2 запроса (PaymentFact + PaymentRequest). Для типичной
+    «полки» в 5-15 активных кейсов это приемлемо; если кейсов станет
+    несколько сотен — переходить на батчевые агрегаты.
+    """
+    cases_qs = FundingCase.objects.filter(status=FundingCaseStatus.ACTIVE)
+    if organization_id:
+        cases_qs = cases_qs.filter(organization_id=organization_id)
+
+    active_count = cases_qs.count()
+    deficit_cases = []
+    total_deficit = Decimal("0")
+    for case in cases_qs.select_related("organization", "owner"):
+        overview = build_case_overview(case)
+        if overview["projected_balance"] < 0:
+            deficit_cases.append({
+                "case": case,
+                "projected_balance": overview["projected_balance"],
+                "available_now": overview["available_now"],
+                "expected_outflow_remaining": overview["expected_outflow_remaining"],
+            })
+            total_deficit += overview["projected_balance"]
+    deficit_cases.sort(key=lambda x: x["projected_balance"])
+
+    today = timezone.localdate()
+    horizon = today + timedelta(days=30)
+    loans_due_soon = (
+        Contract.objects.filter(
+            kind=ContractKind.LOAN_RECEIVED,
+            funding_case__isnull=False,
+            funding_case__status=FundingCaseStatus.ACTIVE,
+            maturity_date__isnull=False,
+            maturity_date__lte=horizon,
+            maturity_date__gte=today,
+        )
+        .select_related("funding_case", "counterparty")
+    )
+    if organization_id:
+        loans_due_soon = loans_due_soon.filter(funding_case__organization_id=organization_id)
+    loans_due_soon = loans_due_soon.order_by("maturity_date")[:5]
+
+    return {
+        "active_count": active_count,
+        "deficit_count": len(deficit_cases),
+        "total_deficit": total_deficit,
+        "top_deficit_cases": deficit_cases[:5],
+        "loans_due_soon": list(loans_due_soon),
     }
 
 

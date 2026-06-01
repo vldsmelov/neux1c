@@ -1196,3 +1196,55 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 
 .text-success { color: var(--color-success); }
 .text-danger { color: var(--color-danger); }
+
+/* --- Funding dashboard block on manager dashboard --- */
+.funding-dashboard-block {
+    padding: var(--space-4);
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+}
+.funding-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+    gap: var(--space-3);
+    margin-top: var(--space-2);
+}
+.funding-dashboard-cell {
+    background: color-mix(in srgb, var(--color-bg) 60%, var(--color-bg-surface));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-3);
+}
+.funding-dashboard-cell-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--space-2);
+    font-weight: 600;
+    font-size: var(--text-sm);
+    color: var(--color-text);
+}
+.funding-dashboard-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+.funding-dashboard-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2);
+    padding: 6px 8px;
+    border-radius: var(--radius-sm);
+    transition: background 120ms ease;
+    font-size: var(--text-sm);
+}
+.funding-dashboard-list li:hover { background: var(--color-accent-soft); }
+.funding-dashboard-list a { color: var(--color-text); text-decoration: none; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.funding-dashboard-list a:hover { color: var(--color-accent); }
+.funding-dashboard-num { font-family: var(--font-mono, monospace); font-size: var(--text-xs); white-space: nowrap; color: var(--color-text-muted); }
+
+.metric-value-sub { font-size: 0.55em; color: var(--color-text-muted); font-weight: 400; }

@@ -84,6 +84,13 @@
                     </a>
                 </details>
 
+                <details class="app-nav-group" {% if active_section == 'funding' %}open{% endif %}>
+                    <summary class="app-nav-group-title">Финансирование</summary>
+                    <a class="app-nav-link {% if request.resolver_match.url_name == 'funding_cases_index' %}is-active{% endif %}" href="/funding/cases/">
+                        <span class="app-nav-icon">◈</span><span>Кейсы</span><span>›</span>
+                    </a>
+                </details>
+
                 <details class="app-nav-group" {% if active_section == 'contracts' %}open{% endif %}>
                     <summary class="app-nav-group-title">Договоры</summary>
                     <a class="app-nav-link {% if request.resolver_match.url_name == 'contracts_register' %}is-active{% endif %}" href="/contracts/register/">

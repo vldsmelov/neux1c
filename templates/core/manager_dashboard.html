@@ -53,7 +53,56 @@
             <div class="metric-label">Просрочено &gt; {{ overdue_threshold_days }} дн.</div>
             <div class="metric-delta">{% if overdue_pending_count %}Требует реакции{% else %}SLA в норме{% endif %}</div>
         </div>
+        <div class="metric-cell {% if funding_stats.deficit_count %}is-danger{% endif %}">
+            <div class="metric-value">{{ funding_stats.deficit_count }}<span class="metric-value-sub">/{{ funding_stats.active_count }}</span></div>
+            <div class="metric-label">Кейсов в дефиците</div>
+            <div class="metric-delta">{% if funding_stats.deficit_count %}{{ funding_stats.total_deficit|ru_number }} ₽ суммарный дефицит{% else %}все кейсы в плане{% endif %}</div>
+        </div>
     </div>
+
+    {% if funding_stats.top_deficit_cases or funding_stats.loans_due_soon %}
+        <div class="stack-section funding-dashboard-block">
+            <h2 class="section-title">Финансирование: внимание</h2>
+            <div class="funding-dashboard-grid">
+                {% if funding_stats.top_deficit_cases %}
+                    <div class="funding-dashboard-cell">
+                        <div class="funding-dashboard-cell-head">
+                            <span>Топ кейсов с дефицитом</span>
+                            <span class="badge badge-danger">{{ funding_stats.deficit_count }}</span>
+                        </div>
+                        <ul class="funding-dashboard-list">
+                            {% for d in funding_stats.top_deficit_cases %}
+                                <li>
+                                    <a href="{% url 'funding_case_detail' d.case.id %}">
+                                        <strong>{{ d.case.code }}</strong> · {{ d.case.name|truncatechars:50 }}
+                                    </a>
+                                    <span class="funding-dashboard-num text-danger">{{ d.projected_balance|ru_number }} ₽</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                {% if funding_stats.loans_due_soon %}
+                    <div class="funding-dashboard-cell">
+                        <div class="funding-dashboard-cell-head">
+                            <span>Ближайшие возвраты займов (30 дн.)</span>
+                            <span class="badge badge-warning">{{ funding_stats.loans_due_soon|length }}</span>
+                        </div>
+                        <ul class="funding-dashboard-list">
+                            {% for loan in funding_stats.loans_due_soon %}
+                                <li>
+                                    <a href="{% url 'funding_case_detail' loan.funding_case.id %}">
+                                        <strong>{{ loan.number }}</strong> · {{ loan.counterparty.name|truncatechars:30 }}
+                                    </a>
+                                    <span class="funding-dashboard-num">до {{ loan.maturity_date|date:"d.m.Y" }} · {{ loan.amount|ru_number }} ₽</span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
 
     <div class="stack" data-tab-scope>
         <div class="section-tabs" data-section-tabs role="tablist" aria-label="Разделы дашборда">
