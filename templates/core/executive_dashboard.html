@@ -91,6 +91,49 @@
         </section>
     {% endif %}
 
+    {% if cases_by_risk %}
+        <section class="data-panel stack">
+            <h2 class="section-title">📊 Активные кейсы по риску <span class="cell-secondary">(топ-{{ cases_by_risk|length }})</span></h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th class="table-col-short">Risk</th>
+                            <th>Кейс</th>
+                            <th>Компания</th>
+                            <th class="table-col-short">Статус</th>
+                            <th class="table-col-number">Прогноз сальдо</th>
+                            <th class="table-col-number">Ожидаем</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in cases_by_risk %}
+                            <tr>
+                                <td class="table-col-short">
+                                    <span class="risk-score-chip risk-{{ r.risk_tone }} risk-chip-sm" title="{{ r.risk_label }}">
+                                        <span class="risk-score-num">{{ r.risk_score }}</span>
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'funding_case_detail' r.case.id %}"><strong>{{ r.case.code }}</strong></a>
+                                    <div class="cell-secondary">{{ r.case.name|truncatechars:60 }}</div>
+                                </td>
+                                <td>{{ r.case.organization.name }}</td>
+                                <td class="table-col-short"><span class="badge">{{ r.status_display }}</span></td>
+                                <td class="table-col-number">
+                                    <strong class="{% if r.projected_balance < 0 %}text-danger{% elif r.projected_balance > 0 %}text-success{% endif %}">
+                                        {% if r.projected_balance > 0 %}+{% endif %}{{ r.projected_balance|ru_number }} ₽
+                                    </strong>
+                                </td>
+                                <td class="table-col-number">{{ r.expected_inflow|ru_number }} ₽</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
     {% if top_risks %}
         <section class="data-panel stack">
             <h2 class="section-title">🚨 Топ риски — что требует внимания CFO</h2>

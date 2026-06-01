@@ -54,8 +54,20 @@ def build_executive_dashboard(year: int, organization_id: int | None = None) -> 
     deficit_cases = 0
     deficit_total = MONEY_ZERO
     top_risks: list[dict] = []
-    for c in cases_q.select_related("organization"):
+    cases_by_risk: list[dict] = []
+    for c in cases_q.select_related("organization").prefetch_related("contracts__counterparty"):
         ov = build_case_overview(c)
+        cases_by_risk.append({
+            "case": c,
+            "risk_score": ov["risk_score"],
+            "risk_tone": ov["risk_tone"],
+            "risk_label": ov["risk_label"],
+            "projected_balance": ov["projected_balance"],
+            "available_now": ov["available_now"],
+            "expected_inflow": ov["expected_inflow_remaining"],
+            "expected_outflow": ov["expected_outflow_remaining"],
+            "status_display": c.get_status_display(),
+        })
         if ov["projected_balance"] < 0:
             deficit_cases += 1
             deficit_total += ov["projected_balance"]
@@ -65,6 +77,7 @@ def build_executive_dashboard(year: int, organization_id: int | None = None) -> 
                 "amount": ov["projected_balance"],
                 "link": f"/funding/cases/{c.id}/",
             })
+    cases_by_risk.sort(key=lambda r: r["risk_score"], reverse=True)
 
     # Loans outstanding (сумма всех expected_remaining по LOAN_RECEIVED активных кейсов)
     loans_total_remaining = MONEY_ZERO
@@ -141,6 +154,7 @@ def build_executive_dashboard(year: int, organization_id: int | None = None) -> 
         "overdue_count": overdue_count,
         "overdue_amount": overdue_amount,
         "top_risks": top_risks[:8],
+        "cases_by_risk": cases_by_risk[:10],
         "monthly_trend": monthly_trend,
     }
 
