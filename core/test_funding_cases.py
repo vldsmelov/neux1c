@@ -323,6 +323,67 @@ class FundingCaseTests(TestCase):
         # Факта быть не должно
         self.assertFalse(PaymentFact.objects.filter(loan_repayment_contract=loan).exists())
 
+    def test_annuity_schedule_generates_correct_amortization(self):
+        from datetime import date as date_cls
+        from core.services.loan_schedule import generate_annuity_schedule
+
+        case = FundingCase.objects.create(
+            code="FUND-SCHED-1", name="Annuity test", organization=self.organization,
+        )
+        loan = Contract.objects.create(
+            number="LOAN-SCHED", date=date_cls(2026, 1, 1),
+            name="Заём аннуитет", kind=ContractKind.LOAN_RECEIVED,
+            counterparty=self.lender, currency=self.rub,
+            amount=Decimal("100000.00"), interest_rate=Decimal("12.000"),
+            maturity_date=date_cls(2026, 12, 31), funding_case=case,
+        )
+        rows = generate_annuity_schedule(loan, periods=12)
+        self.assertEqual(len(rows), 12)
+        # Сумма всех тел должна равняться principal (с точностью округления)
+        total_principal = sum((r.principal_due for r in rows), Decimal("0"))
+        self.assertEqual(total_principal, Decimal("100000.00"))
+        # Остаток после последнего периода = 0
+        self.assertEqual(rows[-1].balance_after, Decimal("0.00"))
+        # На первом периоде проценты должны быть > чем на последнем
+        self.assertGreater(rows[0].interest_due, rows[-1].interest_due)
+        # Каждая строка не оплачена
+        self.assertFalse(any(r.is_paid for r in rows))
+
+    def test_repayment_marks_schedule_lines_paid_in_order(self):
+        from datetime import date as date_cls
+        from core.services.loan_schedule import apply_repayment_to_schedule, generate_annuity_schedule
+
+        case = FundingCase.objects.create(
+            code="FUND-PAY", name="Pay test", organization=self.organization,
+        )
+        loan = Contract.objects.create(
+            number="LOAN-PAY", date=date_cls(2026, 1, 1),
+            name="Заём", kind=ContractKind.LOAN_RECEIVED,
+            counterparty=self.lender, currency=self.rub,
+            amount=Decimal("100000.00"), interest_rate=Decimal("0.000"),
+            maturity_date=date_cls(2026, 12, 31), funding_case=case,
+        )
+        generate_annuity_schedule(loan, periods=10)  # 10×10000 без процентов
+        # Возврат 30k → должен закрыть 3 строки
+        article = CashFlowArticle.objects.create(
+            code="DDS-LOAN-OUT-PAY", name="Возврат займа PAY", direction="outflow",
+        )
+        fact = PaymentFact.objects.create(
+            external_id="loan-sched-pay-1",
+            date=date_cls(2026, 4, 1), organization=self.organization,
+            article=article, counterparty=self.lender, contract=loan,
+            loan_repayment_contract=loan, amount=Decimal("30000.00"),
+            currency=self.rub, accounting_kind=AccountingKind.BU,
+            direction=PaymentDirection.OUTFLOW, account="51",
+        )
+        touched = apply_repayment_to_schedule(fact)
+        self.assertEqual(touched, 3)
+        lines = list(loan.schedule_lines.order_by("period"))
+        self.assertTrue(lines[0].is_paid)
+        self.assertTrue(lines[1].is_paid)
+        self.assertTrue(lines[2].is_paid)
+        self.assertFalse(lines[3].is_paid)
+
     def test_case_detail_renders_with_attachable_contracts(self):
         case = FundingCase.objects.create(
             code="FUND-002", name="Пустой кейс",

@@ -170,6 +170,37 @@
                                                 Возвращено: тело {{ stat.principal_repaid|ru_number }} · проценты {{ stat.interest_paid|ru_number }} / расчётные {{ stat.interest_estimate|ru_number }}
                                             </div>
                                         {% endif %}
+                                        {% if kind == "loan_received" and stat.schedule %}
+                                            <details class="loan-schedule">
+                                                <summary>📅 График платежей ({{ stat.schedule|length }} периодов)</summary>
+                                                <table class="loan-schedule-table">
+                                                    <thead><tr><th>№</th><th>Дата</th><th>Тело</th><th>%</th><th>Всего</th><th>Остаток</th><th>Статус</th></tr></thead>
+                                                    <tbody>
+                                                    {% for line in stat.schedule %}
+                                                        <tr class="{% if line.is_paid %}schedule-paid{% elif line.is_overdue %}schedule-overdue{% endif %}">
+                                                            <td>{{ line.period }}</td>
+                                                            <td>{{ line.due_date|date:"d.m.Y" }}</td>
+                                                            <td>{{ line.principal_due|ru_number }}</td>
+                                                            <td>{{ line.interest_due|ru_number }}</td>
+                                                            <td><strong>{{ line.total_due|ru_number }}</strong></td>
+                                                            <td>{{ line.balance_after|ru_number }}</td>
+                                                            <td>{% if line.is_paid %}<span class="badge badge-success">оплачено</span>{% elif line.is_overdue %}<span class="badge badge-danger">просрочено</span>{% else %}<span class="badge">ожидает</span>{% endif %}</td>
+                                                        </tr>
+                                                    {% endfor %}
+                                                    </tbody>
+                                                </table>
+                                            </details>
+                                        {% elif kind == "loan_received" %}
+                                            <form method="post" class="generate-schedule-form">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="generate_loan_schedule">
+                                                <input type="hidden" name="loan_contract_id" value="{{ stat.contract.id }}">
+                                                <label>Периодов:
+                                                    <input class="field-control field-control-sm" type="number" name="periods" value="12" min="1" max="120" style="width: 60px;">
+                                                </label>
+                                                <button class="command-button is-sm" type="submit">Сгенерировать график →</button>
+                                            </form>
+                                        {% endif %}
                                     </td>
                                     <td>{{ stat.contract.counterparty.name }}</td>
                                     <td class="table-col-number">{{ stat.contract.amount|ru_number }} {{ stat.contract.currency.code }}</td>

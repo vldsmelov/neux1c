@@ -67,6 +67,7 @@ class ContractStat:
     principal_repaid: Decimal = MONEY_ZERO
     interest_paid: Decimal = MONEY_ZERO
     interest_estimate: Decimal = MONEY_ZERO
+    schedule: list = None
 
 
 def build_case_overview(case: FundingCase) -> dict:
@@ -144,6 +145,8 @@ def build_case_overview(case: FundingCase) -> dict:
             stat.principal_repaid = principal_repaid
             stat.interest_paid = interest_paid
             stat.interest_estimate = interest_estimate
+            # Подтянуть строки графика, если есть
+            stat.schedule = list(c.schedule_lines.all().order_by("period"))
         elif c.kind == ContractKind.LOAN_GIVEN:
             # Заём выдан: мы должны получить обратно тело + проценты
             principal_left = max(MONEY_ZERO, contract_total - stat.inflow)

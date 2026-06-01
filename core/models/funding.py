@@ -10,6 +10,7 @@
 from django.conf import settings
 from django.db import models
 
+from .contracts import Contract
 from .enums import FundingCaseStatus
 from .nsi import Organization
 
@@ -50,3 +51,52 @@ class FundingCase(models.Model):
 
     def __str__(self) -> str:
         return f"{self.code} · {self.name}"
+
+
+class LoanScheduleLine(models.Model):
+    """Строка графика платежей по займу: одна строка = один период
+    (обычно месяц). Принципиальная конструкция аннуитета: PMT константный,
+    проценты считаются от остатка тела, оставшееся идёт в тело."""
+    loan_contract = models.ForeignKey(
+        Contract,
+        verbose_name="Договор займа",
+        on_delete=models.CASCADE,
+        related_name="schedule_lines",
+    )
+    period = models.PositiveSmallIntegerField("Номер периода")
+    due_date = models.DateField("Дата платежа")
+    principal_due = models.DecimalField("Тело, к оплате", max_digits=16, decimal_places=2)
+    interest_due = models.DecimalField("Проценты, к оплате", max_digits=16, decimal_places=2)
+    balance_after = models.DecimalField("Остаток тела после периода", max_digits=16, decimal_places=2)
+    paid_amount = models.DecimalField("Оплачено по этой строке", max_digits=16, decimal_places=2, default=0)
+    paid_at = models.DateField("Дата фактической оплаты", null=True, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+
+    class Meta:
+        ordering = ["loan_contract_id", "period"]
+        verbose_name = "Строка графика платежей по займу"
+        verbose_name_plural = "Строки графика платежей по займу"
+        constraints = [
+            models.UniqueConstraint(fields=["loan_contract", "period"], name="uniq_loan_schedule_period"),
+        ]
+        indexes = [
+            models.Index(fields=["loan_contract", "due_date"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.loan_contract.number} · период {self.period}"
+
+    @property
+    def total_due(self):
+        return self.principal_due + self.interest_due
+
+    @property
+    def is_paid(self) -> bool:
+        return self.paid_at is not None and self.paid_amount >= self.total_due
+
+    @property
+    def is_overdue(self) -> bool:
+        if self.is_paid:
+            return False
+        from django.utils import timezone as _tz
+        return self.due_date < _tz.localdate()

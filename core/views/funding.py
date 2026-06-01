@@ -24,6 +24,7 @@ from ..models import (
     UserRole,
 )
 from ..services.funding_cases import build_case_overview
+from ..services.loan_schedule import apply_repayment_to_schedule, generate_annuity_schedule
 from ._shared import parse_decimal, parse_optional_int, working_organization
 
 
@@ -148,10 +149,25 @@ def funding_case_detail(request, case_id: int):
                 messages.success(request, "Кейс обновлён")
             elif action == "record_loan_repayment":
                 fact = _record_loan_repayment(request, case)
+                touched = apply_repayment_to_schedule(fact)
+                schedule_note = f", закрыто строк графика: {touched}" if touched else ""
                 messages.success(
                     request,
                     f"Записан возврат займа {fact.loan_repayment_contract.number}: "
-                    f"{fact.amount} ₽ (из них процентов {fact.loan_interest_portion})",
+                    f"{fact.amount} ₽ (из них процентов {fact.loan_interest_portion}){schedule_note}",
+                )
+            elif action == "generate_loan_schedule":
+                loan = get_object_or_404(
+                    Contract,
+                    pk=parse_optional_int(request.POST.get("loan_contract_id")),
+                    kind=ContractKind.LOAN_RECEIVED,
+                    funding_case=case,
+                )
+                periods = parse_optional_int(request.POST.get("periods")) or 12
+                rows = generate_annuity_schedule(loan, periods)
+                messages.success(
+                    request,
+                    f"График для {loan.number} сгенерирован: {len(rows)} платежей",
                 )
             elif action == "record_inflow":
                 fact = _record_inflow(request, case)

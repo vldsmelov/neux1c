@@ -1361,3 +1361,28 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 .whatif-result > span:first-child { color: #9b59b6; font-weight: 600; }
 .text-danger { color: var(--color-danger); }
 .text-success { color: var(--color-success); }
+
+/* Loan annuity schedule inline */
+.loan-schedule { margin-top: 8px; }
+.loan-schedule > summary { cursor: pointer; font-size: var(--text-sm); color: var(--color-accent); padding: 4px 0; }
+.loan-schedule[open] > summary { font-weight: 600; }
+.loan-schedule-table { width: 100%; margin-top: 6px; font-size: var(--text-xs); border-collapse: collapse; }
+.loan-schedule-table th, .loan-schedule-table td { padding: 4px 8px; border-bottom: 1px solid var(--color-border); text-align: right; }
+.loan-schedule-table th:first-child, .loan-schedule-table td:first-child,
+.loan-schedule-table th:nth-child(2), .loan-schedule-table td:nth-child(2),
+.loan-schedule-table th:last-child, .loan-schedule-table td:last-child { text-align: left; }
+.loan-schedule-table th { background: color-mix(in srgb, var(--color-bg) 50%, var(--color-bg-surface)); color: var(--color-text-muted); text-transform: uppercase; font-size: 9pt; font-weight: 600; }
+.schedule-paid { background: color-mix(in srgb, var(--color-success) 8%, transparent); }
+.schedule-paid td { color: var(--color-text-muted); }
+.schedule-overdue { background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+.schedule-overdue td { font-weight: 600; }
+
+.generate-schedule-form {
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+.generate-schedule-form label { display: flex; align-items: center; gap: 4px; }
