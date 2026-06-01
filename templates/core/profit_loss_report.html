@@ -1,0 +1,135 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}БДР · Доходы и расходы · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/reports/plan-fact/">План-факт БДДС</a>
+    <a class="app-tab is-active" href="/reports/profit-loss/">БДР · Доходы и расходы</a>
+    <a class="app-tab" href="/reports/manager/">Дашборд руководителя</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">БДР · Доходы и расходы по начислению</h1>
+            <p class="app-subtitle">Доходы и расходы признаются в момент подписания договора, а не оплаты. Сверху показано «начислено», ниже — «получено/уплачено» по факту, и разрыв между ними (дебиторка/кредиторка).</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <label>
+                <span class="field-label">Год</span>
+                <select class="field-control-select" name="year">
+                    {% for y in years %}<option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                </select>
+            </label>
+            <label>
+                <span class="field-label">Организация</span>
+                <select class="field-control-select" name="organization_id">
+                    <option value="">Все</option>
+                    {% for org in organizations %}<option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>{% endfor %}
+                </select>
+            </label>
+            <div class="inline-form-row">
+                <button class="command-button-primary" type="submit">Применить</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="pnl-headline">
+        <div class="pnl-cell pnl-income">
+            <div class="pnl-cell-label">Доходы начислены</div>
+            <div class="pnl-cell-value">{{ income_total|ru_number }} ₽</div>
+            <div class="pnl-cell-sub">{{ income_contracts_count }} договор(ов) с покупателями</div>
+        </div>
+        <div class="pnl-cell pnl-expense">
+            <div class="pnl-cell-label">Расходы начислены</div>
+            <div class="pnl-cell-value">{{ expense_total|ru_number }} ₽</div>
+            <div class="pnl-cell-sub">{{ expense_contracts_count }} договор(ов) с поставщиками</div>
+        </div>
+        <div class="pnl-cell pnl-profit {% if profit_accrued < 0 %}pnl-loss{% endif %}">
+            <div class="pnl-cell-label">{% if profit_accrued < 0 %}Убыток{% else %}Прибыль{% endif %} по начислению</div>
+            <div class="pnl-cell-value">{% if profit_accrued > 0 %}+{% endif %}{{ profit_accrued|ru_number }} ₽</div>
+            <div class="pnl-cell-sub">Маржа: {{ margin_pct }}%</div>
+        </div>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Дельта «начислено vs кассой»</h2>
+        <div class="pnl-delta-grid">
+            <div class="pnl-delta-cell">
+                <div class="pnl-delta-label">Получено фактом</div>
+                <div class="pnl-delta-value">{{ cash_in|ru_number }} ₽</div>
+                <div class="pnl-delta-sub">Из начисленных {{ income_total|ru_number }} ₽</div>
+            </div>
+            <div class="pnl-delta-cell pnl-delta-receivable">
+                <div class="pnl-delta-label">Дебиторская задолженность</div>
+                <div class="pnl-delta-value">{{ income_gap|ru_number }} ₽</div>
+                <div class="pnl-delta-sub">«Должны нам» — начислено, но не получено</div>
+            </div>
+            <div class="pnl-delta-cell">
+                <div class="pnl-delta-label">Уплачено фактом</div>
+                <div class="pnl-delta-value">{{ cash_out|ru_number }} ₽</div>
+                <div class="pnl-delta-sub">Из начисленных {{ expense_total|ru_number }} ₽</div>
+            </div>
+            <div class="pnl-delta-cell pnl-delta-payable">
+                <div class="pnl-delta-label">Кредиторская задолженность</div>
+                <div class="pnl-delta-value">{{ expense_gap|ru_number }} ₽</div>
+                <div class="pnl-delta-sub">«Мы должны» — начислено, но не уплачено</div>
+            </div>
+            <div class="pnl-delta-cell pnl-delta-cash {% if cash_net < 0 %}pnl-loss{% endif %}">
+                <div class="pnl-delta-label">Чистый денежный поток</div>
+                <div class="pnl-delta-value">{% if cash_net > 0 %}+{% endif %}{{ cash_net|ru_number }} ₽</div>
+                <div class="pnl-delta-sub">= cash_in − cash_out</div>
+            </div>
+        </div>
+    </section>
+
+    <div class="pnl-two-col">
+        <section class="data-panel stack">
+            <h2 class="section-title">Топ доходных позиций</h2>
+            {% if income_rows %}
+                <div class="data-table-wrap desktop-scroll">
+                    <table class="data-table data-table-narrow">
+                        <thead><tr><th>Договор</th><th>Контрагент</th><th class="table-col-number">Сумма</th></tr></thead>
+                        <tbody>
+                            {% for c in income_rows %}
+                                <tr>
+                                    <td><strong>{{ c.number }}</strong> от {{ c.date|date:"d.m.Y" }}</td>
+                                    <td>{{ c.counterparty.name }}</td>
+                                    <td class="table-col-number text-success">{{ c.amount|ru_number }} {{ c.currency.code }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="hint">В выбранном году нет договоров с покупателями.</p>
+            {% endif %}
+        </section>
+
+        <section class="data-panel stack">
+            <h2 class="section-title">Топ расходных позиций</h2>
+            {% if expense_rows %}
+                <div class="data-table-wrap desktop-scroll">
+                    <table class="data-table data-table-narrow">
+                        <thead><tr><th>Договор</th><th>Контрагент</th><th class="table-col-number">Сумма</th></tr></thead>
+                        <tbody>
+                            {% for c in expense_rows %}
+                                <tr>
+                                    <td><strong>{{ c.number }}</strong> от {{ c.date|date:"d.m.Y" }}</td>
+                                    <td>{{ c.counterparty.name }}</td>
+                                    <td class="table-col-number text-danger">{{ c.amount|ru_number }} {{ c.currency.code }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="hint">В выбранном году нет договоров с поставщиками.</p>
+            {% endif %}
+        </section>
+    </div>
+{% endblock %}
