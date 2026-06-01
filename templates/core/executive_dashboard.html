@@ -1,0 +1,113 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Дашборд CFO · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/reports/executive/">CFO дашборд</a>
+    <a class="app-tab" href="/reports/plan-fact/">План-факт БДДС</a>
+    <a class="app-tab" href="/reports/profit-loss/">БДР</a>
+    <a class="app-tab" href="/reports/manager/">Руководителю</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🎯 Дашборд CFO · {{ selected_year }}</h1>
+            <p class="app-subtitle">Верхнеуровневая сводка всего холдинга на одной странице. Cash position, прибыль, кейсы, риски, тренд.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <label><span class="field-label">Год</span>
+                <select class="field-control-select" name="year" onchange="this.form.submit()">
+                    {% for y in years %}<option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>{% endfor %}
+                </select>
+            </label>
+            <label><span class="field-label">Организация (пусто = весь холдинг)</span>
+                <select class="field-control-select" name="organization_id" onchange="this.form.submit()">
+                    <option value="">— весь холдинг —</option>
+                    {% for org in organizations %}<option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>{% endfor %}
+                </select>
+            </label>
+        </form>
+    </section>
+
+    <section class="exec-kpis">
+        <div class="exec-kpi exec-kpi-{{ cash_position|yesno:'positive,neutral' }} {% if cash_position < 0 %}exec-kpi-negative{% endif %}">
+            <div class="exec-kpi-label">💵 Cash position YTD</div>
+            <div class="exec-kpi-value">{% if cash_position > 0 %}+{% endif %}{{ cash_position|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">приход {{ cash_in|ru_number }} − расход {{ cash_out|ru_number }}</div>
+        </div>
+        <div class="exec-kpi exec-kpi-{{ accrued_profit|yesno:'positive,neutral' }} {% if accrued_profit < 0 %}exec-kpi-negative{% endif %}">
+            <div class="exec-kpi-label">📊 Прибыль по начислению YTD</div>
+            <div class="exec-kpi-value">{% if accrued_profit > 0 %}+{% endif %}{{ accrued_profit|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">доходы {{ income|ru_number }} − расходы {{ expense|ru_number }}</div>
+        </div>
+        <div class="exec-kpi {% if deficit_cases %}exec-kpi-negative{% else %}exec-kpi-positive{% endif %}">
+            <div class="exec-kpi-label">💼 Кейсы финансирования</div>
+            <div class="exec-kpi-value">{{ deficit_cases }}<span class="exec-kpi-frac">/{{ active_cases }}</span></div>
+            <div class="exec-kpi-sub">в дефиците из активных {% if deficit_total %}· {{ deficit_total|ru_number }} ₽ суммарно{% endif %}</div>
+        </div>
+        <div class="exec-kpi {% if loans_total_remaining %}exec-kpi-warning{% endif %}">
+            <div class="exec-kpi-label">🏦 Займы к возврату</div>
+            <div class="exec-kpi-value">{{ loans_total_remaining|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">{% if loans_due_soon %}{{ loans_due_soon|length }} займ(ов) в ближайшие 30 дней{% else %}нет срочных возвратов{% endif %}</div>
+        </div>
+        <div class="exec-kpi {% if overdue_count %}exec-kpi-negative{% endif %}">
+            <div class="exec-kpi-label">⏱ Просроченные заявки</div>
+            <div class="exec-kpi-value">{{ overdue_count }}</div>
+            <div class="exec-kpi-sub">{% if overdue_amount %}на сумму {{ overdue_amount|ru_number }} ₽{% else %}все в SLA{% endif %}</div>
+        </div>
+    </section>
+
+    {% if not monthly_trend.empty %}
+        <section class="data-panel stack">
+            <h2 class="section-title">📈 Тренд cash position по месяцам</h2>
+            <div class="exec-chart-wrap">
+                <svg class="exec-chart" viewBox="0 0 {{ monthly_trend.canvas_w }} {{ monthly_trend.canvas_h }}" xmlns="http://www.w3.org/2000/svg">
+                    {# zero-line #}
+                    {% if monthly_trend.zero_y %}
+                        <line x1="{{ monthly_trend.pad_left }}" y1="{{ monthly_trend.zero_y }}" x2="{{ monthly_trend.canvas_w|add:'-20' }}" y2="{{ monthly_trend.zero_y }}" class="exec-chart-zeroline" />
+                    {% endif %}
+                    {# area under line #}
+                    {% if monthly_trend.points|length > 1 %}
+                        <polygon class="exec-chart-area"
+                                 points="{% for p in monthly_trend.points %}{{ p.x }},{{ p.y }} {% endfor %}{{ monthly_trend.points|last|dict_get:'x' }},{{ monthly_trend.canvas_h|add:'-30' }} {{ monthly_trend.points|first|dict_get:'x' }},{{ monthly_trend.canvas_h|add:'-30' }}" />
+                    {% endif %}
+                    {# line #}
+                    <polyline class="exec-chart-line" fill="none"
+                              points="{% for p in monthly_trend.points %}{{ p.x }},{{ p.y }} {% endfor %}" />
+                    {# points + labels #}
+                    {% for p in monthly_trend.points %}
+                        <g class="exec-chart-point">
+                            <circle cx="{{ p.x }}" cy="{{ p.y }}" r="4" />
+                            <text x="{{ p.x }}" y="{{ monthly_trend.canvas_h|add:'-10' }}" text-anchor="middle" class="exec-chart-month-label">{{ p.label }}</text>
+                        </g>
+                    {% endfor %}
+                </svg>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if top_risks %}
+        <section class="data-panel stack">
+            <h2 class="section-title">🚨 Топ риски — что требует внимания CFO</h2>
+            <ol class="exec-risks">
+                {% for risk in top_risks %}
+                    <li class="exec-risk exec-risk-{{ risk.kind }}">
+                        <a href="{{ risk.link }}">
+                            <span class="exec-risk-label">{{ risk.label }}</span>
+                            <span class="exec-risk-amount">{% if risk.amount > 0 %}+{% endif %}{{ risk.amount|ru_number }} ₽</span>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ol>
+        </section>
+    {% else %}
+        <section class="data-panel stack">
+            <p class="hint">✅ Рисков нет — все кейсы в плане, займы не близки к сроку, заявки в SLA.</p>
+        </section>
+    {% endif %}
+{% endblock %}

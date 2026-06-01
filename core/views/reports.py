@@ -25,6 +25,7 @@ from ..models import (
 )
 from ..services.manager_dashboard import build_manager_dashboard
 from ..services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
+from ..services.executive_dashboard import build_executive_dashboard
 from ..services.profit_loss_report import ProfitLossFilters, build_profit_loss
 from ._shared import has_model_permission, parse_optional_int, working_organization
 
@@ -178,6 +179,30 @@ def plan_fact_report(request):
                 "direction": selected_direction,
                 "funding_case_id": selected_funding_case_id,
             },
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def executive_dashboard(request):
+    """CFO/CEO дашборд: верхнеуровневая сводка всего холдинга на одной странице."""
+    org = working_organization(request)
+    current_year = timezone.localdate().year
+    selected_year = parse_optional_int(request.GET.get("year")) or current_year
+    selected_org_id = parse_optional_int(request.GET.get("organization_id"))  # None = весь холдинг
+
+    payload = build_executive_dashboard(year=selected_year, organization_id=selected_org_id)
+    return render(
+        request,
+        "core/executive_dashboard.html",
+        {
+            "active_section": "reports",
+            "years": list(range(current_year - 2, current_year + 2)),
+            "selected_year": selected_year,
+            "organizations": Organization.objects.order_by("name"),
+            "selected_organization_id": selected_org_id,
+            "working_organization": org,
+            **payload,
         },
     )
 

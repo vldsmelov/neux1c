@@ -1493,3 +1493,69 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 .cp360-net-danger { border-left-color: var(--color-danger); background: linear-gradient(135deg, color-mix(in srgb, var(--color-danger) 8%, var(--color-surface)) 0%, var(--color-surface) 70%); }
 .cp360-net-danger .cp360-value { color: var(--color-danger); }
 .cp360-net-info { border-left-color: var(--color-accent); }
+
+/* --- Executive (CFO) dashboard --- */
+.exec-kpis {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+.exec-kpi {
+    padding: 18px 22px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    border-top: 4px solid var(--color-border);
+}
+.exec-kpi-label { font-size: var(--text-sm); color: var(--color-text); font-weight: 600; margin-bottom: 8px; }
+.exec-kpi-value { font-size: 26px; font-weight: 700; color: var(--color-text); line-height: 1.1; }
+.exec-kpi-frac { font-size: 14px; color: var(--color-text-muted); font-weight: 500; }
+.exec-kpi-sub { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 6px; }
+
+.exec-kpi-positive { border-top-color: var(--color-success); }
+.exec-kpi-positive .exec-kpi-value { color: var(--color-success); }
+.exec-kpi-negative { border-top-color: var(--color-danger); }
+.exec-kpi-negative .exec-kpi-value { color: var(--color-danger); }
+.exec-kpi-warning { border-top-color: var(--color-warning, #f5a623); }
+.exec-kpi-warning .exec-kpi-value { color: var(--color-warning, #f5a623); }
+
+.exec-chart-wrap {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px 0;
+}
+.exec-chart { width: 100%; height: auto; display: block; }
+.exec-chart-zeroline { stroke: var(--color-text-muted); stroke-width: 1; stroke-dasharray: 4 4; opacity: 0.5; }
+.exec-chart-area { fill: var(--color-accent); opacity: 0.12; }
+.exec-chart-line { stroke: var(--color-accent); stroke-width: 2.5; fill: none; stroke-linejoin: round; stroke-linecap: round; }
+.exec-chart-point circle { fill: var(--color-accent); stroke: var(--color-surface); stroke-width: 2; }
+.exec-chart-month-label { font-size: 10px; fill: var(--color-text-muted); font-family: inherit; }
+
+.exec-risks {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: var(--space-2);
+}
+.exec-risk a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    border-left: 3px solid var(--color-warning, #f5a623);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+.exec-risk a:hover { background: var(--color-accent-soft); }
+.exec-risk-case_deficit a { border-left-color: var(--color-danger); }
+.exec-risk-loan_due a { border-left-color: var(--color-warning, #f5a623); }
+.exec-risk-request_overdue a { border-left-color: var(--color-danger); }
+.exec-risk-label { font-weight: 500; }
+.exec-risk-amount { font-weight: 700; color: var(--color-danger); white-space: nowrap; margin-left: 12px; }
