@@ -140,12 +140,41 @@
                                     <td class="table-col-number">{{ stat.requested|ru_number }}</td>
                                     <td class="table-col-number"><strong>{{ stat.expected_remaining|ru_number }}</strong></td>
                                     <td class="table-action-col">
-                                        <form method="post" style="display:inline">
-                                            {% csrf_token %}
-                                            <input type="hidden" name="action" value="detach_contract">
-                                            <input type="hidden" name="contract_id" value="{{ stat.contract.id }}">
-                                            <button class="command-button is-sm is-danger" type="submit" title="Отвязать договор от кейса">Отвязать</button>
-                                        </form>
+                                        <div class="form-stack-compact">
+                                            {% if kind == "loan_received" and stat.expected_remaining > 0 %}
+                                                <details class="loan-repay-toggle">
+                                                    <summary class="command-button-primary is-sm">Записать возврат →</summary>
+                                                    <form method="post" class="loan-repay-form">
+                                                        {% csrf_token %}
+                                                        <input type="hidden" name="action" value="record_loan_repayment">
+                                                        <input type="hidden" name="loan_contract_id" value="{{ stat.contract.id }}">
+                                                        <label><span class="field-label">Дата</span>
+                                                            <input class="field-control field-control-sm" type="date" name="date" value="{{ today|date:'Y-m-d' }}" required>
+                                                        </label>
+                                                        <label><span class="field-label">Сумма всего, ₽</span>
+                                                            <input class="field-control field-control-sm" type="text" inputmode="decimal" name="amount" placeholder="{{ stat.expected_remaining }}" required>
+                                                        </label>
+                                                        <label><span class="field-label">Из них проценты, ₽</span>
+                                                            <input class="field-control field-control-sm" type="text" inputmode="decimal" name="interest_portion" value="0">
+                                                        </label>
+                                                        <label><span class="field-label">Статья ДДС</span>
+                                                            <select class="field-control-select field-control-sm" name="article_id" required>
+                                                                {% for art in repayment_articles %}
+                                                                    <option value="{{ art.id }}" {% if 'LOAN' in art.code %}selected{% endif %}>{{ art.code }} · {{ art.name }}</option>
+                                                                {% endfor %}
+                                                            </select>
+                                                        </label>
+                                                        <button class="command-button-primary is-sm" type="submit">Записать</button>
+                                                    </form>
+                                                </details>
+                                            {% endif %}
+                                            <form method="post" style="display:inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="detach_contract">
+                                                <input type="hidden" name="contract_id" value="{{ stat.contract.id }}">
+                                                <button class="command-button is-sm is-danger" type="submit" title="Отвязать договор от кейса">Отвязать</button>
+                                            </form>
+                                        </div>
                                     </td>
                                 </tr>
                             {% endfor %}

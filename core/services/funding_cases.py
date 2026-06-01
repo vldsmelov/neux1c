@@ -166,10 +166,15 @@ def build_case_overview(case: FundingCase) -> dict:
         (max(MONEY_ZERO, s.expected_remaining) for s in by_kind[ContractKind.CUSTOMER]),
         MONEY_ZERO,
     ))
-    if supplier_obligations > (available_now + incoming_expected):
+    if supplier_obligations > MONEY_ZERO and supplier_obligations > (available_now + incoming_expected):
         gap = quant_money(supplier_obligations - available_now - incoming_expected)
         alerts.append(
             f"Дефицит покрытия поставщиков: {gap} ₽ — нужен дополнительный источник (заём или допсоглашение к доходному договору)"
+        )
+    # Кейс ушёл в кассовый минус (потратили больше чем имеем + ожидаем)
+    if projected_balance < MONEY_ZERO and supplier_obligations <= MONEY_ZERO:
+        alerts.append(
+            f"Кассовый разрыв: проект ушёл в минус на {abs(projected_balance)} ₽ — нужно поступление от доходных договоров или новый источник финансирования"
         )
     loans_to_repay = quant_money(sum(
         (max(MONEY_ZERO, s.expected_remaining) for s in by_kind[ContractKind.LOAN_RECEIVED]),

@@ -1248,3 +1248,29 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 .funding-dashboard-num { font-family: var(--font-mono, monospace); font-size: var(--text-xs); white-space: nowrap; color: var(--color-text-muted); }
 
 .metric-value-sub { font-size: 0.55em; color: var(--color-text-muted); font-weight: 400; }
+
+/* Quick-action: записать возврат займа прямо в строке кейса */
+.loan-repay-toggle { position: relative; }
+.loan-repay-toggle > summary {
+    cursor: pointer;
+    list-style: none;
+    display: inline-block;
+}
+.loan-repay-toggle > summary::-webkit-details-marker { display: none; }
+.loan-repay-toggle[open] > summary { box-shadow: 0 0 0 2px var(--color-accent-soft); }
+.loan-repay-form {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    z-index: 50;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    display: grid;
+    gap: 8px;
+    min-width: 280px;
+}
+.loan-repay-form label { display: grid; gap: 3px; }
+.loan-repay-form .field-label { font-size: var(--text-xs); }

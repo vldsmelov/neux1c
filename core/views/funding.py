@@ -4,19 +4,27 @@ from django.contrib import messages
 from django.db import IntegrityError
 from django.shortcuts import get_object_or_404, redirect, render
 
+from decimal import Decimal, InvalidOperation
+
+from django.utils import timezone
+
 from ..access import role_required
 from ..models import (
+    AccountingKind,
     AuditAction,
     AuditLog,
+    CashFlowArticle,
     Contract,
     ContractKind,
     FundingCase,
     FundingCaseStatus,
     Organization,
+    PaymentDirection,
+    PaymentFact,
     UserRole,
 )
 from ..services.funding_cases import build_case_overview
-from ._shared import parse_optional_int, working_organization
+from ._shared import parse_decimal, parse_optional_int, working_organization
 
 
 @role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
@@ -138,6 +146,13 @@ def funding_case_detail(request, case_id: int):
                     case.status = status
                 case.save(update_fields=["name", "description", "status", "updated_at"])
                 messages.success(request, "Кейс обновлён")
+            elif action == "record_loan_repayment":
+                fact = _record_loan_repayment(request, case)
+                messages.success(
+                    request,
+                    f"Записан возврат займа {fact.loan_repayment_contract.number}: "
+                    f"{fact.amount} ₽ (из них процентов {fact.loan_interest_portion})",
+                )
         except (IntegrityError, ValueError) as exc:
             messages.error(request, _format_err(exc))
         return redirect("funding_case_detail", case_id=case.id)
@@ -149,6 +164,12 @@ def funding_case_detail(request, case_id: int):
         counterparty__isnull=False,
     ).select_related("counterparty").order_by("-date")[:30]
 
+    # Статьи ДДС для quick-action «Записать возврат займа» (outflow)
+    repayment_articles = CashFlowArticle.objects.filter(
+        direction="outflow",
+        is_group=False,
+    ).order_by("code")
+
     return render(
         request,
         "core/funding_case_detail.html",
@@ -157,10 +178,68 @@ def funding_case_detail(request, case_id: int):
             "case": case,
             "overview": overview,
             "attachable_contracts": attachable_contracts,
+            "repayment_articles": repayment_articles,
+            "today": timezone.localdate(),
             "kind_labels": dict(ContractKind.choices),
             "status_choices": FundingCaseStatus.choices,
         },
     )
+
+
+def _record_loan_repayment(request, case: FundingCase) -> PaymentFact:
+    """Quick-action: создаёт PaymentFact-возврат конкретного займа кейса с
+    проставленными loan_repayment_contract + loan_interest_portion. Освобождает
+    финансиста от навигации в отдельный wizard."""
+    loan = get_object_or_404(
+        Contract,
+        pk=parse_optional_int(request.POST.get("loan_contract_id")),
+        kind=ContractKind.LOAN_RECEIVED,
+        funding_case=case,
+    )
+    article = get_object_or_404(
+        CashFlowArticle, pk=parse_optional_int(request.POST.get("article_id"))
+    )
+
+    fact_date = request.POST.get("date") or timezone.localdate().isoformat()
+    try:
+        amount = parse_decimal(request.POST.get("amount"))
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"Некорректная сумма: {exc}") from exc
+    if not amount or amount <= 0:
+        raise ValueError("Сумма возврата должна быть больше нуля")
+    interest_raw = (request.POST.get("interest_portion") or "0").strip().replace(",", ".")
+    try:
+        interest = Decimal(interest_raw)
+    except InvalidOperation as exc:
+        raise ValueError(f"Некорректная сумма процентов: {exc}") from exc
+    if interest < 0 or interest > amount:
+        raise ValueError("Сумма процентов должна быть в диапазоне 0..сумма возврата")
+
+    fact = PaymentFact.objects.create(
+        external_id=f"case-{case.pk}-loan-{loan.pk}-{int(timezone.now().timestamp())}",
+        date=fact_date,
+        organization=case.organization,
+        article=article,
+        counterparty=loan.counterparty,
+        contract=loan,
+        loan_repayment_contract=loan,
+        loan_interest_portion=interest,
+        amount=amount,
+        currency=loan.currency,
+        accounting_kind=AccountingKind.BU,
+        direction=PaymentDirection.OUTFLOW,
+        account="51",
+        comment=f"Возврат займа · кейс {case.code}",
+    )
+    AuditLog.objects.create(
+        user=request.user,
+        action=AuditAction.CREATE,
+        path=f"/funding/cases/{case.pk}/",
+        object_type="PaymentFact",
+        object_id=str(fact.pk),
+        message=f"Записан возврат займа {loan.number} в кейсе {case.code}: {amount} ₽ (% {interest})",
+    )
+    return fact
 
 
 # Helpers

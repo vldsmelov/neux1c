@@ -195,6 +195,79 @@ class FundingCaseTests(TestCase):
         self.assertGreater(buckets[self.mother.id]["net"], Decimal("0"))
         self.assertLess(buckets[self.supplier.id]["net"], Decimal("0"))
 
+    def test_record_loan_repayment_quick_action_creates_fact(self):
+        case = FundingCase.objects.create(
+            code="FUND-QA-1", name="Quick action", organization=self.organization,
+        )
+        loan = Contract.objects.create(
+            number="LOAN-QA", date=date(2026, 1, 1),
+            name="Заём для QA", kind=ContractKind.LOAN_RECEIVED,
+            counterparty=self.lender, currency=self.rub,
+            amount=Decimal("500000.00"), interest_rate=Decimal("12.000"),
+            funding_case=case,
+        )
+        article = CashFlowArticle.objects.create(
+            code="DDS-LOAN-OUT-QA", name="Возврат займа QA", direction="outflow",
+        )
+
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("funding_case_detail", args=[case.id]),
+            {
+                "action": "record_loan_repayment",
+                "loan_contract_id": loan.id,
+                "article_id": article.id,
+                "date": "2026-04-10",
+                "amount": "330000.00",
+                "interest_portion": "30000.00",
+            },
+            follow=True,
+        )
+        self.assertEqual(response.status_code, 200)
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("Записан возврат займа" in m for m in msgs), msgs)
+        # Должен появиться PaymentFact с правильной привязкой
+        fact = PaymentFact.objects.get(loan_repayment_contract=loan)
+        self.assertEqual(fact.amount, Decimal("330000.00"))
+        self.assertEqual(fact.loan_interest_portion, Decimal("30000.00"))
+        self.assertEqual(fact.direction, PaymentDirection.OUTFLOW)
+        self.assertEqual(fact.contract_id, loan.id)
+        # И сальдо кейса должно обновиться: остаток = 500k - 300k тело + 60k - 30k проценты = 230k
+        overview = build_case_overview(case)
+        loan_stat = overview["contracts_by_kind"][ContractKind.LOAN_RECEIVED][0]
+        self.assertEqual(loan_stat.expected_remaining, Decimal("230000.00"))
+
+    def test_record_loan_repayment_rejects_invalid_interest(self):
+        case = FundingCase.objects.create(
+            code="FUND-QA-2", name="QA invalid", organization=self.organization,
+        )
+        loan = Contract.objects.create(
+            number="LOAN-QA-2", date=date(2026, 1, 1),
+            name="Заём", kind=ContractKind.LOAN_RECEIVED,
+            counterparty=self.lender, currency=self.rub,
+            amount=Decimal("100000.00"), funding_case=case,
+        )
+        article = CashFlowArticle.objects.create(
+            code="DDS-LOAN-OUT-QA2", name="Возврат QA2", direction="outflow",
+        )
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.post(
+            reverse("funding_case_detail", args=[case.id]),
+            {
+                "action": "record_loan_repayment",
+                "loan_contract_id": loan.id,
+                "article_id": article.id,
+                "date": "2026-04-10",
+                "amount": "50000.00",
+                "interest_portion": "60000.00",  # больше суммы — должно отклониться
+            },
+            follow=True,
+        )
+        msgs = [m.message for m in response.context["messages"]]
+        self.assertTrue(any("процент" in m.lower() for m in msgs), msgs)
+        # Факта быть не должно
+        self.assertFalse(PaymentFact.objects.filter(loan_repayment_contract=loan).exists())
+
     def test_case_detail_renders_with_attachable_contracts(self):
         case = FundingCase.objects.create(
             code="FUND-002", name="Пустой кейс",
