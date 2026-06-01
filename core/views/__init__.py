@@ -35,6 +35,7 @@ from .planning import (  # noqa: F401
     planning_wizard,
 )
 from .reports import (  # noqa: F401
+    consolidation_report,
     executive_dashboard,
     fx_revaluation_report,
     manager_dashboard,

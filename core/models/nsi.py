@@ -21,6 +21,11 @@ class Currency(IntegrationTrackedModel):
 class Organization(IntegrationTrackedModel):
     name = models.CharField("Наименование", max_length=255, unique=True)
     inn = models.CharField("ИНН", max_length=12, blank=True)
+    is_holding_member = models.BooleanField(
+        "Член холдинга",
+        default=True,
+        help_text="Если включено — компания входит в периметр консолидированной отчётности. Сделки с другими членами холдинга считаются ВГО и устраняются при консолидации.",
+    )
     escalation_threshold_rub = models.DecimalField(
         "Порог эскалации, RUB",
         max_digits=16,

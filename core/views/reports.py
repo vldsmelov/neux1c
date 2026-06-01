@@ -26,6 +26,7 @@ from ..models import (
 from ..services.manager_dashboard import build_manager_dashboard
 from ..services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
 from ..services.executive_dashboard import build_executive_dashboard
+from ..services.consolidation import build_consolidation_report
 from ..services.fx_revaluation import build_fx_revaluation
 from ..services.profit_loss_report import ProfitLossFilters, build_profit_loss
 from ..services.variance_analysis import build_variance_analysis
@@ -181,6 +182,24 @@ def plan_fact_report(request):
                 "direction": selected_direction,
                 "funding_case_id": selected_funding_case_id,
             },
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def consolidation_report(request):
+    """Консолидированный отчёт холдинга с устранением ВГО."""
+    current_year = timezone.localdate().year
+    selected_year = parse_optional_int(request.GET.get("year")) or current_year
+    payload = build_consolidation_report(year=selected_year)
+    return render(
+        request,
+        "core/consolidation_report.html",
+        {
+            "active_section": "reports",
+            "years": list(range(current_year - 2, current_year + 2)),
+            "selected_year": selected_year,
+            **payload,
         },
     )
 
