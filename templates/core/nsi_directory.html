@@ -169,6 +169,9 @@
                                 {% if can_update_nsi or can_delete_nsi %}
                                     <td class="table-col-actions">
                                         <div class="inline-form-row">
+                                            {% if directory_key == "counterparties" %}
+                                                <a class="command-button is-sm" href="{% url 'counterparty_360' row.id %}" title="Полное досье контрагента: договоры, движения, сальдо, кейсы">360°</a>
+                                            {% endif %}
                                             {% if can_update_nsi %}
                                                 <button class="command-button" type="submit" form="nsi-edit-{{ row.id }}">Сохранить</button>
                                             {% endif %}

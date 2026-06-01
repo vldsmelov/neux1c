@@ -1,0 +1,147 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}{{ overview.counterparty.name }} · 360° · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/nsi/counterparties/">Контрагенты</a>
+    <a class="app-tab is-active" href="{% url 'counterparty_360' overview.counterparty.id %}">{{ overview.counterparty.name|truncatechars:30 }}</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">{{ overview.counterparty.name }}</h1>
+            <p class="app-subtitle">
+                Полное досье · {{ overview.contracts_count }} договор(ов){% if overview.counterparty.inn %} · ИНН {{ overview.counterparty.inn }}{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <section class="cp360-headline">
+        <div class="cp360-cell cp360-positive">
+            <div class="cp360-label">Они нам должны</div>
+            <div class="cp360-value">{{ overview.they_owe_us|ru_number }} ₽</div>
+            <div class="cp360-sub">По доходным договорам + выданным займам</div>
+        </div>
+        <div class="cp360-cell cp360-negative">
+            <div class="cp360-label">Мы им должны</div>
+            <div class="cp360-value">{{ overview.we_owe_them|ru_number }} ₽</div>
+            <div class="cp360-sub">Поставщикам + возврат полученных займов с %</div>
+        </div>
+        <div class="cp360-cell cp360-net cp360-net-{{ overview.net_tone }}">
+            <div class="cp360-label">Нетто-сальдо</div>
+            <div class="cp360-value">{% if overview.net > 0 %}+{% endif %}{{ overview.net|ru_number }} ₽</div>
+            <div class="cp360-sub">{{ overview.net_label }}</div>
+        </div>
+    </section>
+
+    <section class="cp360-headline">
+        <div class="cp360-cell cp360-flow">
+            <div class="cp360-label">Лайфтайм пришло</div>
+            <div class="cp360-value">{{ overview.lifetime_inflow|ru_number }} ₽</div>
+            <div class="cp360-sub">Всего получено от этого контрагента</div>
+        </div>
+        <div class="cp360-cell cp360-flow">
+            <div class="cp360-label">Лайфтайм ушло</div>
+            <div class="cp360-value">{{ overview.lifetime_outflow|ru_number }} ₽</div>
+            <div class="cp360-sub">Всего выплачено этому контрагенту</div>
+        </div>
+        <div class="cp360-cell cp360-flow">
+            <div class="cp360-label">Зарезервировано заявками</div>
+            <div class="cp360-value">{{ overview.requested_total|ru_number }} ₽</div>
+            <div class="cp360-sub">Активные заявки в очереди на оплату</div>
+        </div>
+    </section>
+
+    {% for kind, label in kind_labels.items %}
+        {% with summaries=overview.contracts_by_kind|dict_get:kind %}
+        {% if summaries %}
+            <section class="data-panel stack">
+                <h2 class="section-title">{{ label }} <span class="cell-secondary">({{ summaries|length }})</span></h2>
+                <div class="data-table-wrap desktop-scroll">
+                    <table class="data-table data-table-narrow">
+                        <thead>
+                            <tr>
+                                <th>Договор</th>
+                                <th class="table-col-number">Сумма</th>
+                                <th class="table-col-number">Пришло</th>
+                                <th class="table-col-number">Ушло</th>
+                                <th class="table-col-number">Заявки</th>
+                                <th class="table-col-number">Остаток</th>
+                                <th>Кейс</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cs in summaries %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ cs.contract.number }}</strong>
+                                        <div class="cell-secondary">от {{ cs.contract.date|date:"d.m.Y" }}{% if cs.contract.maturity_date %} · до {{ cs.contract.maturity_date|date:"d.m.Y" }}{% endif %}</div>
+                                    </td>
+                                    <td class="table-col-number">{{ cs.contract.amount|ru_number }} {{ cs.contract.currency.code }}</td>
+                                    <td class="table-col-number text-success">{{ cs.inflow|ru_number }}</td>
+                                    <td class="table-col-number text-danger">{{ cs.outflow|ru_number }}</td>
+                                    <td class="table-col-number">{{ cs.requested|ru_number }}</td>
+                                    <td class="table-col-number"><strong>{{ cs.outstanding|ru_number }}</strong></td>
+                                    <td>
+                                        {% if cs.contract.funding_case %}
+                                            <a href="{% url 'funding_case_detail' cs.contract.funding_case.id %}" class="badge badge-info">{{ cs.contract.funding_case.code }}</a>
+                                        {% else %}—{% endif %}
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        {% endif %}
+        {% endwith %}
+    {% endfor %}
+
+    {% if overview.related_cases %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Кейсы финансирования с этим контрагентом ({{ overview.related_cases|length }})</h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead><tr><th>Кейс</th><th>Компания</th><th class="table-col-short">Статус</th><th class="table-col-date">Открыт</th></tr></thead>
+                    <tbody>
+                        {% for c in overview.related_cases %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'funding_case_detail' c.id %}"><strong>{{ c.code }}</strong></a>
+                                    <div class="cell-secondary">{{ c.name|truncatechars:60 }}</div>
+                                </td>
+                                <td>{{ c.organization.name }}</td>
+                                <td class="table-col-short"><span class="badge">{{ c.get_status_display }}</span></td>
+                                <td class="table-col-date">{{ c.opened_at|date:"d.m.Y" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if overview.recent_facts %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Последние факты оплат</h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead><tr><th class="table-col-date">Дата</th><th>Договор</th><th>Статья</th><th class="table-col-number">Сумма</th><th class="table-col-short">Направление</th></tr></thead>
+                    <tbody>
+                        {% for f in overview.recent_facts %}
+                            <tr>
+                                <td class="table-col-date">{{ f.date|date:"d.m.Y" }}</td>
+                                <td>{{ f.contract.number }}</td>
+                                <td>{{ f.article.code }} · {{ f.article.name|truncatechars:30 }}</td>
+                                <td class="table-col-number">{{ f.amount|ru_number }} {{ f.currency.code }}</td>
+                                <td class="table-col-short">{% if f.direction == "inflow" %}<span class="badge badge-success">приход</span>{% else %}<span class="badge badge-danger">расход</span>{% endif %}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

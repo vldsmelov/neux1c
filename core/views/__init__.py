@@ -17,7 +17,7 @@ from .integrations import (  # noqa: F401
     integration_requests,
 )
 from .notifications import notification_follow, notifications  # noqa: F401
-from .nsi import nsi_dashboard, nsi_directory  # noqa: F401
+from .nsi import counterparty_360, nsi_dashboard, nsi_directory  # noqa: F401
 from .payments import (  # noqa: F401
     payment_fact_adjustment_wizard,
     payment_fact_history,

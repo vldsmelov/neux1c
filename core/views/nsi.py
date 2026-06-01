@@ -521,6 +521,24 @@ def _import_nsi_csv(request, directory: str, config: dict, *, path: str) -> dict
     return {"created": created, "skipped": skipped, "errors": errors}
 
 
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def counterparty_360(request, counterparty_id: int):
+    """Полное досье контрагента: всё что с ним связано в одной карточке."""
+    from ..services.counterparty_360 import build_counterparty_overview
+    counterparty = get_object_or_404(Counterparty, pk=counterparty_id)
+    overview = build_counterparty_overview(counterparty)
+    from ..models import ContractKind
+    return render(
+        request,
+        "core/counterparty_360.html",
+        {
+            "active_section": "nsi",
+            "overview": overview,
+            "kind_labels": dict(ContractKind.choices),
+        },
+    )
+
+
 def can_create_nsi(user) -> bool:
     """Public helper kept for any future callers; unused right now."""
     return any(has_model_permission(user, model, "add") for model in NSI_DIRECTORY_MODELS.values())
