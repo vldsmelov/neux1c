@@ -92,6 +92,45 @@ class ExchangeRatesTests(TestCase):
         self.assertEqual(len(payload["missing_rates"]), 1)
         self.assertEqual(payload["positions_count"], 0)
 
+    def test_fetch_cbr_parses_xml_and_creates_rates(self):
+        from core.services.exchange_rates import fetch_cbr_rates
+
+        # Минимальный реалистичный XML фрагмент cbr.ru (windows-1251)
+        xml = (
+            '<?xml version="1.0" encoding="windows-1251"?>'
+            '<ValCurs Date="01.06.2026" name="Foreign Currency Market">'
+            '  <Valute ID="R01235"><NumCode>840</NumCode><CharCode>USD</CharCode>'
+            '    <Nominal>1</Nominal><Name>Доллар США</Name><Value>95,4700</Value><VunitRate>95,4700</VunitRate></Valute>'
+            '  <Valute ID="R01239"><NumCode>978</NumCode><CharCode>EUR</CharCode>'
+            '    <Nominal>1</Nominal><Name>Евро</Name><Value>103,2100</Value><VunitRate>103,2100</VunitRate></Valute>'
+            '  <Valute ID="R01375"><NumCode>156</NumCode><CharCode>CNY</CharCode>'
+            '    <Nominal>10</Nominal><Name>Юань</Name><Value>130,5000</Value><VunitRate>13,0500</VunitRate></Valute>'
+            '</ValCurs>'
+        )
+
+        def fake_fetcher(url):
+            assert "01/06/2026" in url
+            return xml.encode("windows-1251")
+
+        result = fetch_cbr_rates(date(2026, 6, 1), http_fetcher=fake_fetcher)
+        # USD и EUR есть в нашей таблице, CNY — нет (skipped)
+        self.assertEqual(result["created"], 2)
+        self.assertEqual(result["skipped"], 1)
+        self.assertEqual(result["errors"], [])
+
+        usd_rate = ExchangeRate.objects.get(currency=self.usd, rate_date=date(2026, 6, 1), source="cbr")
+        self.assertEqual(usd_rate.rate_to_rub, Decimal("95.470000"))
+
+    def test_fetch_cbr_handles_http_error_gracefully(self):
+        from core.services.exchange_rates import fetch_cbr_rates
+
+        def broken_fetcher(url):
+            raise ConnectionError("network unreachable")
+
+        result = fetch_cbr_rates(date(2026, 6, 1), http_fetcher=broken_fetcher)
+        self.assertEqual(result["created"], 0)
+        self.assertTrue(any("HTTP fetch failed" in e for e in result["errors"]))
+
     def test_latest_rates_summary(self):
         ExchangeRate.objects.create(
             currency=self.usd, rate_date=date(2026, 5, 1),

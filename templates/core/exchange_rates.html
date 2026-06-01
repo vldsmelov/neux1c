@@ -38,6 +38,17 @@
     {% endif %}
 
     <section class="data-panel stack">
+        <form method="post" class="inline-form-row">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="fetch_cbr">
+            <label class="field-label" style="margin: 0;">⬇ Загрузить с ЦБ РФ на дату:</label>
+            <input class="field-control field-control-sm" type="date" name="cbr_date" value="{{ today|date:'Y-m-d' }}">
+            <button class="command-button-primary is-sm" type="submit">Загрузить</button>
+            <span class="hint">Курсы получаются с публичного XML-фида cbr.ru и создаются с источником «ЦБ РФ». Не конфликтуют с ручными курсами.</span>
+        </form>
+    </section>
+
+    <section class="data-panel stack">
         <details class="stack-section" open>
             <summary>Добавить курс</summary>
             <form method="post" class="form-grid form-grid-3">

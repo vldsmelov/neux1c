@@ -43,6 +43,78 @@ def convert_to_rub(amount: Decimal, currency: Currency | str, target_date: date_
     return (Decimal(amount) * rate).quantize(Decimal("0.01"))
 
 
+def fetch_cbr_rates(target_date: date_cls, *, http_fetcher=None) -> dict:
+    """Загружает курсы валют ЦБ РФ на указанную дату.
+
+    Использует публичный XML-фид cbr.ru/scripts/XML_daily.asp.
+    Создаёт ExchangeRate записи с source=cbr для всех валют, которые
+    есть в нашей таблице Currency (по коду ISO).
+
+    Возвращает: {"created": N, "updated": M, "skipped": K, "errors": [...]}.
+
+    http_fetcher — функция (url) → bytes, для тестов можно подменить.
+    """
+    import xml.etree.ElementTree as ET
+    from urllib.request import urlopen
+
+    url = f"https://www.cbr.ru/scripts/XML_daily.asp?date_req={target_date:%d/%m/%Y}"
+
+    if http_fetcher is None:
+        def http_fetcher(u):
+            with urlopen(u, timeout=15) as resp:
+                return resp.read()
+
+    try:
+        raw = http_fetcher(url)
+    except Exception as exc:
+        return {"created": 0, "updated": 0, "skipped": 0, "errors": [f"HTTP fetch failed: {exc}"]}
+
+    # XML ЦБ — в windows-1251, нужно декодировать
+    try:
+        text = raw.decode("windows-1251")
+        root = ET.fromstring(text)
+    except Exception as exc:
+        return {"created": 0, "updated": 0, "skipped": 0, "errors": [f"XML parse failed: {exc}"]}
+
+    known_currencies = {c.code: c for c in Currency.objects.all()}
+    created = updated = skipped = 0
+    errors: list[str] = []
+
+    for valute in root.findall("Valute"):
+        code_el = valute.find("CharCode")
+        nominal_el = valute.find("Nominal")
+        value_el = valute.find("Value")
+        if code_el is None or nominal_el is None or value_el is None:
+            continue
+        code = code_el.text.strip().upper()
+        if code not in known_currencies:
+            skipped += 1
+            continue
+        try:
+            nominal = Decimal(nominal_el.text.replace(",", "."))
+            value = Decimal(value_el.text.replace(",", "."))
+            rate = (value / nominal).quantize(Decimal("0.000001"))
+        except Exception as exc:
+            errors.append(f"{code}: {exc}")
+            continue
+
+        _, was_created = ExchangeRate.objects.update_or_create(
+            currency=known_currencies[code],
+            rate_date=target_date,
+            source=ExchangeRate.SOURCE_CBR,
+            defaults={
+                "rate_to_rub": rate,
+                "comment": f"Автоматически загружено с cbr.ru на {target_date:%d.%m.%Y}",
+            },
+        )
+        if was_created:
+            created += 1
+        else:
+            updated += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped, "errors": errors}
+
+
 def latest_rates_summary() -> list[dict]:
     """Сводка: последний курс для каждой валюты ≠ RUB. Для UI."""
     summary: list[dict] = []

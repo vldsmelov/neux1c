@@ -1,6 +1,6 @@
 """Страница курсов валют /settings/exchange-rates/."""
 
-from datetime import date as date_cls
+from datetime import date as date_cls  # noqa: F401 — re-imported for clarity
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -28,6 +28,25 @@ def exchange_rates(request):
                 rate_str = str(rate)
                 rate.delete()
                 messages.success(request, f"Курс удалён: {rate_str}")
+            elif action == "fetch_cbr":
+                from ..services.exchange_rates import fetch_cbr_rates
+                raw_date = (request.POST.get("cbr_date") or "").strip()
+                target = (
+                    date_cls.fromisoformat(raw_date) if raw_date else timezone.localdate()
+                )
+                result = fetch_cbr_rates(target)
+                if result["errors"]:
+                    messages.warning(
+                        request,
+                        f"Загрузка с ЦБ РФ на {target:%d.%m.%Y}: создано {result['created']}, "
+                        f"обновлено {result['updated']}; ошибки: {'; '.join(result['errors'][:3])}",
+                    )
+                else:
+                    messages.success(
+                        request,
+                        f"Загружено с ЦБ РФ на {target:%d.%m.%Y}: создано {result['created']}, "
+                        f"обновлено {result['updated']}, пропущено {result['skipped']}",
+                    )
         except (ValueError, InvalidOperation) as exc:
             messages.error(request, str(exc))
         return redirect("exchange_rates")
