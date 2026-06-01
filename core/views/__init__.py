@@ -39,4 +39,4 @@ from .funding import funding_case_detail, funding_case_print, funding_cases_inde
 from .scenarios import planning_scenarios  # noqa: F401
 from .template_builder import planning_template_builder  # noqa: F401
 from .workflow import document_action_wizard  # noqa: F401
-from .workspace import workspace  # noqa: F401
+from .workspace import global_search_view, workspace  # noqa: F401

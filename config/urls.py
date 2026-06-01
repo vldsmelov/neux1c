@@ -32,6 +32,7 @@ from core.views import (
     payment_request_justification_download,
     payment_request_wizard,
     executive_dashboard,
+    global_search_view,
     plan_fact_report,
     profit_loss_report,
     planning_budgets,
@@ -52,6 +53,7 @@ from core.views import (
 
 urlpatterns = [
     path("", workspace, name="workspace"),
+    path("search/", global_search_view, name="global_search"),
     path(
         "workflow/<str:document_type>/<int:document_id>/<str:action>-wizard/",
         document_action_wizard,

@@ -36,6 +36,11 @@
             <a class="app-tab {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">Внешний контур</a>
         {% endif %}
         <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">Помощь</a>
+        {% if user.is_authenticated %}
+            <form class="global-search-form" action="{% url 'global_search' %}" method="get" role="search">
+                <input type="search" name="q" class="global-search-input" placeholder="🔍 Поиск договоров, кейсов, заявок..." value="{{ request.GET.q|default:'' }}" aria-label="Поиск">
+            </form>
+        {% endif %}
     </div>
     <div class="app-shell">
         <aside class="app-sidebar">

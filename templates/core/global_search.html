@@ -1,0 +1,94 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Поиск «{{ query }}» · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab is-active" href="/search/?q={{ query }}">Поиск «{{ query|truncatechars:30 }}»</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🔍 Поиск по холдингу</h1>
+            <p class="app-subtitle">Договоры, кейсы финансирования, контрагенты, заявки на оплату — всё в одном окне.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="inline-form-row" style="width: 100%;">
+            <input class="field-control" name="q" placeholder="Что ищем? Номер договора, название кейса, ИНН контрагента..." value="{{ query }}" autofocus style="flex: 1;">
+            <button class="command-button-primary" type="submit">Искать</button>
+        </form>
+    </section>
+
+    {% if results.empty %}
+        <section class="data-panel stack">
+            <p class="hint">Введите хотя бы 2 символа для поиска.</p>
+        </section>
+    {% else %}
+        {% with c=results.contracts cs=results.funding_cases cp=results.counterparties pr=results.payment_requests %}
+        {% if not c and not cs and not cp and not pr %}
+            <section class="data-panel stack">
+                <p class="hint">😶 По запросу «<strong>{{ query }}</strong>» ничего не найдено. Проверьте написание или попробуйте часть слова.</p>
+            </section>
+        {% endif %}
+
+        {% if cs %}
+            <section class="data-panel stack">
+                <h2 class="section-title">💼 Кейсы финансирования <span class="cell-secondary">({{ cs|length }})</span></h2>
+                <ul class="search-results">
+                    {% for case in cs %}
+                        <li><a href="{% url 'funding_case_detail' case.id %}">
+                            <strong>{{ case.code }}</strong> · {{ case.name }}
+                            <span class="search-meta">{{ case.organization.name }} · {{ case.get_status_display }}{% if case.owner %} · {{ case.owner.username }}{% endif %}</span>
+                        </a></li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+
+        {% if c %}
+            <section class="data-panel stack">
+                <h2 class="section-title">📄 Договоры <span class="cell-secondary">({{ c|length }})</span></h2>
+                <ul class="search-results">
+                    {% for contract in c %}
+                        <li><a href="/contracts/register/?q={{ contract.number }}">
+                            <strong>{{ contract.number }}</strong> · {{ contract.get_kind_display }}
+                            <span class="search-meta">{{ contract.counterparty.name }} · {{ contract.amount|ru_number }} {{ contract.currency.code }} · от {{ contract.date|date:"d.m.Y" }}{% if contract.funding_case %} · кейс {{ contract.funding_case.code }}{% endif %}</span>
+                        </a></li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+
+        {% if cp %}
+            <section class="data-panel stack">
+                <h2 class="section-title">👥 Контрагенты <span class="cell-secondary">({{ cp|length }})</span></h2>
+                <ul class="search-results">
+                    {% for partner in cp %}
+                        <li><a href="{% url 'counterparty_360' partner.id %}">
+                            <strong>{{ partner.name }}</strong>
+                            <span class="search-meta">{% if partner.inn %}ИНН {{ partner.inn }} · {% endif %}{{ partner.get_source_system_display }}</span>
+                        </a></li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+
+        {% if pr %}
+            <section class="data-panel stack">
+                <h2 class="section-title">💳 Заявки на оплату <span class="cell-secondary">({{ pr|length }})</span></h2>
+                <ul class="search-results">
+                    {% for req in pr %}
+                        <li><a href="/payments/requests/?q={{ req.number }}">
+                            <strong>{{ req.number }}</strong> · {{ req.get_status_display }}
+                            <span class="search-meta">{{ req.counterparty.name }} · {{ req.amount|ru_number }} {{ req.currency.code }} · от {{ req.request_date|date:"d.m.Y" }}</span>
+                        </a></li>
+                    {% endfor %}
+                </ul>
+            </section>
+        {% endif %}
+        {% endwith %}
+    {% endif %}
+{% endblock %}

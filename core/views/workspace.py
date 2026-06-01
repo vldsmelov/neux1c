@@ -337,3 +337,20 @@ def _workday_primary_action(role: str) -> dict:
     if role == UserRole.ADMINISTRATOR:
         return {"label": "Интеграции", "url": reverse("integration_requests")}
     return {"label": "Новая заявка", "url": reverse("payment_request_wizard")}
+
+
+@login_required
+def global_search_view(request):
+    """Универсальный поиск по холдингу: договоры / кейсы / контрагенты / заявки."""
+    from ..services.global_search import global_search
+    query = request.GET.get("q", "")
+    results = global_search(query, limit=15)
+    return render(
+        request,
+        "core/global_search.html",
+        {
+            "active_section": "search",
+            "results": results,
+            "query": query,
+        },
+    )

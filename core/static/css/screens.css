@@ -1559,3 +1559,54 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
 .exec-risk-request_overdue a { border-left-color: var(--color-danger); }
 .exec-risk-label { font-weight: 500; }
 .exec-risk-amount { font-weight: 700; color: var(--color-danger); white-space: nowrap; margin-left: 12px; }
+
+/* --- Global search --- */
+.global-search-form { margin-left: auto; flex-shrink: 0; }
+.global-search-input {
+    width: 280px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+.global-search-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px var(--color-accent-soft);
+    width: 360px;
+}
+@media (max-width: 800px) {
+    .global-search-input { width: 180px; }
+    .global-search-input:focus { width: 220px; }
+}
+
+.search-results {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 6px;
+}
+.search-results a {
+    display: block;
+    padding: 10px 14px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text);
+    text-decoration: none;
+    transition: background 0.15s, border-color 0.15s;
+}
+.search-results a:hover {
+    background: var(--color-accent-soft);
+    border-color: var(--color-accent);
+}
+.search-meta {
+    display: block;
+    margin-top: 2px;
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
