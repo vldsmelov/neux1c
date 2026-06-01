@@ -180,7 +180,24 @@ def funding_case_detail(request, case_id: int):
             messages.error(request, _format_err(exc))
         return redirect("funding_case_detail", case_id=case.id)
 
+    # What-if симулятор: накинуть гипотетический приход поверх реальных данных
+    whatif_inflow = None
+    try:
+        whatif_raw = (request.GET.get("whatif_inflow") or "").strip().replace(" ", "").replace(",", ".")
+        if whatif_raw:
+            whatif_inflow = Decimal(whatif_raw)
+    except InvalidOperation:
+        whatif_inflow = None
+
     overview = build_case_overview(case)
+    whatif_overview = None
+    if whatif_inflow is not None and whatif_inflow > 0:
+        whatif_overview = {
+            "available_now": overview["available_now"] + whatif_inflow,
+            "projected_balance": overview["projected_balance"] + whatif_inflow,
+            "whatif_amount": whatif_inflow,
+        }
+
     # Доступные для привязки договоры — без кейса или из этой же организации
     attachable_contracts = Contract.objects.filter(
         funding_case__isnull=True,
@@ -210,6 +227,26 @@ def funding_case_detail(request, case_id: int):
             "today": timezone.localdate(),
             "kind_labels": dict(ContractKind.choices),
             "status_choices": FundingCaseStatus.choices,
+            "whatif_inflow": whatif_inflow,
+            "whatif_overview": whatif_overview,
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def funding_case_print(request, case_id: int):
+    """Печатная форма карточки кейса — для PDF-выгрузки руководству.
+    Без сайдбара/навигации, оптимизирована под A4 и Ctrl+P."""
+    case = get_object_or_404(FundingCase, pk=case_id)
+    overview = build_case_overview(case)
+    return render(
+        request,
+        "core/funding_case_print.html",
+        {
+            "case": case,
+            "overview": overview,
+            "kind_labels": dict(ContractKind.choices),
+            "today": timezone.localdate(),
         },
     )
 

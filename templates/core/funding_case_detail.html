@@ -20,6 +20,9 @@
             </p>
             {% if case.description %}<p class="hint">{{ case.description }}</p>{% endif %}
         </div>
+        <div class="command-bar">
+            <a class="command-button" href="{% url 'funding_case_print' case.id %}" target="_blank" title="Откроется отдельная страница, можно сохранить как PDF через Ctrl+P">🖨 Печать / PDF</a>
+        </div>
     </div>
 
     {% if overview.alerts %}
@@ -29,6 +32,27 @@
             {% endfor %}
         </section>
     {% endif %}
+
+    <section class="data-panel stack whatif-panel">
+        <div class="whatif-row">
+            <form method="get" class="whatif-form">
+                <label class="field-label" for="whatif_inflow">🔮 What-if: если придёт сегодня</label>
+                <input class="field-control field-control-sm" id="whatif_inflow" name="whatif_inflow" inputmode="decimal"
+                       value="{{ whatif_inflow|default:'' }}" placeholder="например 560000">
+                <button class="command-button is-sm" type="submit">Пересчитать →</button>
+                {% if whatif_inflow %}
+                    <a class="command-button is-sm is-danger" href="{% url 'funding_case_detail' case.id %}">Сбросить</a>
+                {% endif %}
+            </form>
+            {% if whatif_overview %}
+                <div class="whatif-result">
+                    <span>+{{ whatif_overview.whatif_amount|ru_number }} ₽ →</span>
+                    <strong>Доступно: <span class="{% if whatif_overview.available_now < 0 %}text-danger{% else %}text-success{% endif %}">{% if whatif_overview.available_now > 0 %}+{% endif %}{{ whatif_overview.available_now|ru_number }} ₽</span></strong>
+                    <strong>Прогноз: <span class="{% if whatif_overview.projected_balance < 0 %}text-danger{% else %}text-success{% endif %}">{% if whatif_overview.projected_balance > 0 %}+{% endif %}{{ whatif_overview.projected_balance|ru_number }} ₽</span></strong>
+                </div>
+            {% endif %}
+        </div>
+    </section>
 
     {% if overview.suggested_status %}
         <section class="data-panel stack suggested-status-panel">

@@ -1,0 +1,137 @@
+{% load ui_format %}<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <title>{{ case.code }} · {{ case.name }} · печать</title>
+    <style>
+        @page { size: A4; margin: 18mm 16mm; }
+        body { font-family: -apple-system, "Segoe UI", "Helvetica Neue", Arial, sans-serif; color: #111; font-size: 11pt; line-height: 1.45; margin: 0; padding: 24px 32px; max-width: 980px; }
+        @media print { body { padding: 0; } .no-print { display: none !important; } }
+        h1 { font-size: 22pt; margin: 0 0 4px; }
+        h2 { font-size: 14pt; margin: 24px 0 8px; padding-bottom: 4px; border-bottom: 1px solid #ddd; }
+        .meta { color: #555; font-size: 10pt; margin-bottom: 16px; }
+        .sub { color: #444; font-size: 11pt; margin-bottom: 24px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+        .summary-cell { border: 1px solid #ccc; border-left: 3px solid #888; border-radius: 6px; padding: 8px 10px; }
+        .summary-cell.pos { border-left-color: #2a8a3e; }
+        .summary-cell.neg { border-left-color: #c0392b; }
+        .summary-cell.info { border-left-color: #1e6fcf; }
+        .summary-cell .label { font-size: 8pt; color: #666; text-transform: uppercase; letter-spacing: 0.04em; }
+        .summary-cell .value { font-size: 13pt; font-weight: 700; margin-top: 4px; }
+        .summary-cell.pos .value { color: #2a8a3e; }
+        .summary-cell.neg .value { color: #c0392b; }
+        .summary-cell.info .value { color: #1e6fcf; }
+        table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; vertical-align: top; }
+        th { background: #f7f7f7; font-weight: 600; text-transform: uppercase; font-size: 8.5pt; letter-spacing: 0.03em; }
+        .num { text-align: right; white-space: nowrap; }
+        .pos { color: #2a8a3e; }
+        .neg { color: #c0392b; }
+        .badge { display: inline-block; padding: 2px 6px; border: 1px solid #aaa; border-radius: 10px; font-size: 8.5pt; }
+        .badge.s { border-color: #2a8a3e; color: #2a8a3e; }
+        .badge.d { border-color: #c0392b; color: #c0392b; }
+        .badge.w { border-color: #c08a00; color: #c08a00; }
+        .alerts { background: #fff8e6; border: 1px solid #e0c060; padding: 8px 12px; border-radius: 6px; margin: 12px 0; }
+        .alerts div { padding: 2px 0; }
+        .footer { margin-top: 32px; padding-top: 12px; border-top: 1px solid #ddd; font-size: 9pt; color: #666; }
+        .print-btn { padding: 8px 16px; background: #1e6fcf; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-size: 11pt; font-weight: 500; }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="margin-bottom: 18px;">
+        <button class="print-btn" onclick="window.print()">🖨 Печать / сохранить в PDF</button>
+        <a href="{% url 'funding_case_detail' case.id %}" style="margin-left: 12px; color: #1e6fcf;">← вернуться к карточке</a>
+    </div>
+
+    <h1>{{ case.code }} · {{ case.name }}</h1>
+    <div class="meta">
+        {{ case.organization.name }} · статус: <strong>{{ case.get_status_display }}</strong>
+        {% if case.owner %} · ответственный: {{ case.owner.username }}{% endif %}
+        · открыт {{ case.opened_at|date:"d.m.Y" }}{% if case.closed_at %} · закрыт {{ case.closed_at|date:"d.m.Y" }}{% endif %}
+        · отчёт сформирован {{ today|date:"d.m.Y" }}
+    </div>
+    {% if case.description %}<div class="sub">{{ case.description }}</div>{% endif %}
+
+    {% if overview.alerts %}
+        <div class="alerts">
+            {% for alert in overview.alerts %}<div>⚠ {{ alert }}</div>{% endfor %}
+        </div>
+    {% endif %}
+
+    <h2>Сводка</h2>
+    <div class="summary-grid">
+        <div class="summary-cell pos"><div class="label">Пришло (факт)</div><div class="value">{{ overview.total_inflow|ru_number }} ₽</div></div>
+        <div class="summary-cell neg"><div class="label">Ушло (факт)</div><div class="value">{{ overview.total_outflow|ru_number }} ₽</div></div>
+        <div class="summary-cell"><div class="label">Зарезервировано заявками</div><div class="value">{{ overview.total_requested|ru_number }} ₽</div></div>
+        <div class="summary-cell info"><div class="label">Доступно сейчас</div><div class="value">{{ overview.available_now|ru_number }} ₽</div></div>
+        <div class="summary-cell pos"><div class="label">Ожидаем прихода</div><div class="value">{{ overview.expected_inflow_remaining|ru_number }} ₽</div></div>
+        <div class="summary-cell neg"><div class="label">Должны заплатить</div><div class="value">{{ overview.expected_outflow_remaining|ru_number }} ₽</div></div>
+        <div class="summary-cell {% if overview.status_class == 'success' %}pos{% elif overview.status_class == 'danger' %}neg{% else %}info{% endif %}">
+            <div class="label">Прогноз сальдо</div>
+            <div class="value">{% if overview.projected_balance > 0 %}+{% endif %}{{ overview.projected_balance|ru_number }} ₽</div>
+        </div>
+    </div>
+
+    {% if overview.counterparty_saldo %}
+    <h2>Сальдо по контрагентам</h2>
+    <table>
+        <thead><tr><th>Контрагент</th><th class="num">Пришло</th><th class="num">Ушло</th><th class="num">Должны нам</th><th class="num">Мы должны</th><th class="num">Нетто</th></tr></thead>
+        <tbody>
+            {% for b in overview.counterparty_saldo %}
+                <tr>
+                    <td><strong>{{ b.counterparty.name }}</strong></td>
+                    <td class="num">{{ b.inflow|ru_number }}</td>
+                    <td class="num">{{ b.outflow|ru_number }}</td>
+                    <td class="num pos">{{ b.owed_to_us|ru_number }}</td>
+                    <td class="num neg">{{ b.we_owe|ru_number }}</td>
+                    <td class="num"><strong class="{% if b.net > 0 %}pos{% elif b.net < 0 %}neg{% endif %}">{% if b.net > 0 %}+{% endif %}{{ b.net|ru_number }}</strong></td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    {% for kind, label in kind_labels.items %}
+        {% with stats=overview.contracts_by_kind|dict_get:kind %}
+        {% if stats %}
+            <h2>{{ label }}</h2>
+            <table>
+                <thead><tr><th>Договор</th><th>Контрагент</th><th class="num">Сумма</th><th class="num">Пришло</th><th class="num">Ушло</th><th class="num">К получению / возврату</th></tr></thead>
+                <tbody>
+                    {% for stat in stats %}
+                        <tr>
+                            <td><strong>{{ stat.contract.number }}</strong> от {{ stat.contract.date|date:"d.m.Y" }}{% if stat.contract.interest_rate %} · {{ stat.contract.interest_rate }}% год.{% endif %}{% if stat.contract.maturity_date %} · до {{ stat.contract.maturity_date|date:"d.m.Y" }}{% endif %}</td>
+                            <td>{{ stat.contract.counterparty.name }}</td>
+                            <td class="num">{{ stat.contract.amount|ru_number }} {{ stat.contract.currency.code }}</td>
+                            <td class="num">{{ stat.inflow|ru_number }}</td>
+                            <td class="num">{{ stat.outflow|ru_number }}</td>
+                            <td class="num"><strong>{{ stat.expected_remaining|ru_number }}</strong></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+        {% endwith %}
+    {% endfor %}
+
+    {% if overview.timeline_events %}
+    <h2>Хронология</h2>
+    <table>
+        <thead><tr><th style="width: 90px;">Дата</th><th>Событие</th><th>Детали</th></tr></thead>
+        <tbody>
+            {% for ev in overview.timeline_events %}
+                <tr>
+                    <td>{{ ev.date|date:"d.m.Y" }}</td>
+                    <td>{{ ev.icon }} <strong>{{ ev.title }}</strong></td>
+                    <td>{{ ev.subtitle }}{% if ev.interest_portion %} · проценты: {{ ev.interest_portion|ru_number }} ₽{% endif %}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+
+    <div class="footer">
+        NE UX · сформировано {{ today|date:"d.m.Y" }} · кейс финансирования {{ case.code }}
+    </div>
+</body>
+</html>

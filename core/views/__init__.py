@@ -35,7 +35,7 @@ from .planning import (  # noqa: F401
     planning_wizard,
 )
 from .reports import manager_dashboard, plan_fact_report  # noqa: F401
-from .funding import funding_case_detail, funding_cases_index  # noqa: F401
+from .funding import funding_case_detail, funding_case_print, funding_cases_index  # noqa: F401
 from .scenarios import planning_scenarios  # noqa: F401
 from .template_builder import planning_template_builder  # noqa: F401
 from .workflow import document_action_wizard  # noqa: F401

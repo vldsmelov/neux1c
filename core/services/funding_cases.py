@@ -287,8 +287,29 @@ def build_case_overview(case: FundingCase) -> dict:
             "object_id": fact.id,
             "interest_portion": fact.loan_interest_portion if is_loan_repayment else None,
         })
+    # Подтянуть переходы статусов кейса из AuditLog (видим всю канву проекта)
+    from core.models import AuditLog
+    status_logs = (
+        AuditLog.objects.filter(
+            object_type="FundingCase",
+            object_id=str(case.pk),
+        )
+        .filter(message__icontains="статус кейса")
+        .order_by("created_at")
+    )
+    for log in status_logs:
+        timeline_events.append({
+            "date": log.created_at.date(),
+            "kind": "status",
+            "icon": "🚦",
+            "title": log.message,
+            "subtitle": f"автор: {log.user.username if log.user else 'система'}",
+            "tone": "info",
+            "object_id": log.id,
+        })
+
     # Сортируем по дате (от ранних к поздним — естественный порядок чтения timeline)
-    timeline_events.sort(key=lambda e: (e["date"], e["kind"] != "contract"))
+    timeline_events.sort(key=lambda e: (e["date"], 0 if e["kind"] == "contract" else (2 if e["kind"] == "status" else 1)))
 
     return {
         "case": case,
