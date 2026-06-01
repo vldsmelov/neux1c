@@ -53,6 +53,79 @@ class FundingCase(models.Model):
         return f"{self.code} · {self.name}"
 
 
+class ExchangeRate(models.Model):
+    """Курс валюты к базовой (RUB) на конкретную дату.
+
+    Enterprise-функция: позволяет пересчитывать валютные операции по
+    курсу на дату документа, а не на сегодня. Основа для FX revaluation
+    и корректного план-факта в multi-currency холдингах.
+
+    Источник может быть:
+    * `manual` — ввёл финансист вручную (например, банковский курс)
+    * `cbr` — выгружено из ЦБ РФ (когда реализуем интеграцию)
+    * `internal` — внутригрупповой курс из учётной политики
+
+    Курс хранится как «1 единица валюты = N RUB», максимум 6 знаков
+    после запятой (хватает для криптовалют тоже).
+    """
+
+    SOURCE_MANUAL = "manual"
+    SOURCE_CBR = "cbr"
+    SOURCE_INTERNAL = "internal"
+    SOURCE_CHOICES = [
+        (SOURCE_MANUAL, "Введён вручную"),
+        (SOURCE_CBR, "ЦБ РФ"),
+        (SOURCE_INTERNAL, "Внутренний (учётная политика)"),
+    ]
+
+    currency = models.ForeignKey(
+        "core.Currency",
+        verbose_name="Валюта",
+        on_delete=models.PROTECT,
+        related_name="exchange_rates",
+    )
+    rate_date = models.DateField("Дата курса")
+    rate_to_rub = models.DecimalField(
+        "Курс к RUB",
+        max_digits=14,
+        decimal_places=6,
+        help_text="Сколько RUB за единицу валюты на эту дату",
+    )
+    source = models.CharField(
+        "Источник",
+        max_length=16,
+        choices=SOURCE_CHOICES,
+        default=SOURCE_MANUAL,
+    )
+    comment = models.CharField("Комментарий", max_length=255, blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Кто добавил",
+        on_delete=models.PROTECT,
+        related_name="exchange_rates_created",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["-rate_date", "currency__code"]
+        verbose_name = "Курс валюты"
+        verbose_name_plural = "Курсы валют"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["currency", "rate_date", "source"],
+                name="uniq_exchange_rate_curr_date_src",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["currency", "-rate_date"], name="exchange_rate_lookup_idx"),
+        ]
+
+    def __str__(self) -> str:
+        return f"1 {self.currency.code} = {self.rate_to_rub} ₽ на {self.rate_date:%d.%m.%Y}"
+
+
 class AccountingPeriodLock(models.Model):
     """Закрытие учётного периода (Period Close) — enterprise-уровневая
     функция финансового контроля. После закрытия месяца:

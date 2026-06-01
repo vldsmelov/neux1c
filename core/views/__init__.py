@@ -36,6 +36,7 @@ from .planning import (  # noqa: F401
 )
 from .reports import executive_dashboard, manager_dashboard, plan_fact_report, profit_loss_report  # noqa: F401
 from .funding import funding_case_detail, funding_case_print, funding_cases_index  # noqa: F401
+from .exchange_rates import exchange_rates  # noqa: F401
 from .period_close import period_close  # noqa: F401
 from .scenarios import planning_scenarios  # noqa: F401
 from .template_builder import planning_template_builder  # noqa: F401

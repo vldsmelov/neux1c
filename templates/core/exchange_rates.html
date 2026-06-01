@@ -1,0 +1,124 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Курсы валют · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab" href="/settings/period-close/">Закрытие периодов</a>
+    <a class="app-tab is-active" href="/settings/exchange-rates/">Курсы валют</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">💱 Курсы валют</h1>
+            <p class="app-subtitle">Enterprise multi-currency: курс на дату документа. Используется для пересчёта валютных операций в RUB и FX-переоценки. Базовая валюта — RUB.</p>
+        </div>
+    </div>
+
+    {% if summary %}
+        <section class="exec-kpis">
+            {% for s in summary %}
+                <div class="exec-kpi {% if s.latest_rate %}exec-kpi-positive{% else %}exec-kpi-warning{% endif %}">
+                    <div class="exec-kpi-label">{{ s.currency.code }} → RUB</div>
+                    <div class="exec-kpi-value">
+                        {% if s.latest_rate %}{{ s.latest_rate.rate_to_rub|floatformat:4 }} ₽{% else %}— нет данных —{% endif %}
+                    </div>
+                    <div class="exec-kpi-sub">
+                        {% if s.latest_rate %}
+                            на {{ s.latest_rate.rate_date|date:"d.m.Y" }} · {{ s.latest_rate.get_source_display }}
+                        {% else %}
+                            Добавьте первый курс ниже
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </section>
+    {% endif %}
+
+    <section class="data-panel stack">
+        <details class="stack-section" open>
+            <summary>Добавить курс</summary>
+            <form method="post" class="form-grid form-grid-3">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label><span class="field-label">Валюта</span>
+                    <select class="field-control-select" name="currency_id" required>
+                        {% for cur in currencies %}<option value="{{ cur.id }}">{{ cur.code }} · {{ cur.name }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label><span class="field-label">Дата</span>
+                    <input class="field-control" type="date" name="rate_date" value="{{ today|date:'Y-m-d' }}" required>
+                </label>
+                <label><span class="field-label">1 ед. валюты = N ₽</span>
+                    <input class="field-control" name="rate_to_rub" inputmode="decimal" placeholder="95.4700" required>
+                </label>
+                <label><span class="field-label">Источник</span>
+                    <select class="field-control-select" name="source">
+                        <option value="manual">Введён вручную</option>
+                        <option value="cbr">ЦБ РФ</option>
+                        <option value="internal">Внутренний</option>
+                    </select>
+                </label>
+                <label class="form-grid-span-full"><span class="field-label">Комментарий</span>
+                    <input class="field-control" name="comment" placeholder="Например, рабочий курс на закрытие месяца">
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Добавить курс</button>
+                </div>
+            </form>
+        </details>
+
+        <div class="table-toolbar">
+            <span class="table-toolbar-note">История курсов: <strong>{{ rates|length }}</strong></span>
+            <form method="get" class="toolbar-inline-filter">
+                <span class="toolbar-inline-label">Валюта:</span>
+                <select class="field-control-select field-control-sm" name="currency_id" onchange="this.form.submit()">
+                    <option value="">все</option>
+                    {% for cur in currencies %}
+                        <option value="{{ cur.id }}" {% if selected_currency_id == cur.id %}selected{% endif %}>{{ cur.code }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+
+        <div class="data-table-wrap desktop-scroll">
+            <table class="data-table data-table-narrow">
+                <thead>
+                    <tr>
+                        <th class="table-col-short">Валюта</th>
+                        <th class="table-col-date">Дата</th>
+                        <th class="table-col-number">Курс к RUB</th>
+                        <th class="table-col-short">Источник</th>
+                        <th>Комментарий</th>
+                        <th>Добавил</th>
+                        <th class="table-action-col">Действие</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rates %}
+                        <tr>
+                            <td class="table-col-short"><strong>{{ r.currency.code }}</strong></td>
+                            <td class="table-col-date">{{ r.rate_date|date:"d.m.Y" }}</td>
+                            <td class="table-col-number">{{ r.rate_to_rub|floatformat:4 }} ₽</td>
+                            <td class="table-col-short"><span class="badge">{{ r.get_source_display }}</span></td>
+                            <td>{{ r.comment|default:"—" }}</td>
+                            <td>{% if r.created_by %}{{ r.created_by.username }}{% else %}—{% endif %}</td>
+                            <td class="table-action-col">
+                                <form method="post" style="display:inline" onsubmit="return confirm('Удалить курс?');">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="rate_id" value="{{ r.id }}">
+                                    <button class="command-button is-sm is-danger" type="submit">Удалить</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr><td colspan="7">Курсов нет. Добавьте первый выше.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+{% endblock %}
