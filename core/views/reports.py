@@ -191,10 +191,13 @@ def profit_loss_report(request):
     selected_year = parse_optional_int(request.GET.get("year")) or current_year
     selected_org_id = parse_optional_int(request.GET.get("organization_id")) or (org.id if org else None)
 
+    selected_case_id = parse_optional_int(request.GET.get("funding_case_id"))
     payload = build_profit_loss(ProfitLossFilters(
         year=selected_year,
         organization_id=selected_org_id,
+        funding_case_id=selected_case_id,
     ))
+    cases_qs = FundingCase.objects.filter(organization_id=selected_org_id).order_by("-opened_at") if selected_org_id else FundingCase.objects.none()
     return render(
         request,
         "core/profit_loss_report.html",
@@ -204,6 +207,8 @@ def profit_loss_report(request):
             "selected_year": selected_year,
             "organizations": Organization.objects.order_by("name"),
             "selected_organization_id": selected_org_id,
+            "funding_cases": cases_qs,
+            "selected_case_id": selected_case_id,
             "working_organization": org,
             **payload,
         },

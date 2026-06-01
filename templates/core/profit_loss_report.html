@@ -32,6 +32,15 @@
                     {% for org in organizations %}<option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>{% endfor %}
                 </select>
             </label>
+            {% if funding_cases %}
+                <label>
+                    <span class="field-label">Кейс финансирования</span>
+                    <select class="field-control-select" name="funding_case_id">
+                        <option value="">Все</option>
+                        {% for c in funding_cases %}<option value="{{ c.id }}" {% if selected_case_id == c.id %}selected{% endif %}>{{ c.code }} · {{ c.name|truncatechars:30 }}</option>{% endfor %}
+                    </select>
+                </label>
+            {% endif %}
             <div class="inline-form-row">
                 <button class="command-button-primary" type="submit">Применить</button>
             </div>

@@ -50,6 +50,12 @@ class PaymentFact(IntegrationTrackedModel):
         constraints = [
             models.UniqueConstraint(fields=["external_id", "accounting_kind"], name="uniq_payment_fact_external_accounting"),
         ]
+        # Композитные индексы для горячих запросов (плана-факт, обзор кейсов)
+        indexes = [
+            models.Index(fields=["organization", "date"], name="pf_org_date_idx"),
+            models.Index(fields=["contract", "direction"], name="pf_contract_dir_idx"),
+            models.Index(fields=["article", "date"], name="pf_article_date_idx"),
+        ]
 
     def __str__(self) -> str:
         return f"{self.get_accounting_kind_display()} {self.date:%d.%m.%Y} {self.amount}"

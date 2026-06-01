@@ -227,6 +227,10 @@ class AuditLog(models.Model):
         ordering = ["-created_at"]
         verbose_name = "Журнал действия"
         verbose_name_plural = "Журнал действий"
+        indexes = [
+            # Для timeline кейса финансирования: ищем по object_type='FundingCase' + object_id
+            models.Index(fields=["object_type", "object_id"], name="audit_object_idx"),
+        ]
 
     def __str__(self) -> str:
         actor = self.user.username if self.user else "anonymous"

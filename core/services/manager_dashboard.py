@@ -92,7 +92,13 @@ def _funding_stats(organization_id: int | None) -> dict:
     active_count = cases_qs.count()
     deficit_cases = []
     total_deficit = Decimal("0")
-    for case in cases_qs.select_related("organization", "owner"):
+    # prefetch_related для контрактов — build_case_overview обращается к ним;
+    # это снимает N+1 на дашборде когда активных кейсов много.
+    optimized = cases_qs.select_related("organization", "owner").prefetch_related(
+        "contracts__counterparty",
+        "contracts__currency",
+    )
+    for case in optimized:
         overview = build_case_overview(case)
         if overview["projected_balance"] < 0:
             deficit_cases.append({
