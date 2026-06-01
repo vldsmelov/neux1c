@@ -41,6 +41,131 @@ def _contract_kind_label(kind: str) -> str:
     }.get(kind, "Договор")
 
 
+def _build_sankey(contracts, facts, contract_stats, case) -> dict:
+    """Готовит SVG-ready данные для Sankey-диаграммы движений денег.
+
+    Схема: левая колонка — источники (CUSTOMER inflows + LOAN_RECEIVED inflows),
+    центральная нода — сам кейс, правая колонка — получатели (SUPPLIER
+    outflows + возвраты по LOAN_RECEIVED). Ширина ленты ∝ сумме.
+    """
+    inflow_by_source: dict[int, dict] = {}  # contract_id -> {label, amount}
+    outflow_by_sink: dict[int, dict] = {}
+
+    for fact in facts:
+        amount = Decimal(fact.amount)
+        if fact.direction == PaymentDirection.INFLOW and fact.contract_id in contract_stats:
+            key = fact.contract_id
+            bucket = inflow_by_source.setdefault(key, {
+                "id": key,
+                "label": fact.contract.counterparty.name if fact.contract else "—",
+                "subtitle": fact.contract.number if fact.contract else "",
+                "amount": MONEY_ZERO,
+                "kind": fact.contract.kind if fact.contract else "",
+            })
+            bucket["amount"] = quant_money(bucket["amount"] + amount)
+        elif fact.direction == PaymentDirection.OUTFLOW:
+            # Возврат займа группируется по loan_repayment_contract, иначе — по contract
+            target_id = fact.loan_repayment_contract_id or fact.contract_id
+            if target_id not in contract_stats:
+                continue
+            target = fact.loan_repayment_contract if fact.loan_repayment_contract_id else fact.contract
+            key = target_id
+            bucket = outflow_by_sink.setdefault(key, {
+                "id": key,
+                "label": target.counterparty.name,
+                "subtitle": target.number,
+                "amount": MONEY_ZERO,
+                "kind": target.kind,
+            })
+            bucket["amount"] = quant_money(bucket["amount"] + amount)
+
+    sources = sorted(inflow_by_source.values(), key=lambda b: -b["amount"])
+    sinks = sorted(outflow_by_sink.values(), key=lambda b: -b["amount"])
+    if not sources and not sinks:
+        return {"empty": True}
+
+    # Подбор пропорций для SVG — нормируем ширины колонок и баров на максимум
+    total = max(
+        sum((b["amount"] for b in sources), MONEY_ZERO),
+        sum((b["amount"] for b in sinks), MONEY_ZERO),
+        Decimal("1"),
+    )
+
+    # Базовая геометрия SVG: 800×400 (CSS можно растянуть)
+    canvas_w = 800
+    canvas_h = 400
+    col_w = 180
+    middle_w = 140
+    gap_x = (canvas_w - 2 * col_w - middle_w) / 2  # gap between cols
+
+    def _y_positions(nodes, top_pad=20, bottom_pad=20):
+        """Вертикальные y-позиции для нод, размером пропорциональным сумме."""
+        if not nodes:
+            return []
+        available = canvas_h - top_pad - bottom_pad
+        total_amount = sum((n["amount"] for n in nodes), MONEY_ZERO) or Decimal("1")
+        gap = 12
+        # Учитываем gaps между нодами
+        usable = available - gap * (len(nodes) - 1)
+        positions = []
+        y = top_pad
+        for n in nodes:
+            h = max(28, int(usable * float(n["amount"]) / float(total_amount)))
+            positions.append({"node": n, "y": y, "h": h})
+            y += h + gap
+        return positions
+
+    src_positions = _y_positions(sources)
+    snk_positions = _y_positions(sinks)
+
+    # Полные ленты: каждая нода связывается с центральным хабом
+    src_x = 0
+    middle_x = col_w + gap_x
+    middle_h = sum(p["h"] for p in src_positions) or sum(p["h"] for p in snk_positions) or 60
+    middle_y = int((canvas_h - middle_h) / 2)
+    sink_x = int(middle_x + middle_w + gap_x)
+    middle_x = int(middle_x)
+
+    flows = []
+    for p in src_positions:
+        flows.append({
+            "from_x": src_x + col_w,
+            "from_y": int(p["y"] + p["h"] / 2),
+            "to_x": middle_x,
+            "to_y": int(middle_y + middle_h / 2),
+            "width": p["h"],
+            "color_kind": p["node"]["kind"],
+        })
+    for p in snk_positions:
+        flows.append({
+            "from_x": middle_x + middle_w,
+            "from_y": int(middle_y + middle_h / 2),
+            "to_x": sink_x,
+            "to_y": int(p["y"] + p["h"] / 2),
+            "width": p["h"],
+            "color_kind": p["node"]["kind"],
+        })
+
+    return {
+        "empty": False,
+        "canvas_w": canvas_w,
+        "canvas_h": canvas_h,
+        "src_col_x": src_x,
+        "src_col_w": col_w,
+        "src_positions": src_positions,
+        "snk_col_x": sink_x,
+        "snk_col_w": col_w,
+        "snk_positions": snk_positions,
+        "middle_x": middle_x,
+        "middle_y": middle_y,
+        "middle_w": middle_w,
+        "middle_h": middle_h,
+        "middle_label": case.code,
+        "flows": flows,
+        "total": quant_money(total),
+    }
+
+
 def _contract_tone(kind: str) -> str:
     return {
         "customer": "success",
@@ -314,6 +439,9 @@ def build_case_overview(case: FundingCase) -> dict:
     # Сортируем по дате (от ранних к поздним — естественный порядок чтения timeline)
     timeline_events.sort(key=lambda e: (e["date"], 0 if e["kind"] == "contract" else (2 if e["kind"] == "status" else 1)))
 
+    # Sankey: расходимся в три колонки — источники → кейс → получатели
+    sankey = _build_sankey(contracts, facts, contract_stats, case)
+
     return {
         "case": case,
         "contracts_by_kind": dict(by_kind),
@@ -321,6 +449,7 @@ def build_case_overview(case: FundingCase) -> dict:
         "suggested_status": suggested_status,
         "suggested_status_reason": suggested_status_reason,
         "timeline_events": timeline_events,
+        "sankey": sankey,
         "facts": facts,
         "active_requests": active_requests,
         "total_inflow": total_inflow,

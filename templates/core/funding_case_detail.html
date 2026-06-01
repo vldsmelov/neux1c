@@ -104,6 +104,56 @@
         </div>
     </section>
 
+    {% if not overview.sankey.empty %}
+        <section class="data-panel stack">
+            <h2 class="section-title">💸 Поток денег в кейсе</h2>
+            <p class="hint">Источники слева, получатели справа, ширина ленты пропорциональна сумме. Включает все факты прихода и расхода по договорам кейса.</p>
+            <div class="sankey-wrap">
+                <svg class="sankey-svg" viewBox="0 0 {{ overview.sankey.canvas_w }} {{ overview.sankey.canvas_h }}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="flow-gradient" x1="0" x2="1">
+                            <stop offset="0%" stop-color="var(--color-success)" stop-opacity="0.55"/>
+                            <stop offset="100%" stop-color="var(--color-danger)" stop-opacity="0.45"/>
+                        </linearGradient>
+                    </defs>
+                    {# Ленты сначала, чтобы прямоугольники были сверху #}
+                    {% for f in overview.sankey.flows %}
+                        <path d="M {{ f.from_x }} {{ f.from_y }} C {{ f.from_x|add:80 }} {{ f.from_y }}, {{ f.to_x|add:'-80' }} {{ f.to_y }}, {{ f.to_x }} {{ f.to_y }}"
+                              stroke="url(#flow-gradient)"
+                              stroke-width="{{ f.width }}"
+                              stroke-opacity="0.55"
+                              fill="none"
+                              stroke-linecap="round" />
+                    {% endfor %}
+                    {# Левая колонка — источники #}
+                    {% for p in overview.sankey.src_positions %}
+                        <g class="sankey-node sankey-node-source sankey-node-{{ p.node.kind }}">
+                            <rect x="{{ overview.sankey.src_col_x }}" y="{{ p.y }}" width="{{ overview.sankey.src_col_w }}" height="{{ p.h }}" rx="8" />
+                            <text x="{{ overview.sankey.src_col_x|add:12 }}" y="{{ p.y|add:18 }}" class="sankey-label">{{ p.node.label|truncatechars:24 }}</text>
+                            <text x="{{ overview.sankey.src_col_x|add:12 }}" y="{{ p.y|add:34 }}" class="sankey-sublabel">{{ p.node.subtitle }}</text>
+                            <text x="{{ overview.sankey.src_col_x|add:12 }}" y="{{ p.y|add:50 }}" class="sankey-amount">{{ p.node.amount|floatformat:0 }} ₽</text>
+                        </g>
+                    {% endfor %}
+                    {# Центральный хаб — кейс #}
+                    <g class="sankey-hub">
+                        <rect x="{{ overview.sankey.middle_x }}" y="{{ overview.sankey.middle_y }}" width="{{ overview.sankey.middle_w }}" height="{{ overview.sankey.middle_h }}" rx="10" />
+                        <text x="{{ overview.sankey.middle_x|add:overview.sankey.middle_w|add:'-70' }}" y="{{ overview.sankey.middle_y|add:overview.sankey.middle_h|add:'-20' }}" text-anchor="end" class="sankey-hub-label">{{ overview.sankey.middle_label }}</text>
+                        <text x="{{ overview.sankey.middle_x|add:overview.sankey.middle_w|add:'-70' }}" y="{{ overview.sankey.middle_y|add:overview.sankey.middle_h|add:'-4' }}" text-anchor="end" class="sankey-hub-sublabel">{{ overview.sankey.total|floatformat:0 }} ₽ оборот</text>
+                    </g>
+                    {# Правая колонка — получатели #}
+                    {% for p in overview.sankey.snk_positions %}
+                        <g class="sankey-node sankey-node-sink sankey-node-{{ p.node.kind }}">
+                            <rect x="{{ overview.sankey.snk_col_x }}" y="{{ p.y }}" width="{{ overview.sankey.snk_col_w }}" height="{{ p.h }}" rx="8" />
+                            <text x="{{ overview.sankey.snk_col_x|add:12 }}" y="{{ p.y|add:18 }}" class="sankey-label">{{ p.node.label|truncatechars:24 }}</text>
+                            <text x="{{ overview.sankey.snk_col_x|add:12 }}" y="{{ p.y|add:34 }}" class="sankey-sublabel">{{ p.node.subtitle }}</text>
+                            <text x="{{ overview.sankey.snk_col_x|add:12 }}" y="{{ p.y|add:50 }}" class="sankey-amount">{{ p.node.amount|floatformat:0 }} ₽</text>
+                        </g>
+                    {% endfor %}
+                </svg>
+            </div>
+        </section>
+    {% endif %}
+
     {% if overview.counterparty_saldo %}
         <section class="data-panel stack">
             <h2 class="section-title">Сальдо по контрагентам в кейсе</h2>

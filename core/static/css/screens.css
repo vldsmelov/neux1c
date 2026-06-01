@@ -1386,3 +1386,26 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     color: var(--color-text-muted);
 }
 .generate-schedule-form label { display: flex; align-items: center; gap: 4px; }
+
+/* --- Sankey: money flow visualization --- */
+.sankey-wrap {
+    background: linear-gradient(135deg, var(--color-bg) 0%, var(--color-surface) 100%);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 16px;
+}
+.sankey-svg { width: 100%; height: auto; min-height: 320px; display: block; }
+
+.sankey-node rect { fill: var(--color-surface); stroke: var(--color-border); stroke-width: 1.5; transition: filter 0.15s; }
+.sankey-node-customer rect { stroke: var(--color-success); }
+.sankey-node-loan_received rect { stroke: var(--color-warning, #f5a623); }
+.sankey-node-sole_supplier rect { stroke: var(--color-danger); }
+.sankey-node:hover rect { filter: brightness(1.05); }
+
+.sankey-label { font-family: inherit; font-size: 13px; font-weight: 600; fill: var(--color-text); }
+.sankey-sublabel { font-family: monospace; font-size: 10px; fill: var(--color-text-muted); }
+.sankey-amount { font-family: inherit; font-size: 11px; font-weight: 700; fill: var(--color-text); }
+
+.sankey-hub rect { fill: var(--color-accent); stroke: var(--color-accent-hover); stroke-width: 2; }
+.sankey-hub-label { font-size: 16px; font-weight: 700; fill: #fff; }
+.sankey-hub-sublabel { font-size: 11px; fill: rgba(255,255,255,0.85); }
