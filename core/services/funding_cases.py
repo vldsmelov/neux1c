@@ -364,6 +364,72 @@ def build_case_overview(case: FundingCase) -> dict:
         reverse=True,
     )
 
+    # Risk score: алгоритмическая оценка 0..100 (как credit scoring).
+    # 0 = идеально, 100 = катастрофа. Складывается из:
+    # - дефицит / общий оборот (до 40 баллов)
+    # - возврат займов > доступного кэша (до 30 баллов)
+    # - просроченные платежи в кейсе (до 15 баллов)
+    # - близость maturity_date займа (до 15 баллов)
+    from django.utils import timezone as _tz_score
+    today_score = _tz_score.localdate()
+    risk_score = 0
+    risk_reasons: list[str] = []
+
+    turnover = max(total_inflow + total_outflow, Decimal("1"))
+    if projected_balance < MONEY_ZERO:
+        deficit_ratio = min(abs(projected_balance) / turnover, Decimal("1"))
+        contribution = int(40 * float(deficit_ratio))
+        if contribution > 0:
+            risk_score += contribution
+            risk_reasons.append(f"Дефицит сальдо: {abs(projected_balance)} ₽ ({contribution} баллов)")
+
+    loan_obligations = sum(
+        (max(MONEY_ZERO, s.expected_remaining) for s in by_kind.get(ContractKind.LOAN_RECEIVED, [])),
+        MONEY_ZERO,
+    )
+    if loan_obligations > available_now and loan_obligations > 0:
+        gap = loan_obligations - max(MONEY_ZERO, available_now)
+        contribution = int(30 * min(float(gap / loan_obligations), 1.0))
+        if contribution > 0:
+            risk_score += contribution
+            risk_reasons.append(f"Нечем гасить займы: {gap} ₽ ({contribution} баллов)")
+
+    # Просрочка в активных заявках кейса
+    overdue_in_case = sum(1 for pr in active_requests if pr.is_overdue)
+    if overdue_in_case:
+        contribution = min(15, overdue_in_case * 5)
+        risk_score += contribution
+        risk_reasons.append(f"Просроченные заявки: {overdue_in_case} ({contribution} баллов)")
+
+    # Близость maturity_date займа
+    for s in by_kind.get(ContractKind.LOAN_RECEIVED, []):
+        loan = s.contract
+        if loan.maturity_date and s.expected_remaining > 0:
+            days_left = (loan.maturity_date - today_score).days
+            if 0 < days_left <= 30:
+                contribution = int(15 * (1 - days_left / 30))
+                if contribution > 0:
+                    risk_score += contribution
+                    risk_reasons.append(f"Заём {loan.number} вернуть через {days_left} дн. ({contribution} баллов)")
+            elif days_left <= 0:
+                risk_score += 15
+                risk_reasons.append(f"Заём {loan.number} просрочен (15 баллов)")
+                break
+
+    risk_score = min(risk_score, 100)
+    if risk_score >= 60:
+        risk_tone = "danger"
+        risk_label = "Высокий риск"
+    elif risk_score >= 30:
+        risk_tone = "warning"
+        risk_label = "Средний риск"
+    elif risk_score > 0:
+        risk_tone = "info"
+        risk_label = "Низкий риск"
+    else:
+        risk_tone = "success"
+        risk_label = "Без рисков"
+
     # Подсказка по статусу: что разумно сделать со статусом кейса сейчас?
     suggested_status = None
     suggested_status_reason = ""
@@ -450,6 +516,10 @@ def build_case_overview(case: FundingCase) -> dict:
         "suggested_status_reason": suggested_status_reason,
         "timeline_events": timeline_events,
         "sankey": sankey,
+        "risk_score": risk_score,
+        "risk_tone": risk_tone,
+        "risk_label": risk_label,
+        "risk_reasons": risk_reasons,
         "facts": facts,
         "active_requests": active_requests,
         "total_inflow": total_inflow,

@@ -116,7 +116,12 @@
                 <a class="funding-card funding-card-{{ overview.status_class }}" href="{% url 'funding_case_detail' case.id %}">
                     <header class="funding-card-head">
                         <div class="funding-card-code">{{ case.code }}</div>
-                        <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
+                        <div class="funding-card-head-badges">
+                            <span class="risk-score-chip risk-{{ overview.risk_tone }} risk-chip-sm" title="Risk score">
+                                <span class="risk-score-num">{{ overview.risk_score }}</span>
+                            </span>
+                            <span class="badge badge-{{ overview.status_class }}">{{ case.get_status_display }}</span>
+                        </div>
                     </header>
                     <h3 class="funding-card-title">{{ case.name }}</h3>
                     <div class="funding-card-meta">{{ case.organization.name }} · открыт {{ case.opened_at|date:"d.m.Y" }}{% if case.owner %} · {{ case.owner.username }}{% endif %}</div>

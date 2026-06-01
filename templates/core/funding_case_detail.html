@@ -21,6 +21,10 @@
             {% if case.description %}<p class="hint">{{ case.description }}</p>{% endif %}
         </div>
         <div class="command-bar">
+            <div class="risk-score-chip risk-{{ overview.risk_tone }}" title="{{ overview.risk_reasons|join:' · ' }}">
+                <span class="risk-score-num">{{ overview.risk_score }}</span>
+                <span class="risk-score-lbl">{{ overview.risk_label }}</span>
+            </div>
             <a class="command-button" href="{% url 'funding_case_print' case.id %}" target="_blank" title="Откроется отдельная страница, можно сохранить как PDF через Ctrl+P">🖨 Печать / PDF</a>
         </div>
     </div>

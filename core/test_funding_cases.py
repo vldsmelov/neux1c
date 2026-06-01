@@ -323,6 +323,38 @@ class FundingCaseTests(TestCase):
         # Факта быть не должно
         self.assertFalse(PaymentFact.objects.filter(loan_repayment_contract=loan).exists())
 
+    def test_risk_score_high_for_deficit_case(self):
+        case = FundingCase.objects.create(
+            code="FUND-RISK-1", name="Дефицитный кейс", organization=self.organization,
+        )
+        # Расходный 1M, оплачен из ничего → большой минус
+        sup = Contract.objects.create(
+            number="SUP-RISK", date=date(2026, 1, 10), kind=ContractKind.SOLE_SUPPLIER,
+            name="Поставщик", counterparty=self.supplier, currency=self.rub,
+            amount=Decimal("1000000.00"), funding_case=case,
+        )
+        article_out = CashFlowArticle.objects.create(code="DDS-RISK-OUT", name="Расход", direction="outflow")
+        PaymentFact.objects.create(
+            external_id="risk-1", date=date(2026, 1, 15), organization=self.organization,
+            article=article_out, counterparty=self.supplier, contract=sup,
+            amount=Decimal("1000000.00"), currency=self.rub,
+            accounting_kind=AccountingKind.BU, direction=PaymentDirection.OUTFLOW, account="51",
+        )
+        overview = build_case_overview(case)
+        # Кейс глубоко в минусе без планируемых поступлений
+        self.assertGreater(overview["risk_score"], 0)
+        self.assertIn(overview["risk_tone"], ("warning", "danger"))  # средний или высокий
+        self.assertTrue(overview["risk_reasons"])
+
+    def test_risk_score_zero_for_balanced_case(self):
+        case = FundingCase.objects.create(
+            code="FUND-RISK-OK", name="Сбалансированный", organization=self.organization,
+        )
+        overview = build_case_overview(case)
+        # Пустой кейс без обязательств — рисков нет
+        self.assertEqual(overview["risk_score"], 0)
+        self.assertEqual(overview["risk_tone"], "success")
+
     def test_annuity_schedule_generates_correct_amortization(self):
         from datetime import date as date_cls
         from core.services.loan_schedule import generate_annuity_schedule

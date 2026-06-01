@@ -1610,3 +1610,47 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     font-size: var(--text-xs);
     color: var(--color-text-muted);
 }
+
+/* --- Risk score chip --- */
+.risk-score-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: var(--color-surface);
+    border: 2px solid var(--color-border);
+    font-size: var(--text-sm);
+    font-weight: 600;
+    white-space: nowrap;
+}
+.risk-score-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 30px;
+    height: 22px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--color-border);
+    color: var(--color-text);
+    font-weight: 700;
+    font-size: var(--text-sm);
+    line-height: 1;
+}
+.risk-score-lbl { color: var(--color-text); }
+
+.risk-score-chip.risk-success { border-color: var(--color-success); }
+.risk-score-chip.risk-success .risk-score-num { background: var(--color-success); color: #fff; }
+.risk-score-chip.risk-info { border-color: var(--color-accent); }
+.risk-score-chip.risk-info .risk-score-num { background: var(--color-accent); color: #fff; }
+.risk-score-chip.risk-warning { border-color: var(--color-warning, #f5a623); }
+.risk-score-chip.risk-warning .risk-score-num { background: var(--color-warning, #f5a623); color: #fff; }
+.risk-score-chip.risk-danger { border-color: var(--color-danger); }
+.risk-score-chip.risk-danger .risk-score-num { background: var(--color-danger); color: #fff; }
+
+.risk-score-chip.risk-chip-sm { padding: 2px 6px; gap: 0; border-width: 1px; }
+.risk-score-chip.risk-chip-sm .risk-score-num { min-width: 24px; height: 18px; font-size: 11px; padding: 0 4px; }
+.risk-score-chip.risk-chip-sm .risk-score-lbl { display: none; }
+
+.funding-card-head-badges { display: inline-flex; gap: 6px; align-items: center; }
