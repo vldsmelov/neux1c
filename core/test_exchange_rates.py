@@ -50,6 +50,48 @@ class ExchangeRatesTests(TestCase):
         result = convert_to_rub(Decimal("100"), self.eur, date(2026, 3, 1), fallback_rate=Decimal("100"))
         self.assertEqual(result, Decimal("10000.00"))
 
+    def test_fx_revaluation_calculates_gain_loss(self):
+        from core.models import Contract, ContractKind, Counterparty
+        from core.services.fx_revaluation import build_fx_revaluation
+
+        cp = Counterparty.objects.create(name="FX Supplier", source_system="manual")
+        Contract.objects.create(
+            number="USD-001", date=date(2026, 1, 1), kind=ContractKind.SOLE_SUPPLIER,
+            name="Импорт оборудования", counterparty=cp, currency=self.usd,
+            amount=Decimal("1000.00"),
+        )
+        ExchangeRate.objects.create(
+            currency=self.usd, rate_date=date(2026, 1, 1),
+            rate_to_rub=Decimal("90.000000"), source="manual",
+        )
+        ExchangeRate.objects.create(
+            currency=self.usd, rate_date=date(2026, 6, 1),
+            rate_to_rub=Decimal("100.000000"), source="manual",
+        )
+        payload = build_fx_revaluation(revaluation_date=date(2026, 6, 1))
+        # 1000 USD × (100 - 90) = 10 000 ₽ gain (для нас рост USD = плюс на расходе валюты,
+        # но переоценка показывает рост рублёвого эквивалента контракта)
+        self.assertEqual(payload["positions_count"], 1)
+        self.assertEqual(payload["fx_total_gain"], Decimal("10000.00"))
+        self.assertEqual(payload["fx_total_loss"], Decimal("0.00"))
+        pos = payload["positions"][0]
+        self.assertEqual(pos.amount_foreign, Decimal("1000.00"))
+        self.assertEqual(pos.fx_diff, Decimal("10000.00"))
+
+    def test_fx_revaluation_skips_contracts_without_rates(self):
+        from core.models import Contract, ContractKind, Counterparty
+        from core.services.fx_revaluation import build_fx_revaluation
+
+        cp = Counterparty.objects.create(name="No-rate", source_system="manual")
+        Contract.objects.create(
+            number="EUR-001", date=date(2026, 1, 1), kind=ContractKind.SOLE_SUPPLIER,
+            name="Без курса", counterparty=cp, currency=self.eur,
+            amount=Decimal("500.00"),
+        )
+        payload = build_fx_revaluation(revaluation_date=date(2026, 6, 1))
+        self.assertEqual(len(payload["missing_rates"]), 1)
+        self.assertEqual(payload["positions_count"], 0)
+
     def test_latest_rates_summary(self):
         ExchangeRate.objects.create(
             currency=self.usd, rate_date=date(2026, 5, 1),

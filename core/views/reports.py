@@ -26,6 +26,7 @@ from ..models import (
 from ..services.manager_dashboard import build_manager_dashboard
 from ..services.plan_fact_report import PlanFactFilters, build_plan_fact_report, to_csv as plan_fact_to_csv
 from ..services.executive_dashboard import build_executive_dashboard
+from ..services.fx_revaluation import build_fx_revaluation
 from ..services.profit_loss_report import ProfitLossFilters, build_profit_loss
 from ._shared import has_model_permission, parse_optional_int, working_organization
 
@@ -179,6 +180,33 @@ def plan_fact_report(request):
                 "direction": selected_direction,
                 "funding_case_id": selected_funding_case_id,
             },
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def fx_revaluation_report(request):
+    """FX Revaluation — переоценка валютных позиций по курсу на дату."""
+    from datetime import date as date_cls
+    org = working_organization(request)
+    today = timezone.localdate()
+    raw_date = (request.GET.get("revaluation_date") or "").strip()
+    try:
+        reval_date = date_cls.fromisoformat(raw_date) if raw_date else today
+    except ValueError:
+        reval_date = today
+    selected_org_id = parse_optional_int(request.GET.get("organization_id"))
+    payload = build_fx_revaluation(revaluation_date=reval_date, organization_id=selected_org_id)
+    return render(
+        request,
+        "core/fx_revaluation_report.html",
+        {
+            "active_section": "reports",
+            "organizations": Organization.objects.order_by("name"),
+            "selected_organization_id": selected_org_id,
+            "working_organization": org,
+            "today": today,
+            **payload,
         },
     )
 

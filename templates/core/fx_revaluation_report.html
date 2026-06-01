@@ -1,0 +1,154 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}FX Revaluation · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/reports/executive/">CFO дашборд</a>
+    <a class="app-tab" href="/reports/plan-fact/">План-факт БДДС</a>
+    <a class="app-tab" href="/reports/profit-loss/">БДР</a>
+    <a class="app-tab is-active" href="/reports/fx-revaluation/">FX Revaluation</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">💱 FX Revaluation · Переоценка валютных позиций</h1>
+            <p class="app-subtitle">Enterprise feature: переоценка валютных контрактов по курсу на дату с расчётом курсовой разницы (FX gain/loss). Открытые валютные позиции пересчитываются в RUB по актуальному курсу для отражения в P&L.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <form method="get" class="form-grid form-grid-3">
+            <label><span class="field-label">Дата переоценки</span>
+                <input class="field-control" type="date" name="revaluation_date" value="{{ revaluation_date|date:'Y-m-d' }}">
+            </label>
+            <label><span class="field-label">Организация (пусто = весь холдинг)</span>
+                <select class="field-control-select" name="organization_id">
+                    <option value="">— весь холдинг —</option>
+                    {% for org in organizations %}
+                        <option value="{{ org.id }}" {% if selected_organization_id == org.id %}selected{% endif %}>{{ org.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <div class="inline-form-row">
+                <button class="command-button-primary" type="submit">Пересчитать</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="exec-kpis">
+        <div class="exec-kpi exec-kpi-positive">
+            <div class="exec-kpi-label">📈 FX Gain</div>
+            <div class="exec-kpi-value">+{{ fx_total_gain|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">Положительная курсовая разница</div>
+        </div>
+        <div class="exec-kpi exec-kpi-negative">
+            <div class="exec-kpi-label">📉 FX Loss</div>
+            <div class="exec-kpi-value">{{ fx_total_loss|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">Отрицательная курсовая разница</div>
+        </div>
+        <div class="exec-kpi {% if fx_net > 0 %}exec-kpi-positive{% elif fx_net < 0 %}exec-kpi-negative{% endif %}">
+            <div class="exec-kpi-label">🧮 FX Net</div>
+            <div class="exec-kpi-value">{% if fx_net > 0 %}+{% endif %}{{ fx_net|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">Чистый эффект к P&L</div>
+        </div>
+        <div class="exec-kpi">
+            <div class="exec-kpi-label">📊 Открытых позиций</div>
+            <div class="exec-kpi-value">{{ positions_count }}</div>
+            <div class="exec-kpi-sub">валютных контрактов</div>
+        </div>
+    </section>
+
+    {% if missing_rates %}
+        <section class="data-panel stack alert-panel">
+            <div class="alert-row">⚠ Нет курса на дату подписания / переоценки для {{ missing_rates|length }} контракта(ов). Добавьте курсы в /settings/exchange-rates/.</div>
+        </section>
+    {% endif %}
+
+    {% if by_currency %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Сводка по валютам</h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th class="table-col-short">Валюта</th>
+                            <th class="table-col-short">Контрактов</th>
+                            <th class="table-col-number">Объём в валюте</th>
+                            <th class="table-col-number">Курс на дату</th>
+                            <th class="table-col-number">RUB при подписании</th>
+                            <th class="table-col-number">RUB сейчас</th>
+                            <th class="table-col-number">FX разница</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in by_currency %}
+                            <tr>
+                                <td class="table-col-short"><strong>{{ b.code }}</strong></td>
+                                <td class="table-col-short">{{ b.count }}</td>
+                                <td class="table-col-number">{{ b.total_foreign|ru_number }}</td>
+                                <td class="table-col-number">{% if b.rate_now %}{{ b.rate_now|floatformat:4 }}{% endif %} ₽</td>
+                                <td class="table-col-number">{{ b.total_rub_signing|ru_number }} ₽</td>
+                                <td class="table-col-number">{{ b.total_rub_now|ru_number }} ₽</td>
+                                <td class="table-col-number">
+                                    <strong class="{% if b.fx_diff > 0 %}text-success{% elif b.fx_diff < 0 %}text-danger{% endif %}">
+                                        {% if b.fx_diff > 0 %}+{% endif %}{{ b.fx_diff|ru_number }} ₽
+                                    </strong>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% endif %}
+
+    {% if positions %}
+        <section class="data-panel stack">
+            <h2 class="section-title">Все валютные позиции <span class="cell-secondary">(по убыванию убытка)</span></h2>
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Договор</th>
+                            <th>Контрагент</th>
+                            <th class="table-col-short">Валюта</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-number">Курс подписания</th>
+                            <th class="table-col-number">Курс сейчас</th>
+                            <th class="table-col-number">Δ курса</th>
+                            <th class="table-col-number">FX разница</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in positions %}
+                            <tr>
+                                <td><strong>{{ p.contract.number }}</strong> · {{ p.contract.get_kind_display }}<div class="cell-secondary">от {{ p.contract.date|date:"d.m.Y" }}</div></td>
+                                <td>{{ p.contract.counterparty.name }}</td>
+                                <td class="table-col-short">{{ p.contract.currency.code }}</td>
+                                <td class="table-col-number">{{ p.amount_foreign|ru_number }}</td>
+                                <td class="table-col-number">{{ p.rate_at_signing|floatformat:4 }} ₽</td>
+                                <td class="table-col-number">{{ p.rate_at_revaluation|floatformat:4 }} ₽</td>
+                                <td class="table-col-number">
+                                    <span class="{% if p.rate_change_pct > 0 %}text-success{% elif p.rate_change_pct < 0 %}text-danger{% endif %}">
+                                        {% if p.rate_change_pct > 0 %}+{% endif %}{{ p.rate_change_pct }}%
+                                    </span>
+                                </td>
+                                <td class="table-col-number">
+                                    <strong class="{% if p.fx_diff > 0 %}text-success{% elif p.fx_diff < 0 %}text-danger{% endif %}">
+                                        {% if p.fx_diff > 0 %}+{% endif %}{{ p.fx_diff|ru_number }} ₽
+                                    </strong>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="data-panel stack">
+            <p class="hint">Валютных контрактов с известными курсами не найдено. Заведите контракт в иностранной валюте и добавьте курсы в /settings/exchange-rates/.</p>
+        </section>
+    {% endif %}
+{% endblock %}
