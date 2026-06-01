@@ -53,6 +53,83 @@ class FundingCase(models.Model):
         return f"{self.code} · {self.name}"
 
 
+class AllocationRule(models.Model):
+    """Правило распределения общих расходов между ЦФО.
+
+    Enterprise-функция: shared costs (аренда офиса, электричество,
+    интернет, центральная бухгалтерия) изначально лежат на одном ЦФО
+    («Administration»), но для реальной себестоимости их нужно
+    распределить по операционным ЦФО по правилам:
+    * percent — фиксированные проценты (Administration 0%, Sales 40%,
+      Production 60%);
+    * equal — поровну между указанными ЦФО;
+    * driver — пропорционально другому показателю (количество сотрудников,
+      выручка, метраж) — пока заглушка.
+
+    Распределение применяется к фактам по source_article (например,
+    DDS-020 «Аренда») и создаёт виртуальное представление «как
+    выглядел бы факт после распределения».
+    """
+
+    METHOD_PERCENT = "percent"
+    METHOD_EQUAL = "equal"
+    METHOD_CHOICES = [
+        (METHOD_PERCENT, "Фиксированные проценты"),
+        (METHOD_EQUAL, "Равные доли"),
+    ]
+
+    name = models.CharField("Название", max_length=200)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Организация",
+        on_delete=models.CASCADE,
+        related_name="allocation_rules",
+    )
+    source_article = models.ForeignKey(
+        "core.CashFlowArticle",
+        verbose_name="Статья-источник",
+        on_delete=models.PROTECT,
+        related_name="allocation_rules",
+        help_text="Факты по этой статье будут распределены",
+    )
+    method = models.CharField(
+        "Метод распределения",
+        max_length=16,
+        choices=METHOD_CHOICES,
+        default=METHOD_PERCENT,
+    )
+    target_pct = models.JSONField(
+        "Целевые доли (ЦФО → процент)",
+        default=dict,
+        help_text='Формат: {"<department_id>": <процент>}, сумма = 100.',
+    )
+    is_active = models.BooleanField("Активно", default=True)
+    comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField("Создано", auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Создал",
+        on_delete=models.PROTECT,
+        related_name="allocation_rules_created",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["organization__name", "name"]
+        verbose_name = "Правило распределения"
+        verbose_name_plural = "Правила распределения"
+
+    def __str__(self) -> str:
+        return f"{self.name} → {self.source_article.code}"
+
+    def total_pct(self) -> int:
+        try:
+            return sum(int(v) for v in (self.target_pct or {}).values())
+        except (TypeError, ValueError):
+            return 0
+
+
 class ExchangeRate(models.Model):
     """Курс валюты к базовой (RUB) на конкретную дату.
 

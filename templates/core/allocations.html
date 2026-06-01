@@ -1,0 +1,182 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Распределение расходов · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab" href="/settings/period-close/">Закрытие периодов</a>
+    <a class="app-tab" href="/settings/exchange-rates/">Курсы валют</a>
+    <a class="app-tab is-active" href="/settings/allocations/">Распределение расходов</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">⚖️ Allocations · Распределение расходов</h1>
+            <p class="app-subtitle">Enterprise feature: shared costs (аренда, электричество, IT) распределяются между ЦФО по настраиваемым правилам для расчёта реальной себестоимости.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <details class="stack-section" open>
+            <summary>Создать правило распределения</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label><span class="field-label">Название</span>
+                    <input class="field-control" name="name" required placeholder="Аренда офиса между Sales/Production">
+                </label>
+                <label><span class="field-label">Организация</span>
+                    <select class="field-control-select" name="organization_id" required>
+                        {% for org in organizations %}<option value="{{ org.id }}">{{ org.name }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label><span class="field-label">Статья-источник (что распределяем)</span>
+                    <select class="field-control-select" name="source_article_id" required>
+                        {% for art in articles %}<option value="{{ art.id }}">{{ art.code }} · {{ art.name }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label><span class="field-label">Метод</span>
+                    <select class="field-control-select" name="method">
+                        <option value="percent">Фиксированные проценты</option>
+                        <option value="equal">Равные доли по выбранным</option>
+                    </select>
+                </label>
+                <div class="form-grid-span-full">
+                    <div class="field-label">Целевые ЦФО и доли в процентах (сумма = 100)</div>
+                    <div class="allocation-targets">
+                        {% for dept in departments %}
+                            <label class="allocation-target-row">
+                                <span class="allocation-target-name">{{ dept.code }} · {{ dept.name|truncatechars:32 }}</span>
+                                <input class="field-control field-control-sm" type="number" name="pct_{{ dept.id }}" min="0" max="100" placeholder="0" style="width: 70px;">
+                                <span class="cell-secondary">%</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                <label class="form-grid-span-full"><span class="field-label">Комментарий</span>
+                    <input class="field-control" name="comment" placeholder="По штатному расписанию или метражу">
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Создать правило</button>
+                </div>
+            </form>
+        </details>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Активные правила <span class="cell-secondary">({{ rules|length }})</span></h2>
+        {% if rules %}
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Правило</th>
+                            <th>Организация</th>
+                            <th>Источник</th>
+                            <th class="table-col-short">Метод</th>
+                            <th class="table-col-short">Сумма %</th>
+                            <th class="table-col-short">Статус</th>
+                            <th class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in rules %}
+                            <tr>
+                                <td>
+                                    <strong>{{ r.name }}</strong>
+                                    {% if r.comment %}<div class="cell-secondary">{{ r.comment|truncatechars:80 }}</div>{% endif %}
+                                </td>
+                                <td>{{ r.organization.name }}</td>
+                                <td>{{ r.source_article.code }}</td>
+                                <td class="table-col-short">{{ r.get_method_display }}</td>
+                                <td class="table-col-short">
+                                    {% with tp=r.total_pct %}
+                                        <span class="{% if tp == 100 %}text-success{% else %}text-danger{% endif %}">{{ tp }}%</span>
+                                    {% endwith %}
+                                </td>
+                                <td class="table-col-short">
+                                    {% if r.is_active %}<span class="badge badge-success">активно</span>
+                                    {% else %}<span class="badge badge-muted">отключено</span>{% endif %}
+                                </td>
+                                <td class="table-action-col">
+                                    <div class="form-stack-compact">
+                                        <a class="command-button is-sm" href="?preview={{ r.id }}">👁 Preview</a>
+                                        <form method="post" style="display:inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="toggle_active">
+                                            <input type="hidden" name="rule_id" value="{{ r.id }}">
+                                            <button class="command-button is-sm" type="submit">{% if r.is_active %}Отключить{% else %}Включить{% endif %}</button>
+                                        </form>
+                                        <form method="post" style="display:inline" onsubmit="return confirm('Удалить правило?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="rule_id" value="{{ r.id }}">
+                                            <button class="command-button is-sm is-danger" type="submit">Удалить</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="hint">Правил распределения нет. Создайте первое выше.</p>
+        {% endif %}
+    </section>
+
+    {% if preview %}
+        <section class="data-panel stack">
+            <h2 class="section-title">👁 Preview распределения: «{{ preview.rule.name }}»</h2>
+            <form method="get" class="form-grid form-grid-3">
+                <input type="hidden" name="preview" value="{{ preview.rule.id }}">
+                <label><span class="field-label">С даты</span>
+                    <input class="field-control" type="date" name="period_start" value="{{ period_start|date:'Y-m-d' }}">
+                </label>
+                <label><span class="field-label">По дату</span>
+                    <input class="field-control" type="date" name="period_end" value="{{ period_end|date:'Y-m-d' }}">
+                </label>
+                <div class="inline-form-row">
+                    <button class="command-button-primary" type="submit">Пересчитать preview</button>
+                </div>
+            </form>
+
+            {% if preview.warnings %}
+                <div class="alert-panel">
+                    {% for w in preview.warnings %}<div class="alert-row">⚠ {{ w }}</div>{% endfor %}
+                </div>
+            {% endif %}
+
+            <div class="cp360-headline">
+                <div class="cp360-cell">
+                    <div class="cp360-label">Факт по статье</div>
+                    <div class="cp360-value">{{ preview.fact_total|ru_number }} ₽</div>
+                    <div class="cp360-sub">{{ preview.facts_count }} фактов за период</div>
+                </div>
+                <div class="cp360-cell cp360-flow">
+                    <div class="cp360-label">К распределению</div>
+                    <div class="cp360-value">{{ preview.slices|length }} ЦФО</div>
+                </div>
+            </div>
+
+            {% if preview.slices %}
+                <div class="data-table-wrap desktop-scroll">
+                    <table class="data-table data-table-narrow">
+                        <thead><tr><th>ЦФО</th><th class="table-col-number">Доля</th><th class="table-col-number">Сумма к ЦФО</th></tr></thead>
+                        <tbody>
+                            {% for s in preview.slices %}
+                                <tr>
+                                    <td><strong>{{ s.department.code }}</strong> · {{ s.department.name }}</td>
+                                    <td class="table-col-number">{{ s.pct }}%</td>
+                                    <td class="table-col-number"><strong>{{ s.amount|ru_number }} ₽</strong></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </section>
+    {% endif %}
+{% endblock %}
