@@ -1,0 +1,96 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Drill-down: факты · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/reports/plan-fact/">← Назад в План-факт</a>
+    <a class="app-tab is-active" href="#">Drill-down: факты</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🔎 Drill-down · Конкретные факты оплат</h1>
+            <p class="app-subtitle">Развёртка от агрегата отчёта вниз до конкретных PaymentFact. Применённые фильтры:
+                <strong>год {{ selected.year }}</strong>
+                {% if selected.article_id %} · статья #{{ selected.article_id }} (включая дочерние){% endif %}
+                {% if selected.counterparty_id %} · контрагент #{{ selected.counterparty_id }}{% endif %}
+                {% if selected.organization_id %} · организация #{{ selected.organization_id }}{% endif %}
+                {% if selected_direction %} · {{ selected_direction }}{% endif %}
+            </p>
+        </div>
+    </div>
+
+    <section class="exec-kpis">
+        <div class="exec-kpi">
+            <div class="exec-kpi-label">📋 Фактов</div>
+            <div class="exec-kpi-value">{{ facts|length }}</div>
+            <div class="exec-kpi-sub">показано (max 200, отсортированы по убыванию даты)</div>
+        </div>
+        <div class="exec-kpi">
+            <div class="exec-kpi-label">Σ Сумма</div>
+            <div class="exec-kpi-value">{{ total_amount|ru_number }} ₽</div>
+            <div class="exec-kpi-sub">по показанным фактам</div>
+        </div>
+    </section>
+
+    {% if facts %}
+        <section class="data-panel stack">
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th class="table-col-date">Дата</th>
+                            <th>Организация</th>
+                            <th>Статья ДДС</th>
+                            <th>Контрагент</th>
+                            <th>Договор</th>
+                            <th class="table-col-number">Сумма</th>
+                            <th class="table-col-short">Направление</th>
+                            <th class="table-col-short">Учёт</th>
+                            <th>Кейс</th>
+                            <th>Комментарий</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in facts %}
+                            <tr>
+                                <td class="table-col-date">{{ f.date|date:"d.m.Y" }}</td>
+                                <td>{{ f.organization.name|truncatechars:24 }}</td>
+                                <td><strong>{{ f.article.code }}</strong> · {{ f.article.name|truncatechars:30 }}</td>
+                                <td>{{ f.counterparty.name|truncatechars:30 }}</td>
+                                <td>
+                                    {% if f.contract %}{{ f.contract.number }}{% else %}—{% endif %}
+                                    {% if f.contract.parent_customer_contract %}
+                                        <div class="cell-secondary">→ {{ f.contract.parent_customer_contract.number }}</div>
+                                    {% endif %}
+                                </td>
+                                <td class="table-col-number">
+                                    <strong class="{% if f.direction == 'inflow' %}text-success{% else %}text-danger{% endif %}">
+                                        {{ f.amount|ru_number }} {{ f.currency.code }}
+                                    </strong>
+                                </td>
+                                <td class="table-col-short">
+                                    {% if f.direction == "inflow" %}<span class="badge badge-success">приход</span>
+                                    {% else %}<span class="badge badge-danger">расход</span>{% endif %}
+                                </td>
+                                <td class="table-col-short"><span class="badge">{{ f.get_accounting_kind_display }}</span></td>
+                                <td>
+                                    {% if f.contract.funding_case %}
+                                        <a href="{% url 'funding_case_detail' f.contract.funding_case.id %}" class="badge badge-info">{{ f.contract.funding_case.code }}</a>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>{{ f.comment|default:"—"|truncatechars:40 }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    {% else %}
+        <section class="data-panel stack">
+            <p class="hint">По выбранным фильтрам фактов не найдено. Попробуйте расширить критерии в плане-факте и вернуться сюда снова.</p>
+        </section>
+    {% endif %}
+{% endblock %}

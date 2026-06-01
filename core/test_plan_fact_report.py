@@ -509,6 +509,25 @@ class PlanFactReportTests(TestCase):
         # Article DDS-INC-1 присутствует среди возможных строк
         self.assertIn(income_article.id, [r["article"].id for r in rows] or [income_article.id])
 
+    def test_drilldown_filters_facts_by_article_and_counterparty(self):
+        """Drill-down должен возвращать только факты по выбранной комбинации."""
+        self.client.login(username="economist", password="demo12345")
+        response = self.client.get(
+            reverse("plan_fact_drilldown"),
+            {
+                "year": 2026,
+                "article_id": self.article_ops.id,
+                "counterparty_id": self.counterparty_supplier_1.id,
+                "direction": "outflow",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        # Все возвращённые факты должны быть по этой статье и контрагенту
+        for f in response.context["facts"]:
+            self.assertEqual(f.article_id, self.article_ops.id)
+            self.assertEqual(f.counterparty_id, self.counterparty_supplier_1.id)
+            self.assertEqual(f.direction, "outflow")
+
     def test_manager_cannot_save_template(self):
         self.client.login(username="manager", password="demo12345")
 

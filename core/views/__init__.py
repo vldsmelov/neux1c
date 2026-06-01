@@ -39,6 +39,7 @@ from .reports import (  # noqa: F401
     executive_dashboard,
     fx_revaluation_report,
     manager_dashboard,
+    plan_fact_drilldown,
     plan_fact_report,
     profit_loss_report,
     variance_analysis_report,

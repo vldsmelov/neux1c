@@ -1,5 +1,6 @@
 """Reports: plan-fact (БДДС) с шаблонами и dashboard руководителя."""
 
+from decimal import Decimal
 from urllib.parse import urlencode
 
 from django.contrib import messages
@@ -182,6 +183,68 @@ def plan_fact_report(request):
                 "direction": selected_direction,
                 "funding_case_id": selected_funding_case_id,
             },
+        },
+    )
+
+
+@role_required(UserRole.ADMINISTRATOR, UserRole.ECONOMIST, UserRole.MANAGER)
+def plan_fact_drilldown(request):
+    """Drill-down: от агрегата плана-факта в список конкретных PaymentFact.
+
+    Принимает GET-параметры (все опциональные): year, article_id,
+    counterparty_id, organization_id, customer_contract_id,
+    supplier_contract_id, scenario_id, direction.
+    """
+    from ..models import PaymentFact
+    selected = {
+        "year": parse_optional_int(request.GET.get("year")) or timezone.localdate().year,
+        "article_id": parse_optional_int(request.GET.get("article_id")),
+        "counterparty_id": parse_optional_int(request.GET.get("counterparty_id")),
+        "organization_id": parse_optional_int(request.GET.get("organization_id")),
+        "customer_contract_id": parse_optional_int(request.GET.get("customer_contract_id")),
+        "supplier_contract_id": parse_optional_int(request.GET.get("supplier_contract_id")),
+    }
+    direction = (request.GET.get("direction") or "").strip()
+
+    q = PaymentFact.objects.filter(date__year=selected["year"]).select_related(
+        "organization", "article", "counterparty", "contract", "contract__parent_customer_contract", "currency"
+    )
+    if selected["article_id"]:
+        # Поддерживаем поддерево статей (как в plan-fact)
+        try:
+            anchor = CashFlowArticle.objects.get(pk=selected["article_id"])
+            q = q.filter(article_id__in=anchor.descendant_ids())
+        except CashFlowArticle.DoesNotExist:
+            q = q.none()
+    if selected["counterparty_id"]:
+        q = q.filter(counterparty_id=selected["counterparty_id"])
+    if selected["organization_id"]:
+        q = q.filter(organization_id=selected["organization_id"])
+    if selected["supplier_contract_id"]:
+        q = q.filter(contract_id=selected["supplier_contract_id"])
+    if selected["customer_contract_id"]:
+        from django.db.models import Q
+        q = q.filter(
+            Q(contract__id=selected["customer_contract_id"])
+            | Q(contract__parent_customer_contract_id=selected["customer_contract_id"])
+        )
+    if direction in {"inflow", "outflow"}:
+        q = q.filter(direction=direction)
+
+    q = q.order_by("-date", "-id")[:200]
+    facts = list(q)
+
+    total_amount = sum((f.amount for f in facts), Decimal("0")) if facts else Decimal("0")
+
+    return render(
+        request,
+        "core/plan_fact_drilldown.html",
+        {
+            "active_section": "reports",
+            "facts": facts,
+            "selected": selected,
+            "selected_direction": direction,
+            "total_amount": total_amount,
         },
     )
 

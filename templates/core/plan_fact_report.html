@@ -313,7 +313,9 @@
                                 <td class="num-col">{{ row.adjustments }}</td>
                                 <td class="num-col">{{ row.reserved }}</td>
                                 <td class="num-col">{{ row.requested }}</td>
-                                <td class="num-col">{{ row.fact_bu }}</td>
+                                <td class="num-col">
+                                    <a href="{% url 'plan_fact_drilldown' %}?year={{ selected_year }}&article_id={{ row.article.id }}{% if row.organization %}&organization_id={{ row.organization.id }}{% endif %}{% if row.counterparty %}&counterparty_id={{ row.counterparty.id }}{% endif %}{% if row.supplier_contract %}&supplier_contract_id={{ row.supplier_contract.id }}{% endif %}{% if row.customer_contract %}&customer_contract_id={{ row.customer_contract.id }}{% endif %}&direction=outflow" title="🔎 Drill-down: показать конкретные факты по этой строке">{{ row.fact_bu }}</a>
+                                </td>
                                 <td class="num-col">{{ row.fact_nu }}</td>
                                 <td class="num-col">
                                     {{ row.balance_bu }}
