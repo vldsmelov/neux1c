@@ -42,7 +42,14 @@ from .nsi import (  # noqa: F401
     Organization,
 )
 from .contracts import AdditionalAgreement, Contract  # noqa: F401
-from .funding import AccountingPeriodLock, AllocationRule, ExchangeRate, FundingCase, LoanScheduleLine  # noqa: F401
+from .funding import (  # noqa: F401
+    AccountingPeriodLock,
+    AllocationRule,
+    ApiToken,
+    ExchangeRate,
+    FundingCase,
+    LoanScheduleLine,
+)
 from .payment_facts import (  # noqa: F401
     PaymentFact,
     PaymentFactAdjustment,

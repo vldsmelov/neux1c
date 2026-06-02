@@ -1,0 +1,107 @@
+{% extends "core/base.html" %}
+
+{% block title %}API-токены · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab" href="/settings/period-close/">Закрытие периодов</a>
+    <a class="app-tab" href="/settings/exchange-rates/">Курсы валют</a>
+    <a class="app-tab" href="/settings/allocations/">Распределение</a>
+    <a class="app-tab is-active" href="/settings/api-tokens/">API-токены</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🔑 API-токены</h1>
+            <p class="app-subtitle">Token-based аутентификация для интеграций (CRM, BI, ERP). Запросы выполняются от вашего имени и наследуют ваши RBAC-права.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <details class="stack-section" open>
+            <summary>Создать новый токен</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label class="form-grid-span-full"><span class="field-label">Название (зачем нужен)</span>
+                    <input class="field-control" name="name" required placeholder="CRM Bitrix integration / BI Power BI / etc.">
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Создать токен</button>
+                    <span class="hint">⚠ Токен будет показан один раз сразу после создания — сохраните его в безопасном месте.</span>
+                </div>
+            </form>
+        </details>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Мои токены <span class="cell-secondary">({{ tokens|length }})</span></h2>
+        {% if tokens %}
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th class="table-col-short">Статус</th>
+                            <th>Создан</th>
+                            <th>Последнее использование</th>
+                            <th class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in tokens %}
+                            <tr>
+                                <td><strong>{{ t.name }}</strong></td>
+                                <td class="table-col-short">
+                                    {% if t.is_active %}<span class="badge badge-success">активен</span>
+                                    {% else %}<span class="badge badge-muted">отозван</span>{% endif %}
+                                </td>
+                                <td>{{ t.created_at|date:"d.m.Y H:i" }}</td>
+                                <td>{% if t.last_used_at %}{{ t.last_used_at|date:"d.m.Y H:i" }}{% else %}<span class="cell-secondary">никогда</span>{% endif %}</td>
+                                <td class="table-action-col">
+                                    <div class="form-stack-compact">
+                                        {% if t.is_active %}
+                                            <form method="post" style="display:inline">
+                                                {% csrf_token %}
+                                                <input type="hidden" name="action" value="revoke">
+                                                <input type="hidden" name="token_id" value="{{ t.id }}">
+                                                <button class="command-button is-sm" type="submit">Отозвать</button>
+                                            </form>
+                                        {% endif %}
+                                        <form method="post" style="display:inline" onsubmit="return confirm('Удалить токен безвозвратно?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="token_id" value="{{ t.id }}">
+                                            <button class="command-button is-sm is-danger" type="submit">Удалить</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="hint">Токенов нет. Создайте первый выше.</p>
+        {% endif %}
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">📖 Документация API</h2>
+        <div style="font-family: monospace; font-size: 13px; background: var(--color-bg); padding: 12px; border-radius: 8px;">
+            <p><strong>Заголовок аутентификации:</strong></p>
+            <pre>Authorization: Token &lt;your-uuid&gt;</pre>
+            <p style="margin-top: 12px;"><strong>Доступные эндпоинты:</strong></p>
+            <ul style="line-height: 1.8;">
+                <li><code>GET /api/v1/</code> — корень с описанием API</li>
+                <li><code>GET /api/v1/funding-cases/?status=active</code> — список кейсов</li>
+                <li><code>GET /api/v1/funding-cases/&lt;id&gt;/</code> — детальная карточка с overview</li>
+                <li><code>GET /api/v1/payment-facts/?from=2026-01-01&to=2026-12-31&organization_id=N</code> — факты</li>
+                <li><code>GET /api/v1/exchange-rates/?currency=USD</code> — курсы валют</li>
+            </ul>
+            <p style="margin-top: 12px;"><strong>Пример:</strong></p>
+            <pre>curl -H 'Authorization: Token YOUR-UUID' http://server/api/v1/funding-cases/</pre>
+        </div>
+    </section>
+{% endblock %}

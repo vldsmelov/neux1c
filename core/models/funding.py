@@ -53,6 +53,35 @@ class FundingCase(models.Model):
         return f"{self.code} · {self.name}"
 
 
+class ApiToken(models.Model):
+    """API-токен для интеграций. Передаётся в заголовке Authorization
+    как `Token <uuid>`. У пользователя может быть несколько токенов
+    (например, для разных интеграций — CRM, BI, бухгалтерия)."""
+
+    import uuid as _uuid
+
+    token = models.UUIDField("Токен", default=_uuid.uuid4, unique=True, editable=False)
+    name = models.CharField("Название", max_length=120, help_text="Например, «CRM Bitrix integration» или «BI Power BI»")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Владелец",
+        on_delete=models.CASCADE,
+        related_name="api_tokens",
+        help_text="API-запросы выполняются от имени этого пользователя — наследуют его права RBAC",
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    last_used_at = models.DateTimeField("Последнее использование", null=True, blank=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "API-токен"
+        verbose_name_plural = "API-токены"
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.user.username})"
+
+
 class AllocationRule(models.Model):
     """Правило распределения общих расходов между ЦФО.
 
