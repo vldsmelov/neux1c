@@ -46,6 +46,7 @@ from .funding import (  # noqa: F401
     AccountingPeriodLock,
     AllocationRule,
     ApiToken,
+    ApprovalChain,
     ExchangeRate,
     FundingCase,
     LoanScheduleLine,

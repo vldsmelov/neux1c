@@ -38,6 +38,7 @@ from core.views import (
     variance_analysis_report,
     global_search_view,
     allocations_index,
+    approval_chains_index,
     api_exchange_rates,
     api_funding_case_detail,
     api_funding_cases,
@@ -128,6 +129,7 @@ urlpatterns = [
     path("settings/allocations/", allocations_index, name="allocations_index"),
     path("settings/api-tokens/", api_tokens, name="api_tokens"),
     path("settings/webhooks/", webhooks_index, name="webhooks_index"),
+    path("settings/approval-chains/", approval_chains_index, name="approval_chains_index"),
     # REST API v1
     path("api/v1/", api_root, name="api_root"),
     path("api/v1/funding-cases/", api_funding_cases, name="api_funding_cases"),

@@ -58,6 +58,97 @@ def _gen_webhook_secret() -> str:
     return _secrets.token_urlsafe(32)
 
 
+class ApprovalChain(models.Model):
+    """Настраиваемая цепочка согласования для платёжных заявок.
+
+    Заменяет жёсткую 2-stage эскалацию по amount threshold на гибкую
+    N-stage цепочку. Для каждой организации можно настроить несколько
+    цепочек с разными условиями активации (вид документа, диапазон сумм).
+
+    Stages хранятся как JSON list, каждый stage:
+    {
+        "order": 1,
+        "approver_username": "manager",
+        "min_amount": 0,
+        "max_amount": 1000000  # null = без верхней границы
+    }
+
+    Алгоритм применения:
+    1. Когда заявка отправляется — ищем applicable chain по
+       (organization, applies_to_kind, amount_rub).
+    2. Берём первый stage, ставим approver, статус = pending_approval.
+    3. При approve — продвигаем на следующий stage; если был последний —
+       финализируем как APPROVED.
+    4. При reject на любом stage — сразу REJECTED.
+    """
+
+    APPLIES_PAYMENT_REQUEST = "payment_request"
+    APPLIES_BUDGET_PLAN = "budget_plan"
+    APPLIES_CHOICES = [
+        (APPLIES_PAYMENT_REQUEST, "Заявка на оплату"),
+        (APPLIES_BUDGET_PLAN, "Бюджет / лимит"),
+    ]
+
+    name = models.CharField("Название", max_length=200)
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Организация",
+        on_delete=models.CASCADE,
+        related_name="approval_chains",
+    )
+    applies_to_kind = models.CharField(
+        "Применяется к",
+        max_length=32,
+        choices=APPLIES_CHOICES,
+        default=APPLIES_PAYMENT_REQUEST,
+    )
+    min_amount_rub = models.DecimalField(
+        "Сумма от, RUB",
+        max_digits=16,
+        decimal_places=2,
+        default=0,
+        help_text="Документы с amount_rub ≥ этого значения попадают в цепочку",
+    )
+    max_amount_rub = models.DecimalField(
+        "Сумма до, RUB",
+        max_digits=16,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Документы с amount_rub ≤ этого значения. Пусто = без верхней границы",
+    )
+    stages = models.JSONField(
+        "Этапы",
+        default=list,
+        help_text='JSON-список: [{"order": 1, "approver_username": "manager", "comment": "..."}]',
+    )
+    is_active = models.BooleanField("Активна", default=True)
+    comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField("Создана", auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Создал",
+        on_delete=models.PROTECT,
+        related_name="approval_chains_created",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["organization__name", "min_amount_rub"]
+        verbose_name = "Цепочка согласования"
+        verbose_name_plural = "Цепочки согласования"
+
+    def __str__(self) -> str:
+        return f"{self.name} · {self.organization.name}"
+
+    def stages_count(self) -> int:
+        try:
+            return len(self.stages or [])
+        except (TypeError, AttributeError):
+            return 0
+
+
 class WebhookSubscription(models.Model):
     """Outbound webhook: внешняя система регистрирует URL, на который
     NE UX будет отправлять POST с JSON-payload при наступлении событий.

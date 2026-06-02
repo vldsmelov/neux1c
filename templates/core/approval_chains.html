@@ -1,0 +1,168 @@
+{% extends "core/base.html" %}
+{% load ui_format %}
+
+{% block title %}Цепочки согласования · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab" href="/settings/exchange-rates/">Курсы</a>
+    <a class="app-tab" href="/settings/api-tokens/">API</a>
+    <a class="app-tab" href="/settings/webhooks/">Webhooks</a>
+    <a class="app-tab is-active" href="/settings/approval-chains/">Согласование</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">✅ Цепочки согласования (N-stage approval)</h1>
+            <p class="app-subtitle">Enterprise workflow: настраиваемая цепочка из N этапов с условиями активации по сумме. Manager → CFO → CEO для крупных платежей, простой Manager-approve для мелких.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <details class="stack-section" open>
+            <summary>Создать цепочку</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label><span class="field-label">Название</span>
+                    <input class="field-control" name="name" required placeholder="Платежи &gt; 1M ₽: Manager → CFO → CEO">
+                </label>
+                <label><span class="field-label">Организация</span>
+                    <select class="field-control-select" name="organization_id" required>
+                        {% for org in organizations %}<option value="{{ org.id }}">{{ org.name }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label><span class="field-label">Тип документа</span>
+                    <select class="field-control-select" name="applies_to_kind">
+                        {% for value, label in applies_choices %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+                    </select>
+                </label>
+                <div></div>
+                <label><span class="field-label">Сумма от, ₽</span>
+                    <input class="field-control" name="min_amount_rub" type="number" min="0" step="1" value="0">
+                </label>
+                <label><span class="field-label">Сумма до, ₽ (пусто = ∞)</span>
+                    <input class="field-control" name="max_amount_rub" type="number" min="0" step="1" placeholder="без ограничения">
+                </label>
+                <div class="form-grid-span-full">
+                    <div class="field-label">Этапы (логины approver-ов по порядку)</div>
+                    <div class="approval-stages-grid">
+                        <label class="approval-stage-row">
+                            <span class="approval-stage-num">1.</span>
+                            <input class="field-control field-control-sm" name="stage_1_username" placeholder="manager">
+                        </label>
+                        <label class="approval-stage-row">
+                            <span class="approval-stage-num">2.</span>
+                            <input class="field-control field-control-sm" name="stage_2_username" placeholder="cfo">
+                        </label>
+                        <label class="approval-stage-row">
+                            <span class="approval-stage-num">3.</span>
+                            <input class="field-control field-control-sm" name="stage_3_username" placeholder="ceo">
+                        </label>
+                        <label class="approval-stage-row">
+                            <span class="approval-stage-num">4.</span>
+                            <input class="field-control field-control-sm" name="stage_4_username">
+                        </label>
+                        <label class="approval-stage-row">
+                            <span class="approval-stage-num">5.</span>
+                            <input class="field-control field-control-sm" name="stage_5_username">
+                        </label>
+                    </div>
+                </div>
+                <label class="form-grid-span-full"><span class="field-label">Комментарий</span>
+                    <input class="field-control" name="comment" placeholder="По регламенту от 2026-01-01">
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Создать цепочку</button>
+                </div>
+            </form>
+        </details>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Активные цепочки <span class="cell-secondary">({{ chains_with_stages|length }})</span></h2>
+        {% if chains_with_stages %}
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Цепочка</th>
+                            <th>Организация</th>
+                            <th class="table-col-short">Тип</th>
+                            <th class="table-col-number">Диапазон сумм</th>
+                            <th>Этапы</th>
+                            <th class="table-col-short">Статус</th>
+                            <th class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in chains_with_stages %}
+                            {% with ch=item.chain %}
+                            <tr>
+                                <td><strong>{{ ch.name }}</strong>{% if ch.comment %}<div class="cell-secondary">{{ ch.comment|truncatechars:60 }}</div>{% endif %}</td>
+                                <td>{{ ch.organization.name }}</td>
+                                <td class="table-col-short">{{ ch.get_applies_to_kind_display }}</td>
+                                <td class="table-col-number">
+                                    {{ ch.min_amount_rub|ru_number }} ₽
+                                    {% if ch.max_amount_rub %} … {{ ch.max_amount_rub|ru_number }} ₽{% else %} … ∞{% endif %}
+                                </td>
+                                <td>
+                                    <ol class="approval-stages-display">
+                                        {% for s in item.stages %}
+                                            <li>
+                                                <strong>{{ s.approver_username }}</strong>
+                                                {% if not s.approver %}<span class="badge badge-danger">не найден</span>{% endif %}
+                                                {% if s.comment %}<span class="cell-secondary">— {{ s.comment }}</span>{% endif %}
+                                            </li>
+                                        {% endfor %}
+                                    </ol>
+                                </td>
+                                <td class="table-col-short">
+                                    {% if ch.is_active %}<span class="badge badge-success">активна</span>
+                                    {% else %}<span class="badge badge-muted">отключена</span>{% endif %}
+                                </td>
+                                <td class="table-action-col">
+                                    <div class="form-stack-compact">
+                                        <form method="post" style="display:inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="toggle">
+                                            <input type="hidden" name="chain_id" value="{{ ch.id }}">
+                                            <button class="command-button is-sm" type="submit">{% if ch.is_active %}Отключить{% else %}Включить{% endif %}</button>
+                                        </form>
+                                        <form method="post" style="display:inline" onsubmit="return confirm('Удалить цепочку?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="chain_id" value="{{ ch.id }}">
+                                            <button class="command-button is-sm is-danger" type="submit">Удалить</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="hint">Цепочек согласования нет. Создайте первую выше — без неё система использует жёсткую 2-stage эскалацию по escalation_threshold_rub на организации.</p>
+        {% endif %}
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">📖 Как это работает</h2>
+        <div style="font-family: monospace; font-size: 13px; background: var(--color-bg); padding: 12px; border-radius: 8px;">
+            <p><strong>Сценарий:</strong> цепочка «Платежи > 1M ₽» с этапами Manager → CFO → CEO.</p>
+            <ol style="line-height: 1.8;">
+                <li>Экономист создаёт заявку на 1 500 000 ₽ и отправляет на согласование.</li>
+                <li>Система ищет applicable chain → находит «Платежи > 1M ₽».</li>
+                <li>Заявка получает approver = manager, статус = pending_approval.</li>
+                <li>Manager согласует → переход на следующий stage. approver = cfo.</li>
+                <li>CFO согласует → переход на CEO. approver = ceo.</li>
+                <li>CEO согласует → это был последний stage → статус = approved.</li>
+                <li>На любом этапе reject → статус сразу rejected.</li>
+            </ol>
+            <p style="margin-top: 12px;"><strong>Backward compatibility:</strong> если для документа не нашлась цепочка — используется существующая 2-stage логика (escalation_threshold_rub + secondary_approver на организации).</p>
+        </div>
+    </section>
+{% endblock %}

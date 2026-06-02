@@ -1718,3 +1718,28 @@ details[open] > .contract-register-summary::before { transform: rotate(90deg); }
     font-size: var(--text-sm);
 }
 .allocation-target-name { flex: 1; }
+
+/* --- Approval chains --- */
+.approval-stages-grid { display: grid; gap: 6px; margin-top: 8px; }
+.approval-stage-row {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 8px;
+    align-items: center;
+}
+.approval-stage-num { font-weight: 600; color: var(--color-text-muted); }
+
+.approval-stages-display {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 4px;
+}
+.approval-stages-display li {
+    padding: 4px 8px;
+    background: var(--color-bg);
+    border-left: 3px solid var(--color-accent);
+    border-radius: 4px;
+    font-size: var(--text-sm);
+}

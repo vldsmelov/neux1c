@@ -46,6 +46,7 @@ from .reports import (  # noqa: F401
 )
 from .funding import funding_case_detail, funding_case_print, funding_cases_index  # noqa: F401
 from .allocations import allocations_index  # noqa: F401
+from .approval_chains import approval_chains_index  # noqa: F401
 from .api import (  # noqa: F401
     api_exchange_rates,
     api_funding_case_detail,
