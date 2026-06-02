@@ -50,6 +50,7 @@ from .funding import (  # noqa: F401
     ExchangeRate,
     FundingCase,
     LoanScheduleLine,
+    PlanDriver,
     WebhookSubscription,
 )
 from .payment_facts import (  # noqa: F401

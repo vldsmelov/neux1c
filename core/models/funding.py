@@ -58,6 +58,106 @@ def _gen_webhook_secret() -> str:
     return _secrets.token_urlsafe(32)
 
 
+class PlanDriver(models.Model):
+    """Драйвер плана: показатель с помесячными значениями.
+
+    Driver-based planning (Anaplan / Workday Adaptive стиль): план
+    формируется не вводом одной суммы, а как функция нескольких
+    драйверов. Например, Revenue = Volume × Price × Seasonality;
+    при изменении одного драйвера весь план пересчитывается.
+
+    Типы:
+    * volume — объём (штук, тонн, услуг)
+    * price — цена за единицу
+    * multiplier — мультипликатор (сезонность, скидка, growth rate)
+    * cost_per_unit — переменная себестоимость
+    * fixed — фиксированная сумма по месяцам
+
+    monthly_values хранится как JSON list из 12 чисел (январь..декабрь).
+    """
+
+    KIND_VOLUME = "volume"
+    KIND_PRICE = "price"
+    KIND_MULTIPLIER = "multiplier"
+    KIND_COST = "cost_per_unit"
+    KIND_FIXED = "fixed"
+    KIND_CHOICES = [
+        (KIND_VOLUME, "Объём"),
+        (KIND_PRICE, "Цена за единицу"),
+        (KIND_MULTIPLIER, "Мультипликатор / коэффициент"),
+        (KIND_COST, "Переменная себестоимость"),
+        (KIND_FIXED, "Фиксированная сумма"),
+    ]
+
+    name = models.CharField("Название", max_length=200)
+    code = models.CharField("Код", max_length=64, blank=True, help_text="Короткое имя для формул")
+    organization = models.ForeignKey(
+        Organization,
+        verbose_name="Организация",
+        on_delete=models.CASCADE,
+        related_name="plan_drivers",
+    )
+    year = models.PositiveSmallIntegerField("Год планирования")
+    kind = models.CharField(
+        "Тип драйвера",
+        max_length=20,
+        choices=KIND_CHOICES,
+        default=KIND_VOLUME,
+    )
+    unit = models.CharField("Единица", max_length=32, blank=True, help_text="шт., т., ₽/шт., %")
+    monthly_values = models.JSONField(
+        "Помесячные значения",
+        default=list,
+        help_text="JSON-list из 12 чисел: январь..декабрь",
+    )
+    comment = models.TextField("Комментарий", blank=True)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Создал",
+        on_delete=models.PROTECT,
+        related_name="plan_drivers_created",
+        null=True,
+        blank=True,
+    )
+
+    class Meta:
+        ordering = ["organization__name", "-year", "kind", "name"]
+        verbose_name = "Драйвер плана"
+        verbose_name_plural = "Драйверы плана"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["organization", "year", "code"],
+                name="uniq_plan_driver_org_year_code",
+                condition=models.Q(code__gt=""),
+            ),
+        ]
+
+    def __str__(self) -> str:
+        code_part = f" [{self.code}]" if self.code else ""
+        return f"{self.name}{code_part} · {self.year}"
+
+    def annual_total(self):
+        from decimal import Decimal
+        if not isinstance(self.monthly_values, list):
+            return Decimal("0")
+        try:
+            return sum((Decimal(str(v)) for v in self.monthly_values), Decimal("0"))
+        except Exception:
+            return Decimal("0")
+
+    def annual_average(self):
+        from decimal import Decimal
+        vals = self.monthly_values if isinstance(self.monthly_values, list) else []
+        if not vals:
+            return Decimal("0")
+        try:
+            total = sum(Decimal(str(v)) for v in vals)
+            return total / Decimal(len(vals))
+        except Exception:
+            return Decimal("0")
+
+
 class ApprovalChain(models.Model):
     """Настраиваемая цепочка согласования для платёжных заявок.
 
