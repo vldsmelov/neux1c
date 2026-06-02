@@ -1,0 +1,252 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: NE UX 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-01 12:00+0300\n"
+"PO-Revision-Date: 2026-06-01 12:00+0300\n"
+"Language-Team: NE UX <support@example.com>\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+# === Main navigation (top tabs) ===
+msgid "Начало"
+msgstr "Home"
+
+msgid "Планирование"
+msgstr "Planning"
+
+msgid "Платежи"
+msgstr "Payments"
+
+msgid "Финансирование"
+msgstr "Funding"
+
+msgid "Договоры"
+msgstr "Contracts"
+
+msgid "Отчеты"
+msgstr "Reports"
+
+msgid "Отчёты"
+msgstr "Reports"
+
+msgid "НСИ"
+msgstr "Master Data"
+
+msgid "Настройки"
+msgstr "Settings"
+
+msgid "Помощь"
+msgstr "Help"
+
+msgid "Внешний контур"
+msgstr "External Accounting"
+
+# === Sidebar groups ===
+msgid "Рабочий день"
+msgstr "Workday"
+
+msgid "Главное"
+msgstr "Overview"
+
+msgid "Бюджеты и лимиты"
+msgstr "Budgets & Limits"
+
+msgid "Первичный ввод"
+msgstr "Primary Input"
+
+msgid "Бюджеты"
+msgstr "Budgets"
+
+msgid "Лимиты"
+msgstr "Limits"
+
+msgid "Сценарии"
+msgstr "Scenarios"
+
+# === Common actions ===
+msgid "Создать"
+msgstr "Create"
+
+msgid "Сохранить"
+msgstr "Save"
+
+msgid "Удалить"
+msgstr "Delete"
+
+msgid "Отменить"
+msgstr "Cancel"
+
+msgid "Закрыть"
+msgstr "Close"
+
+msgid "Применить"
+msgstr "Apply"
+
+msgid "Сбросить"
+msgstr "Reset"
+
+msgid "Применить →"
+msgstr "Apply →"
+
+msgid "Искать"
+msgstr "Search"
+
+# === Common labels ===
+msgid "Год"
+msgstr "Year"
+
+msgid "Период"
+msgstr "Period"
+
+msgid "Организация"
+msgstr "Organization"
+
+msgid "Компания"
+msgstr "Company"
+
+msgid "Контрагент"
+msgstr "Counterparty"
+
+msgid "Сумма"
+msgstr "Amount"
+
+msgid "Дата"
+msgstr "Date"
+
+msgid "Статус"
+msgstr "Status"
+
+msgid "Действие"
+msgstr "Action"
+
+msgid "Комментарий"
+msgstr "Comment"
+
+# === Funding cases ===
+msgid "Кейсы финансирования"
+msgstr "Funding Cases"
+
+msgid "Кейс финансирования"
+msgstr "Funding Case"
+
+msgid "Создать кейс"
+msgstr "Create Case"
+
+msgid "Записать поступление"
+msgstr "Record Inflow"
+
+msgid "Записать возврат"
+msgstr "Record Loan Repayment"
+
+msgid "Прогноз сальдо"
+msgstr "Projected Balance"
+
+msgid "Пришло"
+msgstr "Inflow"
+
+msgid "Ушло"
+msgstr "Outflow"
+
+msgid "Доступно"
+msgstr "Available"
+
+msgid "Без рисков"
+msgstr "No Risk"
+
+msgid "Низкий риск"
+msgstr "Low Risk"
+
+msgid "Средний риск"
+msgstr "Medium Risk"
+
+msgid "Высокий риск"
+msgstr "High Risk"
+
+# === Reports ===
+msgid "План-факт БДДС"
+msgstr "Plan-Fact (Cash Flow)"
+
+msgid "БДР"
+msgstr "Profit & Loss"
+
+msgid "CFO дашборд"
+msgstr "CFO Dashboard"
+
+msgid "Дашборд руководителя"
+msgstr "Manager Dashboard"
+
+msgid "Консолидация"
+msgstr "Consolidation"
+
+msgid "Variance Analysis"
+msgstr "Variance Analysis"
+
+msgid "FX Revaluation"
+msgstr "FX Revaluation"
+
+# === Settings ===
+msgid "Закрытие периодов"
+msgstr "Period Close"
+
+msgid "Курсы валют"
+msgstr "Exchange Rates"
+
+msgid "Распределение расходов"
+msgstr "Allocations"
+
+msgid "API-токены"
+msgstr "API Tokens"
+
+msgid "Webhooks"
+msgstr "Webhooks"
+
+msgid "Согласование"
+msgstr "Approval Chains"
+
+msgid "Интеграции"
+msgstr "Integrations"
+
+# === Statuses ===
+msgid "Черновик"
+msgstr "Draft"
+
+msgid "На согласовании"
+msgstr "Pending Approval"
+
+msgid "На финальном согласовании"
+msgstr "Pending Final Approval"
+
+msgid "Согласована"
+msgstr "Approved"
+
+msgid "Отклонена"
+msgstr "Rejected"
+
+msgid "Передана в 1С:ДО"
+msgstr "Sent to 1C:DO"
+
+msgid "Отменена автором"
+msgstr "Cancelled by Author"
+
+msgid "В работе"
+msgstr "Active"
+
+msgid "Ждём поступление"
+msgstr "Waiting for Inflow"
+
+msgid "Закрыт"
+msgstr "Closed"
+
+# === Misc ===
+msgid "Выйти"
+msgstr "Sign Out"
+
+msgid "Войти"
+msgstr "Sign In"
+
+msgid "Рабочее место"
+msgstr "Workspace"

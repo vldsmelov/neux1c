@@ -1,5 +1,5 @@
-{% load static %}<!doctype html>
-<html lang="ru">
+{% load static i18n %}<!doctype html>
+<html lang="{% get_current_language as LANGUAGE_CODE %}{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -23,22 +23,31 @@
 <body>
     <div class="mobile-nav">
         {% if show_internal %}
-            <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">Начало</a>
-            <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">Планирование</a>
-            <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">Платежи</a>
-            <a class="app-tab {% if active_section == 'funding' %}is-active{% endif %}" href="/funding/cases/">Финансирование</a>
-            <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/register/">Договоры</a>
-            <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">Отчеты</a>
-            <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">НСИ</a>
-            <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">Настройки</a>
+            <a class="app-tab {% if active_section == 'workspace' %}is-active{% endif %}" href="/">{% trans "Начало" %}</a>
+            <a class="app-tab {% if active_section == 'planning' %}is-active{% endif %}" href="/planning/wizard/">{% trans "Планирование" %}</a>
+            <a class="app-tab {% if active_section == 'payments' %}is-active{% endif %}" href="/payments/requests/wizard/">{% trans "Платежи" %}</a>
+            <a class="app-tab {% if active_section == 'funding' %}is-active{% endif %}" href="/funding/cases/">{% trans "Финансирование" %}</a>
+            <a class="app-tab {% if active_section == 'contracts' %}is-active{% endif %}" href="/contracts/register/">{% trans "Договоры" %}</a>
+            <a class="app-tab {% if active_section == 'reports' %}is-active{% endif %}" href="/reports/manager/">{% trans "Отчеты" %}</a>
+            <a class="app-tab {% if active_section == 'nsi' %}is-active{% endif %}" href="/nsi/">{% trans "НСИ" %}</a>
+            <a class="app-tab {% if active_section == 'settings' %}is-active{% endif %}" href="/settings/integration-requests/">{% trans "Настройки" %}</a>
         {% endif %}
         {% if show_external %}
-            <a class="app-tab {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">Внешний контур</a>
+            <a class="app-tab {% if active_section == 'external_accounting' %}is-active{% endif %}" href="/external/accounting/">{% trans "Внешний контур" %}</a>
         {% endif %}
-        <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">Помощь</a>
+        <a class="app-tab {% if active_section == 'instruction' %}is-active{% endif %}" href="/instruction/">{% trans "Помощь" %}</a>
         {% if user.is_authenticated %}
             <form class="global-search-form" action="{% url 'global_search' %}" method="get" role="search">
-                <input type="search" name="q" class="global-search-input" placeholder="🔍 Поиск договоров, кейсов, заявок..." value="{{ request.GET.q|default:'' }}" aria-label="Поиск">
+                <input type="search" name="q" class="global-search-input" placeholder="🔍 {% trans 'Искать' %}..." value="{{ request.GET.q|default:'' }}" aria-label="{% trans 'Искать' %}">
+            </form>
+            {% get_current_language as LANGUAGE_CODE %}
+            <form class="lang-switcher" action="{% url 'set_language' %}" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.path }}">
+                <select name="language" onchange="this.form.submit()" aria-label="Language">
+                    <option value="ru" {% if LANGUAGE_CODE == 'ru' %}selected{% endif %}>🇷🇺 RU</option>
+                    <option value="en" {% if LANGUAGE_CODE == 'en' %}selected{% endif %}>🇬🇧 EN</option>
+                </select>
             </form>
         {% endif %}
     </div>

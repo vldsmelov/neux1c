@@ -56,6 +56,7 @@ MIDDLEWARE = [
     "core.middleware.SecurityHeadersMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "core.middleware.AuditLogMiddleware",
@@ -105,6 +106,15 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "ru-ru"
+
+# i18n: enterprise-функция для холдингов с международными дочками
+LANGUAGES = [
+    ("ru", "Русский"),
+    ("en", "English"),
+]
+LOCALE_PATHS = [
+    BASE_DIR / "locale",
+]
 TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_TZ = True

@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.views import LogoutView
-from django.urls import path
+from django.urls import include, path
 
 from core.views import (
     RoleAwareLoginView,
@@ -70,6 +70,7 @@ from core.views import (
 urlpatterns = [
     path("", workspace, name="workspace"),
     path("search/", global_search_view, name="global_search"),
+    path("i18n/", include("django.conf.urls.i18n")),
     path(
         "workflow/<str:document_type>/<int:document_id>/<str:action>-wizard/",
         document_action_wizard,
