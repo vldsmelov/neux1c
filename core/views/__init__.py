@@ -54,6 +54,7 @@ from .api import (  # noqa: F401
     api_root,
 )
 from .api_tokens import api_tokens  # noqa: F401
+from .webhooks import webhooks_index  # noqa: F401
 from .exchange_rates import exchange_rates  # noqa: F401
 from .period_close import period_close  # noqa: F401
 from .scenarios import planning_scenarios  # noqa: F401

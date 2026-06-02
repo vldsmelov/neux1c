@@ -53,6 +53,66 @@ class FundingCase(models.Model):
         return f"{self.code} · {self.name}"
 
 
+def _gen_webhook_secret() -> str:
+    import secrets as _secrets
+    return _secrets.token_urlsafe(32)
+
+
+class WebhookSubscription(models.Model):
+    """Outbound webhook: внешняя система регистрирует URL, на который
+    NE UX будет отправлять POST с JSON-payload при наступлении событий.
+
+    События v1:
+    * funding_case.status_changed — статус кейса изменился
+    * funding_case.created — создан новый кейс
+    * payment_fact.large — записан факт сверх порога
+    * loan.maturity_due_soon — заём близок к сроку возврата
+
+    Для безопасности — HMAC-SHA256 подпись в заголовке X-NEUX-Signature
+    по secret, который генерируется при создании subscription.
+    """
+
+    EVENT_CASE_STATUS = "funding_case.status_changed"
+    EVENT_CASE_CREATED = "funding_case.created"
+    EVENT_LARGE_FACT = "payment_fact.large"
+    EVENT_LOAN_MATURITY = "loan.maturity_due_soon"
+    EVENT_CHOICES = [
+        (EVENT_CASE_STATUS, "Смена статуса кейса"),
+        (EVENT_CASE_CREATED, "Создание кейса"),
+        (EVENT_LARGE_FACT, "Крупный факт оплаты"),
+        (EVENT_LOAN_MATURITY, "Приближение срока возврата займа"),
+    ]
+
+    name = models.CharField("Название", max_length=120)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name="Владелец",
+        on_delete=models.CASCADE,
+        related_name="webhooks",
+    )
+    event_type = models.CharField("Событие", max_length=64, choices=EVENT_CHOICES)
+    target_url = models.URLField("URL-приёмник", max_length=500)
+    secret = models.CharField(
+        "Секрет для HMAC",
+        max_length=128,
+        default=_gen_webhook_secret,
+        help_text="Используется для подписи заголовка X-NEUX-Signature (HMAC-SHA256)",
+    )
+    is_active = models.BooleanField("Активен", default=True)
+    last_fired_at = models.DateTimeField("Последняя отправка", null=True, blank=True)
+    last_status_code = models.IntegerField("Последний HTTP-код ответа", null=True, blank=True)
+    failure_count = models.IntegerField("Подряд неудачных", default=0)
+    created_at = models.DateTimeField("Создан", auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "Webhook-подписка"
+        verbose_name_plural = "Webhook-подписки"
+
+    def __str__(self) -> str:
+        return f"{self.name} · {self.get_event_type_display()}"
+
+
 class ApiToken(models.Model):
     """API-токен для интеграций. Передаётся в заголовке Authorization
     как `Token <uuid>`. У пользователя может быть несколько токенов

@@ -1,0 +1,142 @@
+{% extends "core/base.html" %}
+
+{% block title %}Webhooks · NE UX{% endblock %}
+
+{% block tabs %}
+    <a class="app-tab" href="/settings/integration-requests/">Интеграции</a>
+    <a class="app-tab" href="/settings/exchange-rates/">Курсы</a>
+    <a class="app-tab" href="/settings/api-tokens/">API-токены</a>
+    <a class="app-tab is-active" href="/settings/webhooks/">Webhooks</a>
+{% endblock %}
+
+{% block content %}
+    <div class="app-page-head">
+        <div>
+            <h1 class="app-title">🔔 Webhooks · Push-уведомления для интеграций</h1>
+            <p class="app-subtitle">Подпишитесь на события NE UX — мы отправим POST-запрос с JSON-payload на ваш URL в момент наступления. HMAC-SHA256 подпись в заголовке X-NEUX-Signature защищает от подделки.</p>
+        </div>
+    </div>
+
+    <section class="data-panel stack">
+        <details class="stack-section" open>
+            <summary>Создать webhook-подписку</summary>
+            <form method="post" class="form-grid form-grid-2">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create">
+                <label><span class="field-label">Название</span>
+                    <input class="field-control" name="name" required placeholder="CRM: новые кейсы">
+                </label>
+                <label><span class="field-label">Событие</span>
+                    <select class="field-control-select" name="event_type" required>
+                        <option value="">— выберите —</option>
+                        {% for value, label in event_choices %}
+                            <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </label>
+                <label class="form-grid-span-full"><span class="field-label">URL-приёмник</span>
+                    <input class="field-control" name="target_url" required placeholder="https://your-crm.example.com/webhooks/neux">
+                </label>
+                <div class="form-grid-span-full inline-form-row">
+                    <button class="command-button-primary" type="submit">Создать webhook</button>
+                    <span class="hint">⚠ Secret будет показан один раз сразу после создания — сохраните в надёжном месте.</span>
+                </div>
+            </form>
+        </details>
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">Мои подписки <span class="cell-secondary">({{ hooks|length }})</span></h2>
+        {% if hooks %}
+            <div class="data-table-wrap desktop-scroll">
+                <table class="data-table data-table-narrow">
+                    <thead>
+                        <tr>
+                            <th>Название</th>
+                            <th>Событие</th>
+                            <th>URL</th>
+                            <th class="table-col-short">Статус</th>
+                            <th>Последняя отправка</th>
+                            <th class="table-col-short">Код / fails</th>
+                            <th class="table-action-col">Действие</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for h in hooks %}
+                            <tr>
+                                <td><strong>{{ h.name }}</strong></td>
+                                <td><span class="badge">{{ h.get_event_type_display }}</span></td>
+                                <td><code style="font-size: 12px;">{{ h.target_url|truncatechars:40 }}</code></td>
+                                <td class="table-col-short">
+                                    {% if h.is_active %}<span class="badge badge-success">активен</span>
+                                    {% else %}<span class="badge badge-muted">отключён</span>{% endif %}
+                                </td>
+                                <td>
+                                    {% if h.last_fired_at %}{{ h.last_fired_at|date:"d.m.Y H:i" }}{% else %}<span class="cell-secondary">никогда</span>{% endif %}
+                                </td>
+                                <td class="table-col-short">
+                                    {% if h.last_status_code %}
+                                        {% if h.last_status_code >= 200 and h.last_status_code < 300 %}
+                                            <span class="badge badge-success">{{ h.last_status_code }}</span>
+                                        {% else %}
+                                            <span class="badge badge-danger">{{ h.last_status_code }} ({{ h.failure_count }} fails)</span>
+                                        {% endif %}
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td class="table-action-col">
+                                    <div class="form-stack-compact">
+                                        <form method="post" style="display:inline">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="toggle">
+                                            <input type="hidden" name="hook_id" value="{{ h.id }}">
+                                            <button class="command-button is-sm" type="submit">{% if h.is_active %}Отключить{% else %}Включить{% endif %}</button>
+                                        </form>
+                                        <form method="post" style="display:inline" onsubmit="return confirm('Удалить webhook?');">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="hook_id" value="{{ h.id }}">
+                                            <button class="command-button is-sm is-danger" type="submit">Удалить</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <p class="hint">Webhook-подписок нет. Создайте первую выше.</p>
+        {% endif %}
+    </section>
+
+    <section class="data-panel stack">
+        <h2 class="section-title">📖 Документация по интеграции</h2>
+        <div style="font-family: monospace; font-size: 13px; background: var(--color-bg); padding: 12px; border-radius: 8px;">
+            <p><strong>Payload (пример для funding_case.status_changed):</strong></p>
+            <pre>POST /your-endpoint
+Content-Type: application/json
+X-NEUX-Signature: hmac-sha256-hex
+X-NEUX-Event: funding_case.status_changed
+User-Agent: NE-UX-Webhook/1.0
+
+{
+  "event": "funding_case.status_changed",
+  "timestamp": "2026-06-01T12:34:56Z",
+  "data": {
+    "case_id": 1,
+    "code": "FUND-DEMO-1",
+    "name": "Закупка стройматериалов",
+    "organization": "ООО \"Гладиолус\"",
+    "old_status": "active",
+    "new_status": "waiting_for_inflow",
+    "url": "/funding/cases/1/"
+  }
+}</pre>
+            <p style="margin-top: 12px;"><strong>Проверка подписи (Python):</strong></p>
+            <pre>import hmac, hashlib
+signature = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+assert signature == request.headers["X-NEUX-Signature"]</pre>
+            <p style="margin-top: 12px;"><strong>Retry-политика:</strong> 10 подряд неудачных ответов (не 2xx) → подписка автоматически отключается. Включите вручную после исправления endpoint-а.</p>
+        </div>
+    </section>
+{% endblock %}

@@ -46,6 +46,7 @@ from core.views import (
     api_tokens,
     exchange_rates,
     period_close,
+    webhooks_index,
     plan_fact_report,
     profit_loss_report,
     planning_budgets,
@@ -126,6 +127,7 @@ urlpatterns = [
     path("settings/exchange-rates/", exchange_rates, name="exchange_rates"),
     path("settings/allocations/", allocations_index, name="allocations_index"),
     path("settings/api-tokens/", api_tokens, name="api_tokens"),
+    path("settings/webhooks/", webhooks_index, name="webhooks_index"),
     # REST API v1
     path("api/v1/", api_root, name="api_root"),
     path("api/v1/funding-cases/", api_funding_cases, name="api_funding_cases"),

@@ -180,10 +180,23 @@ def funding_case_detail(request, case_id: int):
                 new_status = request.POST.get("new_status")
                 if new_status not in FundingCaseStatus.values:
                     raise ValueError("Неизвестный статус")
+                old_status = case.status
                 case.status = new_status
                 if new_status == FundingCaseStatus.CLOSED:
                     case.closed_at = timezone.localdate()
                 case.save(update_fields=["status", "closed_at", "updated_at"])
+                # Webhook: уведомим внешние системы о смене статуса
+                from ..models import WebhookSubscription
+                from ..services.webhooks import fire_webhook
+                fire_webhook(WebhookSubscription.EVENT_CASE_STATUS, {
+                    "case_id": case.id,
+                    "code": case.code,
+                    "name": case.name,
+                    "organization": case.organization.name,
+                    "old_status": old_status,
+                    "new_status": new_status,
+                    "url": f"/funding/cases/{case.id}/",
+                })
                 AuditLog.objects.create(
                     user=request.user,
                     action=AuditAction.UPDATE,
@@ -365,6 +378,17 @@ def _create_case(request, org) -> FundingCase:
         object_id=str(case.pk),
         message=f"Создан кейс финансирования {case.code} ({case.name})",
     )
+    # Webhook: уведомим внешние системы о новом кейсе
+    from ..models import WebhookSubscription
+    from ..services.webhooks import fire_webhook
+    fire_webhook(WebhookSubscription.EVENT_CASE_CREATED, {
+        "case_id": case.id,
+        "code": case.code,
+        "name": case.name,
+        "organization": case.organization.name,
+        "owner": case.owner.username if case.owner else None,
+        "url": f"/funding/cases/{case.id}/",
+    })
     return case
 
 
